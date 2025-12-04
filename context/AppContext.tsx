@@ -108,7 +108,7 @@ interface AppContextType {
   addDeviceType: (name: string) => void;
   removeDeviceType: (id: string) => void;
   addDevice: (device: Omit<Device, 'id' | 'events' | 'status' | 'opsStatus' | 'cpuUsage' | 'memoryUsage' | 'signalStrength' | 'firstStartTime' | 'lastTestTime'>) => void;
-  updateDevice: (id: string, data: Partial<Device>) => void;
+  updateDevice: (id: string, data: Partial<Device>, customEventMessage?: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -178,34 +178,65 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setDevices([newDevice, ...devices]);
   };
 
-  const updateDevice = (id: string, data: Partial<Device>) => {
+  const updateDevice = (id: string, data: Partial<Device>, customEventMessage?: string) => {
     setDevices(prevDevices => prevDevices.map(d => {
       if (d.id === id) {
         const currentEvents = d.events || [];
         const newEvents: DeviceEvent[] = [];
         const timestamp = new Date().toLocaleString();
 
-        // Check for OpsStatus Change
-        if (data.opsStatus && data.opsStatus !== d.opsStatus) {
+        // 1. Handle Custom Message Event (Priority for manual log inputs)
+        if (customEventMessage) {
+             let type: 'info' | 'warning' | 'error' = 'info';
+             if (data.opsStatus === OpsStatus.ABNORMAL) type = 'error';
+             else if (data.opsStatus === OpsStatus.REPAIRING) type = 'warning';
+
+             newEvents.push({
+                id: `evt-custom-${Date.now()}-${Math.random()}`,
+                type: type,
+                message: customEventMessage,
+                timestamp: timestamp,
+                operator: currentUser || 'System'
+            });
+        }
+        // 2. Handle Automatic Ops Status Logging (if no custom message)
+        else if (data.opsStatus && data.opsStatus !== d.opsStatus) {
             let type: 'info' | 'warning' | 'error' = 'info';
             if (data.opsStatus === OpsStatus.ABNORMAL) type = 'error';
             if (data.opsStatus === OpsStatus.REPAIRING) type = 'warning';
             newEvents.push({
-                id: `evt-ops-${Date.now()}`,
+                id: `evt-ops-${Date.now()}-${Math.random()}`,
                 type: type,
                 message: `运维状态变更为: ${data.opsStatus}`,
                 timestamp: timestamp,
                 operator: currentUser || 'System'
             });
         }
+
+        // 3. Handle Status Changes (Run/Sleep/Restart) - Auto log if no custom message covers it
+        if (!customEventMessage && data.status && data.status !== d.status) {
+             const statusMap = {
+                 [DeviceStatus.ONLINE]: '运行中',
+                 [DeviceStatus.STANDBY]: '待机中',
+                 [DeviceStatus.OFFLINE]: '未联网',
+                 [DeviceStatus.IN_USE]: '使用中',
+             };
+             newEvents.push({
+                id: `evt-status-${Date.now()}-${Math.random()}`,
+                type: 'info',
+                message: `设备状态变更为: ${statusMap[data.status] || data.status}`,
+                timestamp: timestamp,
+                operator: currentUser || 'System'
+            });
+        }
         
-        // Check for Detail Changes (Name, SN, Room, Software, Image)
+        // 4. Check for Detail Changes (only if not covered above, though they can coexist)
         const relevantKeys: (keyof Device)[] = ['name', 'sn', 'roomNumber', 'softwareName', 'imageUrl', 'mac'];
         const hasDetailChanges = relevantKeys.some(key => data[key] !== undefined && data[key] !== d[key]);
         
         if (hasDetailChanges) {
              newEvents.push({
-                id: `evt-detail-${Date.now()}`,
+                id: `evt-detail-${Date.now()}-${Math.random()}`,
                 type: 'info',
                 message: '设备详情已修改',
                 timestamp: timestamp,

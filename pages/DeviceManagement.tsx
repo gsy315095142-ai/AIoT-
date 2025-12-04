@@ -2,7 +2,7 @@
 import React, { useState, useMemo, ChangeEvent, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Device, OpsStatus, DeviceStatus, DeviceImage } from '../types';
-import { ChevronDown, ChevronUp, Plus, Wifi, Image as ImageIcon, Search, CheckSquare, Square, X, FilePenLine, ClipboardList, Battery, Volume2, Check, X as XIcon, Upload } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Wifi, Image as ImageIcon, Search, CheckSquare, Square, X, FilePenLine, ClipboardList, Battery, Volume2, Check, X as XIcon, Upload, Settings2, Play, Moon, RotateCcw, ClipboardCheck } from 'lucide-react';
 
 const CATEGORY_LIMITS: Record<string, number> = {
   '设备外观': 2,
@@ -260,11 +260,15 @@ export const DeviceManagement: React.FC = () => {
   const [expandedDeviceId, setExpandedDeviceId] = useState<string | null>(null);
   const [selectedDeviceIds, setSelectedDeviceIds] = useState<Set<string>>(new Set());
   
-  // Add Device Modal State
+  // Modal States
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  
-  // Image Manager Modal State
   const [editingImageDevice, setEditingImageDevice] = useState<Device | null>(null);
+  const [isControlMenuOpen, setIsControlMenuOpen] = useState(false);
+  const [isOpsStatusModalOpen, setIsOpsStatusModalOpen] = useState(false);
+  
+  // Ops Status Change State
+  const [opsChangeStatus, setOpsChangeStatus] = useState<OpsStatus>(OpsStatus.INSPECTED);
+  const [opsChangeReason, setOpsChangeReason] = useState('');
 
   // Form State for Add Device Only
   interface DeviceFormState {
@@ -350,6 +354,56 @@ export const DeviceManagement: React.FC = () => {
 
   const toggleExpand = (id: string) => {
     setExpandedDeviceId(expandedDeviceId === id ? null : id);
+  };
+
+  // --- Device Control Handlers ---
+
+  const handleBatchRun = () => {
+    if (selectedDeviceIds.size === 0) return;
+    selectedDeviceIds.forEach(id => {
+      updateDevice(id, { status: DeviceStatus.ONLINE });
+    });
+    setIsControlMenuOpen(false);
+    setSelectedDeviceIds(new Set()); // Optional: clear selection after action
+  };
+
+  const handleBatchSleep = () => {
+    if (selectedDeviceIds.size === 0) return;
+    selectedDeviceIds.forEach(id => {
+      updateDevice(id, { status: DeviceStatus.STANDBY });
+    });
+    setIsControlMenuOpen(false);
+    setSelectedDeviceIds(new Set());
+  };
+
+  const handleBatchRestart = () => {
+    if (selectedDeviceIds.size === 0) return;
+    selectedDeviceIds.forEach(id => {
+      updateDevice(id, { status: DeviceStatus.OFFLINE });
+    });
+    setIsControlMenuOpen(false);
+    setSelectedDeviceIds(new Set());
+  };
+
+  const openOpsStatusModal = () => {
+    if (selectedDeviceIds.size === 0) return;
+    setOpsChangeReason('');
+    setOpsChangeStatus(OpsStatus.INSPECTED);
+    setIsOpsStatusModalOpen(true);
+    setIsControlMenuOpen(false);
+  };
+
+  const handleBatchOpsStatusSubmit = () => {
+    if (!opsChangeReason.trim()) {
+      alert("请输入变更说明");
+      return;
+    }
+    selectedDeviceIds.forEach(id => {
+      // Pass reason as custom event message
+      updateDevice(id, { opsStatus: opsChangeStatus }, opsChangeReason);
+    });
+    setIsOpsStatusModalOpen(false);
+    setSelectedDeviceIds(new Set());
   };
 
   // Add Device Handlers
@@ -774,7 +828,7 @@ export const DeviceManagement: React.FC = () => {
           </div>
           
           {/* Select All Footer */}
-          <div className="mt-2 flex items-center gap-2 px-2">
+          <div className="mt-2 flex items-center gap-2 px-2 pb-4">
               <div className="cursor-pointer text-slate-500 flex items-center gap-1" onClick={toggleSelectAll}>
                 {selectedDeviceIds.size > 0 && selectedDeviceIds.size === filteredDevices.length 
                     ? <CheckSquare size={16} className="text-blue-500" /> 
@@ -784,6 +838,106 @@ export const DeviceManagement: React.FC = () => {
               </div>
           </div>
       </div>
+
+        {/* 4. Bottom Control Bar (Fixed) */}
+        <div className="absolute bottom-[64px] left-0 right-0 p-3 flex justify-center z-20 pointer-events-none">
+            <button
+                onClick={() => setIsControlMenuOpen(true)}
+                disabled={selectedDeviceIds.size === 0}
+                className={`bg-slate-800 text-white shadow-lg rounded-full px-6 py-3 flex items-center gap-2 font-bold text-sm pointer-events-auto transition-transform active:scale-95 ${selectedDeviceIds.size === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-700'}`}
+            >
+                <Settings2 size={18} />
+                <span>设备管控 {selectedDeviceIds.size > 0 && `(${selectedDeviceIds.size})`}</span>
+            </button>
+        </div>
+
+        {/* 5. Device Control Menu Popup */}
+        {isControlMenuOpen && (
+            <div className="absolute inset-0 z-50 flex flex-col justify-end">
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsControlMenuOpen(false)}></div>
+                <div className="bg-white rounded-t-2xl p-6 relative z-10 animate-slideUp">
+                    <div className="flex justify-between items-center mb-6">
+                         <h3 className="font-bold text-slate-800 text-lg">设备批量管控</h3>
+                         <button onClick={() => setIsControlMenuOpen(false)} className="bg-slate-100 p-1 rounded-full"><X size={20} className="text-slate-500" /></button>
+                    </div>
+                    <div className="grid grid-cols-4 gap-4">
+                         <button onClick={handleBatchRun} className="flex flex-col items-center gap-2 group">
+                             <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center group-hover:bg-green-200 transition-colors">
+                                 <Play size={24} fill="currentColor" />
+                             </div>
+                             <span className="text-xs font-bold text-slate-700">运行设备</span>
+                         </button>
+                         <button onClick={handleBatchSleep} className="flex flex-col items-center gap-2 group">
+                             <div className="w-12 h-12 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center group-hover:bg-yellow-200 transition-colors">
+                                 <Moon size={24} fill="currentColor" />
+                             </div>
+                             <span className="text-xs font-bold text-slate-700">休眠设备</span>
+                         </button>
+                         <button onClick={handleBatchRestart} className="flex flex-col items-center gap-2 group">
+                             <div className="w-12 h-12 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center group-hover:bg-slate-200 transition-colors">
+                                 <RotateCcw size={24} />
+                             </div>
+                             <span className="text-xs font-bold text-slate-700">重启设备</span>
+                         </button>
+                         <button onClick={openOpsStatusModal} className="flex flex-col items-center gap-2 group">
+                             <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                                 <ClipboardCheck size={24} />
+                             </div>
+                             <span className="text-xs font-bold text-slate-700">运维状态</span>
+                         </button>
+                    </div>
+                    <div className="h-6"></div>
+                </div>
+            </div>
+        )}
+
+        {/* 6. Ops Status Change Modal */}
+        {isOpsStatusModalOpen && (
+            <div className="absolute inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden p-6 animate-scaleIn">
+                    <h3 className="font-bold text-lg text-slate-800 mb-4">修改运维状态</h3>
+                    
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">新的状态</label>
+                            <select 
+                                value={opsChangeStatus} 
+                                onChange={(e) => setOpsChangeStatus(e.target.value as OpsStatus)}
+                                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-blue-100"
+                            >
+                                {Object.values(OpsStatus).map(status => (
+                                    <option key={status} value={status}>{status}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">变更说明 (必填)</label>
+                            <textarea 
+                                value={opsChangeReason}
+                                onChange={(e) => setOpsChangeReason(e.target.value)}
+                                placeholder="请输入状态变更的原因..."
+                                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-blue-100 min-h-[80px]"
+                            ></textarea>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3 mt-6">
+                        <button 
+                            onClick={() => setIsOpsStatusModalOpen(false)}
+                            className="flex-1 py-2 bg-slate-100 text-slate-600 font-bold rounded-lg text-sm hover:bg-slate-200"
+                        >
+                            取消
+                        </button>
+                        <button 
+                            onClick={handleBatchOpsStatusSubmit}
+                            className="flex-1 py-2 bg-blue-600 text-white font-bold rounded-lg text-sm hover:bg-blue-700 shadow-lg shadow-blue-200"
+                        >
+                            确认变更
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
 
        {/* Add Device Modal Only */}
        {isAddModalOpen && (
