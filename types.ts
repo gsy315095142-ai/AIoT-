@@ -35,10 +35,16 @@ export type DeviceEvent = {
   timestamp: string;
 };
 
+export type DeviceImage = {
+  url: string;
+  category: string; // '设备外观', '安装现场', '其他'
+};
+
 export type Device = {
   id: string;
   name: string;
   sn: string;
+  mac?: string; // New MAC Address field
   regionId: string;
   storeId: string;
   typeId: string;
@@ -46,7 +52,8 @@ export type Device = {
   // Hardware/Soft Details
   roomNumber: string;
   softwareName: string;
-  imageUrl?: string;
+  imageUrl?: string; // Main thumbnail for list view
+  images?: DeviceImage[]; // Multiple images support
   
   // Statuses
   status: DeviceStatus;

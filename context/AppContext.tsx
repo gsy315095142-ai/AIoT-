@@ -26,6 +26,7 @@ const MOCK_DEVICES: Device[] = [
     id: 'd1',
     name: 'ZX-001',
     sn: 'SN-2023-8888',
+    mac: '00:1A:2B:3C:4D:5E',
     regionId: 'r1',
     storeId: 's1',
     typeId: 't1',
@@ -39,6 +40,7 @@ const MOCK_DEVICES: Device[] = [
     firstStartTime: '2023-01-15T09:00:00',
     lastTestTime: '2023-10-25T14:30:00',
     imageUrl: 'https://picsum.photos/200/200?random=1',
+    images: [{ url: 'https://picsum.photos/200/200?random=1', category: '设备外观' }],
     events: [
       { id: 'e1', type: 'info', message: '系统启动成功', timestamp: '2023-10-25T09:00:00' },
       { id: 'e2', type: 'warning', message: '网络延迟较高', timestamp: '2023-10-25T11:20:00' }
@@ -48,6 +50,7 @@ const MOCK_DEVICES: Device[] = [
     id: 'd2',
     name: 'DT-Pro',
     sn: 'SN-2023-9999',
+    mac: 'AA:BB:CC:DD:EE:FF',
     regionId: 'r1',
     storeId: 's1',
     typeId: 't2',
@@ -61,12 +64,14 @@ const MOCK_DEVICES: Device[] = [
     firstStartTime: '2023-02-20T10:00:00',
     lastTestTime: '2023-10-26T10:00:00',
     imageUrl: 'https://picsum.photos/200/200?random=2',
+    images: [{ url: 'https://picsum.photos/200/200?random=2', category: '设备外观' }],
     events: []
   },
   {
     id: 'd3',
     name: 'YVR-Lite',
     sn: 'SN-2023-7777',
+    mac: '11:22:33:44:55:66',
     regionId: 'r2',
     storeId: 's3',
     typeId: 't3',
@@ -80,6 +85,7 @@ const MOCK_DEVICES: Device[] = [
     firstStartTime: '2023-03-10T08:00:00',
     lastTestTime: '2023-10-26T09:00:00',
     imageUrl: 'https://picsum.photos/200/200?random=3',
+    images: [{ url: 'https://picsum.photos/200/200?random=3', category: '设备外观' }],
     events: []
   }
 ];
@@ -189,7 +195,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
         
         // Check for Detail Changes (Name, SN, Room, Software, Image)
-        const relevantKeys: (keyof Device)[] = ['name', 'sn', 'roomNumber', 'softwareName', 'imageUrl'];
+        const relevantKeys: (keyof Device)[] = ['name', 'sn', 'roomNumber', 'softwareName', 'imageUrl', 'mac'];
         const hasDetailChanges = relevantKeys.some(key => data[key] !== undefined && data[key] !== d[key]);
         
         if (hasDetailChanges) {
