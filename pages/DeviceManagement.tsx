@@ -22,10 +22,12 @@ export const DeviceManagement: React.FC = () => {
   // UI States
   const [expandedDeviceId, setExpandedDeviceId] = useState<string | null>(null);
   const [selectedDeviceIds, setSelectedDeviceIds] = useState<Set<string>>(new Set());
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formMode, setFormMode] = useState<'add' | 'edit'>('add');
+  const [editingDeviceId, setEditingDeviceId] = useState<string | null>(null);
   
   // Form State
-  interface NewDeviceFormState {
+  interface DeviceFormState {
     name: string;
     sn: string;
     mac: string;
@@ -34,22 +36,38 @@ export const DeviceManagement: React.FC = () => {
     typeId: string;
     roomNumber: string;
     softwareName: string;
+    firstStartTime: string; // 'YYYY-MM-DDTHH:mm' for input
     images: DeviceImage[];
   }
 
-  const [newDeviceForm, setNewDeviceForm] = useState<NewDeviceFormState>({
-    name: '', sn: '', mac: '', regionId: '', storeId: '', typeId: '', roomNumber: '', softwareName: '', images: []
-  });
+  const initialFormState: DeviceFormState = {
+    name: '', sn: '', mac: '', regionId: '', storeId: '', typeId: '', roomNumber: '', softwareName: '', firstStartTime: '', images: []
+  };
+
+  const [deviceForm, setDeviceForm] = useState<DeviceFormState>(initialFormState);
 
   // Helpers
   const getStoreName = (id: string) => stores.find(s => s.id === id)?.name || '-';
   const getTypeName = (id: string) => deviceTypes.find(t => t.id === id)?.name || '-';
 
   const calculateDuration = (dateStr: string) => {
+    if (!dateStr) return '-';
     const start = new Date(dateStr).getTime();
     const now = new Date().getTime();
+    if (isNaN(start)) return '-';
     const days = Math.floor((now - start) / (1000 * 60 * 60 * 24));
     return days > 0 ? `${days}d` : '1d';
+  };
+
+  // Date helpers
+  const toInputDate = (dateStr: string) => {
+    // Convert '2025-08-02 14:00' to '2025-08-02T14:00'
+    return dateStr.replace(' ', 'T');
+  };
+
+  const fromInputDate = (dateStr: string) => {
+    // Convert '2025-08-02T14:00' to '2025-08-02 14:00'
+    return dateStr.replace('T', ' ');
   };
 
   // Filter Logic
@@ -105,21 +123,45 @@ export const DeviceManagement: React.FC = () => {
   // Image Logic
   const imageCounts = useMemo(() => {
     const counts: Record<string, number> = { '设备外观': 0, '安装现场': 0, '其他': 0 };
-    newDeviceForm.images.forEach(img => {
+    deviceForm.images.forEach(img => {
       if (counts[img.category] !== undefined) {
         counts[img.category]++;
       }
     });
     return counts;
-  }, [newDeviceForm.images]);
+  }, [deviceForm.images]);
 
   const isTotalLimitReached = useMemo(() => {
      return Object.keys(CATEGORY_LIMITS).every(cat => (imageCounts[cat] || 0) >= CATEGORY_LIMITS[cat]);
   }, [imageCounts]);
 
-  // Add Device Handlers
+  // Handlers
+  const openAddModal = () => {
+    setFormMode('add');
+    setEditingDeviceId(null);
+    setDeviceForm({ ...initialFormState });
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (device: Device) => {
+    setFormMode('edit');
+    setEditingDeviceId(device.id);
+    setDeviceForm({
+      name: device.name,
+      sn: device.sn,
+      mac: device.mac || '',
+      regionId: device.regionId,
+      storeId: device.storeId,
+      typeId: device.typeId,
+      roomNumber: device.roomNumber || '',
+      softwareName: device.softwareName || '',
+      firstStartTime: device.firstStartTime ? toInputDate(device.firstStartTime) : '',
+      images: device.images && device.images.length > 0 ? [...device.images] : (device.imageUrl ? [{url: device.imageUrl, category: '设备外观'}] : [])
+    });
+    setIsModalOpen(true);
+  };
+
   const handleAddImage = (e: ChangeEvent<HTMLInputElement>) => {
-    // Find first available category
     const availableCategory = Object.keys(CATEGORY_LIMITS).find(cat => (imageCounts[cat] || 0) < CATEGORY_LIMITS[cat]);
 
     if (!availableCategory) {
@@ -130,46 +172,52 @@ export const DeviceManagement: React.FC = () => {
 
     if (e.target.files && e.target.files[0]) {
       const url = URL.createObjectURL(e.target.files[0]);
-      // Use the available category as default
       const newImage: DeviceImage = { url, category: availableCategory }; 
-      setNewDeviceForm(prev => ({
+      setDeviceForm(prev => ({
         ...prev,
-        images: [newImage, ...prev.images] // Add to top
+        images: [newImage, ...prev.images]
       }));
-      // Reset input value
       e.target.value = '';
     }
   };
 
   const handleRemoveImage = (index: number) => {
-    setNewDeviceForm(prev => ({
+    setDeviceForm(prev => ({
       ...prev,
       images: prev.images.filter((_, i) => i !== index)
     }));
   };
 
   const handleImageCategoryChange = (index: number, newCategory: string) => {
-     setNewDeviceForm(prev => {
+     setDeviceForm(prev => {
         const updatedImages = [...prev.images];
         updatedImages[index].category = newCategory;
         return { ...prev, images: updatedImages };
      });
   };
 
-  const handleAddSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newDeviceForm.typeId || !newDeviceForm.name || !newDeviceForm.sn) return; // Basic validation
+    if (!deviceForm.typeId || !deviceForm.name || !deviceForm.sn) return; 
     
-    addDevice({
-        ...newDeviceForm,
-        // Use the first image as the main thumbnail, if any
-        imageUrl: newDeviceForm.images.length > 0 ? newDeviceForm.images[0].url : undefined
-    });
+    const imageUrl = deviceForm.images.length > 0 ? deviceForm.images[0].url : undefined;
+    const formattedDate = deviceForm.firstStartTime ? fromInputDate(deviceForm.firstStartTime) : new Date().toLocaleString();
+
+    if (formMode === 'add') {
+      addDevice({
+          ...deviceForm,
+          firstStartTime: formattedDate,
+          imageUrl
+      });
+    } else if (formMode === 'edit' && editingDeviceId) {
+      updateDevice(editingDeviceId, {
+          ...deviceForm,
+          firstStartTime: formattedDate,
+          imageUrl
+      });
+    }
     
-    setIsAddModalOpen(false);
-    setNewDeviceForm({
-        name: '', sn: '', mac: '', regionId: '', storeId: '', typeId: '', roomNumber: '', softwareName: '', images: []
-    });
+    setIsModalOpen(false);
   };
 
   const getRowStyle = (d: Device) => {
@@ -178,13 +226,10 @@ export const DeviceManagement: React.FC = () => {
     if (d.opsStatus === OpsStatus.PENDING) return 'bg-orange-200 border-orange-300 text-orange-900';
     if (d.status === DeviceStatus.OFFLINE) return 'bg-slate-200 border-slate-300 text-slate-700';
     if (d.status === DeviceStatus.ONLINE || d.status === DeviceStatus.IN_USE) return 'bg-green-200 border-green-300 text-green-900';
-    return 'bg-yellow-100 border-yellow-200 text-yellow-900'; // Default/Standby
+    return 'bg-yellow-100 border-yellow-200 text-yellow-900'; 
   };
 
-  const DeviceDetailCard: React.FC<{ device: Device }> = ({ device }) => {
-    // In a real app, you would handle edit mode state here to toggle inputs
-    // For this UI mockup, we primarily display the read-only view with edit icons
-
+  const DeviceDetailCard: React.FC<{ device: Device; onEdit: (d: Device) => void }> = ({ device, onEdit }) => {
     return (
       <div className="bg-white p-3 border-t border-slate-100 animate-fadeIn shadow-inner grid grid-cols-2 gap-3">
         {/* Left Column: Info & Image */}
@@ -193,7 +238,7 @@ export const DeviceManagement: React.FC = () => {
             {/* Header: Name */}
             <div className="flex items-center gap-1">
                 <span className="font-bold text-sm text-slate-900">{device.name}</span>
-                <FilePenLine size={12} className="text-blue-500 cursor-pointer" />
+                <FilePenLine size={12} className="text-blue-500 cursor-pointer" onClick={() => onEdit(device)} />
             </div>
 
             {/* Info Table Style */}
@@ -210,40 +255,41 @@ export const DeviceManagement: React.FC = () => {
                     <span className="text-slate-500 w-16">设备类型</span>
                     <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1.5 py-0.5 bg-slate-50">
                         <span className="text-slate-700">{getTypeName(device.typeId)}</span>
-                        <FilePenLine size={10} className="text-blue-400" />
+                        <FilePenLine size={10} className="text-blue-400 cursor-pointer" onClick={() => onEdit(device)} />
                     </div>
                 </div>
                 <div className="flex text-[10px] items-center">
                     <span className="text-slate-500 w-16">所属门店</span>
                     <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1.5 py-0.5 bg-slate-50">
                         <span className="text-slate-700 truncate">{getStoreName(device.storeId)}</span>
-                        <FilePenLine size={10} className="text-blue-400" />
+                        <FilePenLine size={10} className="text-blue-400 cursor-pointer" onClick={() => onEdit(device)} />
                     </div>
                 </div>
                 <div className="flex text-[10px] items-center">
                     <span className="text-slate-500 w-16">房间号码</span>
                     <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1.5 py-0.5 bg-slate-50">
                         <span className="text-slate-700">{device.roomNumber || '-'}</span>
-                        <FilePenLine size={10} className="text-blue-400" />
+                        <FilePenLine size={10} className="text-blue-400 cursor-pointer" onClick={() => onEdit(device)} />
                     </div>
                 </div>
                  <div className="flex text-[10px] items-center">
                     <span className="text-slate-500 w-16">体验软件</span>
-                    <div className="flex-1 border-b border-slate-100 py-0.5">
+                    <div className="flex-1 flex justify-between items-center border-b border-slate-100 py-0.5">
                         <span className="text-slate-700">{device.softwareName || '-'}</span>
+                         <FilePenLine size={10} className="text-blue-400 cursor-pointer" onClick={() => onEdit(device)} />
                     </div>
                 </div>
                 <div className="flex text-[10px] items-center">
                     <span className="text-slate-500 w-16">首次启动</span>
                     <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1.5 py-0.5 bg-slate-50">
-                        <span className="text-slate-700">{device.firstStartTime.split(' ')[0] || '2025-08-02'} {device.firstStartTime.split(' ')[1]?.slice(0,5) || '14:00'}</span>
-                        <FilePenLine size={10} className="text-blue-400" />
+                        <span className="text-slate-700">{device.firstStartTime.split(' ')[0] || '-'} {device.firstStartTime.split(' ')[1]?.slice(0,5) || ''}</span>
+                        <FilePenLine size={10} className="text-blue-400 cursor-pointer" onClick={() => onEdit(device)} />
                     </div>
                 </div>
                 <div className="flex text-[10px] items-center">
                     <span className="text-slate-500 w-16">最近测试</span>
                     <div className="flex-1 flex items-center gap-1">
-                        <span className="text-slate-700">{device.lastTestTime.split(' ')[0] || '2025-08-25'} {device.lastTestTime.split(' ')[1]?.slice(0,5) || '11:00'}</span>
+                        <span className="text-slate-700">{device.lastTestTime.split(' ')[0] || '-'} {device.lastTestTime.split(' ')[1]?.slice(0,5) || ''}</span>
                         <span className="bg-green-100 text-green-600 px-1 rounded text-[9px] font-bold">合格</span>
                         <ClipboardList size={12} className="text-blue-500" />
                     </div>
@@ -259,7 +305,10 @@ export const DeviceManagement: React.FC = () => {
                         <ImageIcon size={24} />
                     </div>
                 )}
-                <div className="absolute bottom-0 left-0 right-0 bg-blue-600/80 text-white text-[10px] text-center py-1 cursor-pointer hover:bg-blue-600 transition-colors">
+                <div 
+                    onClick={() => onEdit(device)}
+                    className="absolute bottom-0 left-0 right-0 bg-blue-600/80 text-white text-[10px] text-center py-1 cursor-pointer hover:bg-blue-600 transition-colors"
+                >
                     点击进行查看/修改
                 </div>
             </div>
@@ -336,14 +385,14 @@ export const DeviceManagement: React.FC = () => {
          {/* Top Controls */}
          <div className="flex justify-between items-center mb-4">
              <button 
-                onClick={() => setIsAddModalOpen(true)}
+                onClick={openAddModal}
                 className="text-white hover:bg-white/10 p-2 rounded-lg transition-colors flex items-center gap-1"
              >
                  <Plus size={24} />
                  <span className="text-xs font-bold">新增设备</span>
              </button>
              <h2 className="text-lg font-bold text-white tracking-wide">设备管理</h2>
-             <div className="w-8"></div> {/* Spacer for centering */}
+             <div className="w-8"></div>
          </div>
 
          {/* Filter Row */}
@@ -475,7 +524,7 @@ export const DeviceManagement: React.FC = () => {
                              </div>
                          </div>
                          
-                         {isExpanded && <DeviceDetailCard device={device} />}
+                         {isExpanded && <DeviceDetailCard device={device} onEdit={openEditModal} />}
                      </div>
                  );
              })}
@@ -493,31 +542,33 @@ export const DeviceManagement: React.FC = () => {
           </div>
       </div>
 
-       {/* Add Device Mobile Modal (Full Screen Overlay) */}
-       {isAddModalOpen && (
+       {/* Shared Modal (Add / Edit) */}
+       {isModalOpen && (
         <div className="absolute inset-0 z-50 bg-white flex flex-col animate-fadeIn">
             <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
-              <h2 className="text-lg font-bold text-slate-800">添加新设备</h2>
-              <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-2">
+              <h2 className="text-lg font-bold text-slate-800">
+                {formMode === 'add' ? '添加新设备' : '编辑设备详情'}
+              </h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-2">
                   <span className="text-2xl">&times;</span>
               </button>
             </div>
             
             <div className="flex-1 overflow-y-auto p-4 bg-slate-50">
-                <form onSubmit={handleAddSubmit} className="space-y-4">
+                <form onSubmit={handleFormSubmit} className="space-y-4">
                     
-                    {/* Image Upload Section - Moved to Top */}
+                    {/* Image Upload Section */}
                     <div className="bg-white p-4 rounded-xl shadow-sm space-y-4">
                         <div>
                             <div className="flex justify-between items-center mb-2">
                                 <label className="block text-xs font-bold text-slate-500 uppercase">设备缩略图</label>
                                 <span className={`text-[10px] ${isTotalLimitReached ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
-                                    {newDeviceForm.images.length}/5 (总限)
+                                    {deviceForm.images.length}/5 (总限)
                                 </span>
                             </div>
                             
                             <div className="flex gap-2 overflow-x-auto pb-2 mb-2 no-scrollbar">
-                                {newDeviceForm.images.map((img, index) => (
+                                {deviceForm.images.map((img, index) => (
                                     <div key={index} className="flex-shrink-0 relative group w-24">
                                         <div className="h-24 w-24 rounded-lg overflow-hidden border border-slate-200">
                                             <img src={img.url} alt="Preview" className="w-full h-full object-cover" />
@@ -532,8 +583,6 @@ export const DeviceManagement: React.FC = () => {
                                         >
                                             {Object.entries(CATEGORY_LIMITS).map(([cat, limit]) => {
                                                 const count = imageCounts[cat] || 0;
-                                                // Disable if limit reached AND it's not the currently selected category for this image
-                                                // This allows keeping the current selection but prevents switching TO a full category
                                                 const isFull = count >= limit;
                                                 const isCurrent = img.category === cat;
                                                 const isDisabled = isFull && !isCurrent;
@@ -571,17 +620,17 @@ export const DeviceManagement: React.FC = () => {
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">设备名称 *</label>
                             <input required type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50" 
-                                value={newDeviceForm.name} onChange={e => setNewDeviceForm({...newDeviceForm, name: e.target.value})} placeholder="例如: VR-009" />
+                                value={deviceForm.name} onChange={e => setDeviceForm({...deviceForm, name: e.target.value})} placeholder="例如: VR-009" />
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">SN号 *</label>
                             <input required type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50" 
-                                value={newDeviceForm.sn} onChange={e => setNewDeviceForm({...newDeviceForm, sn: e.target.value})} placeholder="例如: SN-2024-XXXX" />
+                                value={deviceForm.sn} onChange={e => setDeviceForm({...deviceForm, sn: e.target.value})} placeholder="例如: SN-2024-XXXX" />
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">MAC地址</label>
                             <input type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50" 
-                                value={newDeviceForm.mac} onChange={e => setNewDeviceForm({...newDeviceForm, mac: e.target.value})} placeholder="例如: 00:1A:2B:..." />
+                                value={deviceForm.mac} onChange={e => setDeviceForm({...deviceForm, mac: e.target.value})} placeholder="例如: 00:1A:2B:..." />
                         </div>
                     </div>
 
@@ -589,7 +638,7 @@ export const DeviceManagement: React.FC = () => {
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">所属大区 (选填)</label>
                             <select className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50"
-                                value={newDeviceForm.regionId} onChange={e => setNewDeviceForm({...newDeviceForm, regionId: e.target.value, storeId: ''})}
+                                value={deviceForm.regionId} onChange={e => setDeviceForm({...deviceForm, regionId: e.target.value, storeId: ''})}
                             >
                                 <option value="">请选择大区</option>
                                 {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
@@ -598,11 +647,11 @@ export const DeviceManagement: React.FC = () => {
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">所属门店 (选填)</label>
                             <select className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50"
-                                value={newDeviceForm.storeId} onChange={e => setNewDeviceForm({...newDeviceForm, storeId: e.target.value})}
-                                disabled={!newDeviceForm.regionId}
+                                value={deviceForm.storeId} onChange={e => setDeviceForm({...deviceForm, storeId: e.target.value})}
+                                disabled={!deviceForm.regionId}
                             >
                                 <option value="">请选择门店</option>
-                                {stores.filter(s => s.regionId === newDeviceForm.regionId).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                {stores.filter(s => s.regionId === deviceForm.regionId).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                             </select>
                         </div>
                     </div>
@@ -611,7 +660,7 @@ export const DeviceManagement: React.FC = () => {
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">设备类型 *</label>
                             <select required className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50"
-                                value={newDeviceForm.typeId} onChange={e => setNewDeviceForm({...newDeviceForm, typeId: e.target.value})}
+                                value={deviceForm.typeId} onChange={e => setDeviceForm({...deviceForm, typeId: e.target.value})}
                             >
                                 <option value="">请选择类型</option>
                                 {deviceTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -620,12 +669,17 @@ export const DeviceManagement: React.FC = () => {
                          <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">房间号码</label>
                             <input type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50" 
-                                value={newDeviceForm.roomNumber} onChange={e => setNewDeviceForm({...newDeviceForm, roomNumber: e.target.value})} />
+                                value={deviceForm.roomNumber} onChange={e => setDeviceForm({...deviceForm, roomNumber: e.target.value})} />
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">体验软件名称</label>
                             <input type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50" 
-                                value={newDeviceForm.softwareName} onChange={e => setNewDeviceForm({...newDeviceForm, softwareName: e.target.value})} />
+                                value={deviceForm.softwareName} onChange={e => setDeviceForm({...deviceForm, softwareName: e.target.value})} />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">首次启动时间</label>
+                            <input type="datetime-local" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50" 
+                                value={deviceForm.firstStartTime} onChange={e => setDeviceForm({...deviceForm, firstStartTime: e.target.value})} />
                         </div>
                     </div>
 
@@ -635,10 +689,10 @@ export const DeviceManagement: React.FC = () => {
             
             <div className="p-4 bg-white border-t border-slate-200 sticky bottom-0">
                  <button 
-                    onClick={handleAddSubmit}
+                    onClick={handleFormSubmit}
                     className="w-full py-3 bg-primary text-white font-bold rounded-xl shadow-lg shadow-blue-200 active:scale-98 transition-transform"
                  >
-                    确认添加设备
+                    {formMode === 'add' ? '确认添加设备' : '保存修改'}
                  </button>
             </div>
         </div>
