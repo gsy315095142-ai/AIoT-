@@ -1,14 +1,251 @@
 
-import React, { useState, useMemo, ChangeEvent } from 'react';
+import React, { useState, useMemo, ChangeEvent, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Device, OpsStatus, DeviceStatus, DeviceImage } from '../types';
-import { ChevronDown, ChevronUp, Plus, Wifi, Cpu, HardDrive, Image as ImageIcon, Search, CheckSquare, Square, X, FilePenLine, ClipboardList, Battery, Volume2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Wifi, Image as ImageIcon, Search, CheckSquare, Square, X, FilePenLine, ClipboardList, Battery, Volume2, Check, X as XIcon, Upload } from 'lucide-react';
 
 const CATEGORY_LIMITS: Record<string, number> = {
   '设备外观': 2,
   '安装现场': 2,
   '其他': 1
 };
+
+// --- Helper Components ---
+
+interface EditableFieldProps {
+  value: string;
+  displayValue?: React.ReactNode;
+  type: 'text' | 'select' | 'datetime-local';
+  options?: { label: string; value: string }[];
+  onSave: (newValue: string) => void;
+  className?: string;
+  label?: string;
+}
+
+const EditableField: React.FC<EditableFieldProps> = ({ value, displayValue, type, options, onSave, className, label }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempValue, setTempValue] = useState(value);
+
+  // Reset temp value when editing starts or value prop changes
+  useEffect(() => {
+    setTempValue(value);
+  }, [value, isEditing]);
+
+  const handleSave = () => {
+    if (tempValue !== value) {
+      onSave(tempValue);
+    }
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setTempValue(value);
+  };
+
+  if (isEditing) {
+    return (
+      <div className="flex items-center gap-1 flex-1 min-w-0 animate-fadeIn">
+        {type === 'select' ? (
+          <select
+            autoFocus
+            className="flex-1 text-[10px] border border-blue-400 rounded px-1 py-0.5 bg-white outline-none"
+            value={tempValue}
+            onChange={(e) => setTempValue(e.target.value)}
+          >
+            {options?.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        ) : (
+          <input
+            autoFocus
+            type={type}
+            className="flex-1 text-[10px] border border-blue-400 rounded px-1 py-0.5 bg-white outline-none min-w-0"
+            value={tempValue}
+            onChange={(e) => setTempValue(e.target.value)}
+          />
+        )}
+        <button onClick={handleSave} className="text-green-600 hover:bg-green-100 p-0.5 rounded">
+          <Check size={12} />
+        </button>
+        <button onClick={handleCancel} className="text-red-500 hover:bg-red-100 p-0.5 rounded">
+          <XIcon size={12} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`flex items-center justify-between group ${className}`}>
+      <span className="truncate mr-1">{displayValue || value || '-'}</span>
+      <FilePenLine 
+        size={10} 
+        className="text-blue-400 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" 
+        onClick={() => setIsEditing(true)} 
+      />
+    </div>
+  );
+};
+
+// --- Image Manager Modal ---
+
+interface ImageManagerModalProps {
+  device: Device;
+  onClose: () => void;
+}
+
+const ImageManagerModal: React.FC<ImageManagerModalProps> = ({ device, onClose }) => {
+  const { updateDevice } = useApp();
+  const [images, setImages] = useState<DeviceImage[]>(device.images || (device.imageUrl ? [{ url: device.imageUrl, category: '设备外观' }] : []));
+  const [activeTab, setActiveTab] = useState<string>('设备外观');
+
+  const imageCounts = useMemo(() => {
+    const counts: Record<string, number> = { '设备外观': 0, '安装现场': 0, '其他': 0 };
+    images.forEach(img => {
+      if (counts[img.category] !== undefined) {
+        counts[img.category]++;
+      }
+    });
+    return counts;
+  }, [images]);
+
+  const currentLimit = CATEGORY_LIMITS[activeTab];
+  const currentCount = imageCounts[activeTab] || 0;
+  const isCurrentTabFull = currentCount >= currentLimit;
+
+  const handleAddImage = (e: ChangeEvent<HTMLInputElement>) => {
+    if (isCurrentTabFull) return;
+
+    if (e.target.files && e.target.files[0]) {
+      const url = URL.createObjectURL(e.target.files[0]);
+      // Add image directly to the active category
+      const newImage: DeviceImage = { url, category: activeTab };
+      setImages(prev => [newImage, ...prev]);
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoveImage = (originalIndex: number) => {
+    setImages(prev => prev.filter((_, i) => i !== originalIndex));
+  };
+
+  const handleCategoryChange = (originalIndex: number, newCategory: string) => {
+    setImages(prev => {
+      const updated = [...prev];
+      updated[originalIndex] = { ...updated[originalIndex], category: newCategory };
+      return updated;
+    });
+  };
+
+  const handleSave = () => {
+    // Update device with new images list. Also update legacy imageUrl for list view compatibility
+    const mainImageUrl = images.length > 0 ? images[0].url : undefined;
+    updateDevice(device.id, { images, imageUrl: mainImageUrl });
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 animate-fadeIn">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[80vh]">
+        <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+          <h3 className="font-bold text-slate-800">管理设备图片</h3>
+          <button onClick={onClose}><X size={20} className="text-slate-400" /></button>
+        </div>
+        
+        {/* Tabs */}
+        <div className="flex border-b border-slate-100 bg-white overflow-x-auto no-scrollbar">
+            {Object.keys(CATEGORY_LIMITS).map(cat => {
+                const isActive = activeTab === cat;
+                const count = imageCounts[cat] || 0;
+                const limit = CATEGORY_LIMITS[cat];
+                return (
+                    <button
+                        key={cat}
+                        onClick={() => setActiveTab(cat)}
+                        className={`flex-1 py-3 text-xs font-medium text-center relative whitespace-nowrap px-2 transition-colors
+                            ${isActive ? 'text-blue-600 bg-blue-50/50' : 'text-slate-500 hover:text-slate-700'}
+                        `}
+                    >
+                        {cat} <span className="opacity-80">({count}/{limit})</span>
+                        {isActive && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600"></div>}
+                    </button>
+                )
+            })}
+        </div>
+        
+        <div className="p-4 overflow-y-auto flex-1">
+          <div className="grid grid-cols-2 gap-3">
+             {/* Upload Button for Active Category */}
+            <div className={`aspect-square border-2 border-dashed rounded-xl flex flex-col items-center justify-center transition-colors relative 
+                ${isCurrentTabFull ? 'border-slate-200 bg-slate-50 cursor-not-allowed opacity-50' : 'border-blue-300 bg-blue-50 hover:bg-blue-100 cursor-pointer'}`}>
+                <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleAddImage} 
+                    disabled={isCurrentTabFull}
+                    className={`absolute inset-0 z-10 w-full h-full ${isCurrentTabFull ? 'cursor-not-allowed' : 'cursor-pointer'} opacity-0`} 
+                />
+                <Upload className={isCurrentTabFull ? 'text-slate-300' : 'text-blue-500 mb-1'} size={24} />
+                <span className={`text-[10px] text-center px-1 ${isCurrentTabFull ? 'text-slate-300' : 'text-blue-600'}`}>
+                    {isCurrentTabFull ? '已达上限' : '上传图片'}
+                </span>
+            </div>
+
+            {images.map((img, index) => {
+                // Filter by active tab
+                if (img.category !== activeTab) return null;
+                
+                return (
+                    <div key={index} className="relative group border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm animate-fadeIn">
+                        <div className="aspect-square bg-slate-100 relative">
+                            <img src={img.url} alt={`img-${index}`} className="w-full h-full object-cover" />
+                            <button 
+                            onClick={() => handleRemoveImage(index)}
+                            className="absolute top-1 right-1 bg-red-500/80 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                            >
+                            <X size={10} />
+                            </button>
+                        </div>
+                        <div className="p-1">
+                        <select 
+                            value={img.category} 
+                            onChange={(e) => handleCategoryChange(index, e.target.value)}
+                            className="w-full text-[10px] border border-slate-200 rounded py-1 px-1 bg-slate-50 focus:outline-none"
+                        >
+                            {Object.entries(CATEGORY_LIMITS).map(([cat, limit]) => {
+                                const count = imageCounts[cat] || 0;
+                                const isFull = count >= limit;
+                                const isCurrent = img.category === cat;
+                                const isDisabled = isFull && !isCurrent;
+                                return (
+                                    <option key={cat} value={cat} disabled={isDisabled}>
+                                        {cat} ({count}/{limit})
+                                    </option>
+                                );
+                            })}
+                        </select>
+                        </div>
+                    </div>
+                );
+            })}
+          </div>
+        </div>
+
+        <div className="p-4 border-t border-slate-100 bg-slate-50">
+          <button 
+            onClick={handleSave}
+            className="w-full py-2 bg-primary text-white font-bold rounded-lg shadow-md active:scale-95 transition-transform text-sm"
+          >
+            保存更改
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- Main Page Component ---
 
 export const DeviceManagement: React.FC = () => {
   const { devices, regions, stores, deviceTypes, updateDevice, addDevice } = useApp();
@@ -22,11 +259,14 @@ export const DeviceManagement: React.FC = () => {
   // UI States
   const [expandedDeviceId, setExpandedDeviceId] = useState<string | null>(null);
   const [selectedDeviceIds, setSelectedDeviceIds] = useState<Set<string>>(new Set());
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formMode, setFormMode] = useState<'add' | 'edit'>('add');
-  const [editingDeviceId, setEditingDeviceId] = useState<string | null>(null);
   
-  // Form State
+  // Add Device Modal State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  
+  // Image Manager Modal State
+  const [editingImageDevice, setEditingImageDevice] = useState<Device | null>(null);
+
+  // Form State for Add Device Only
   interface DeviceFormState {
     name: string;
     sn: string;
@@ -36,7 +276,7 @@ export const DeviceManagement: React.FC = () => {
     typeId: string;
     roomNumber: string;
     softwareName: string;
-    firstStartTime: string; // 'YYYY-MM-DDTHH:mm' for input
+    firstStartTime: string; 
     images: DeviceImage[];
   }
 
@@ -59,16 +299,8 @@ export const DeviceManagement: React.FC = () => {
     return days > 0 ? `${days}d` : '1d';
   };
 
-  // Date helpers
-  const toInputDate = (dateStr: string) => {
-    // Convert '2025-08-02 14:00' to '2025-08-02T14:00'
-    return dateStr.replace(' ', 'T');
-  };
-
-  const fromInputDate = (dateStr: string) => {
-    // Convert '2025-08-02T14:00' to '2025-08-02 14:00'
-    return dateStr.replace('T', ' ');
-  };
+  const toInputDate = (dateStr: string) => dateStr.replace(' ', 'T');
+  const fromInputDate = (dateStr: string) => dateStr.replace('T', ' ');
 
   // Filter Logic
   const filteredDevices = useMemo(() => {
@@ -120,7 +352,7 @@ export const DeviceManagement: React.FC = () => {
     setExpandedDeviceId(expandedDeviceId === id ? null : id);
   };
 
-  // Image Logic
+  // Add Device Handlers
   const imageCounts = useMemo(() => {
     const counts: Record<string, number> = { '设备外观': 0, '安装现场': 0, '其他': 0 };
     deviceForm.images.forEach(img => {
@@ -135,33 +367,12 @@ export const DeviceManagement: React.FC = () => {
      return Object.keys(CATEGORY_LIMITS).every(cat => (imageCounts[cat] || 0) >= CATEGORY_LIMITS[cat]);
   }, [imageCounts]);
 
-  // Handlers
   const openAddModal = () => {
-    setFormMode('add');
-    setEditingDeviceId(null);
     setDeviceForm({ ...initialFormState });
-    setIsModalOpen(true);
+    setIsAddModalOpen(true);
   };
 
-  const openEditModal = (device: Device) => {
-    setFormMode('edit');
-    setEditingDeviceId(device.id);
-    setDeviceForm({
-      name: device.name,
-      sn: device.sn,
-      mac: device.mac || '',
-      regionId: device.regionId,
-      storeId: device.storeId,
-      typeId: device.typeId,
-      roomNumber: device.roomNumber || '',
-      softwareName: device.softwareName || '',
-      firstStartTime: device.firstStartTime ? toInputDate(device.firstStartTime) : '',
-      images: device.images && device.images.length > 0 ? [...device.images] : (device.imageUrl ? [{url: device.imageUrl, category: '设备外观'}] : [])
-    });
-    setIsModalOpen(true);
-  };
-
-  const handleAddImage = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleAddFormImage = (e: ChangeEvent<HTMLInputElement>) => {
     const availableCategory = Object.keys(CATEGORY_LIMITS).find(cat => (imageCounts[cat] || 0) < CATEGORY_LIMITS[cat]);
 
     if (!availableCategory) {
@@ -181,14 +392,14 @@ export const DeviceManagement: React.FC = () => {
     }
   };
 
-  const handleRemoveImage = (index: number) => {
+  const handleRemoveFormImage = (index: number) => {
     setDeviceForm(prev => ({
       ...prev,
       images: prev.images.filter((_, i) => i !== index)
     }));
   };
 
-  const handleImageCategoryChange = (index: number, newCategory: string) => {
+  const handleFormImageCategoryChange = (index: number, newCategory: string) => {
      setDeviceForm(prev => {
         const updatedImages = [...prev.images];
         updatedImages[index].category = newCategory;
@@ -196,28 +407,20 @@ export const DeviceManagement: React.FC = () => {
      });
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleAddSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!deviceForm.typeId || !deviceForm.name || !deviceForm.sn) return; 
     
     const imageUrl = deviceForm.images.length > 0 ? deviceForm.images[0].url : undefined;
     const formattedDate = deviceForm.firstStartTime ? fromInputDate(deviceForm.firstStartTime) : new Date().toLocaleString();
 
-    if (formMode === 'add') {
-      addDevice({
-          ...deviceForm,
-          firstStartTime: formattedDate,
-          imageUrl
-      });
-    } else if (formMode === 'edit' && editingDeviceId) {
-      updateDevice(editingDeviceId, {
-          ...deviceForm,
-          firstStartTime: formattedDate,
-          imageUrl
-      });
-    }
+    addDevice({
+        ...deviceForm,
+        firstStartTime: formattedDate,
+        imageUrl
+    });
     
-    setIsModalOpen(false);
+    setIsAddModalOpen(false);
   };
 
   const getRowStyle = (d: Device) => {
@@ -229,74 +432,118 @@ export const DeviceManagement: React.FC = () => {
     return 'bg-yellow-100 border-yellow-200 text-yellow-900'; 
   };
 
-  const DeviceDetailCard: React.FC<{ device: Device; onEdit: (d: Device) => void }> = ({ device, onEdit }) => {
+  // --- Device Detail Card with Inline Editing ---
+  const DeviceDetailCard: React.FC<{ device: Device }> = ({ device }) => {
+    const { updateDevice } = useApp();
+
+    const handleFieldUpdate = (field: keyof Device, value: string) => {
+        let finalValue = value;
+        if (field === 'firstStartTime' || field === 'lastTestTime') {
+            finalValue = fromInputDate(value);
+        }
+        updateDevice(device.id, { [field]: finalValue });
+    };
+
+    const typeOptions = deviceTypes.map(t => ({ label: t.name, value: t.id }));
+    const storeOptions = stores
+        .filter(s => !device.regionId || s.regionId === device.regionId) // Filter stores by current region if region is set
+        .map(s => ({ label: s.name, value: s.id }));
+
     return (
       <div className="bg-white p-3 border-t border-slate-100 animate-fadeIn shadow-inner grid grid-cols-2 gap-3">
         {/* Left Column: Info & Image */}
         <div className="flex flex-col space-y-2">
             
-            {/* Header: Name */}
-            <div className="flex items-center gap-1">
-                <span className="font-bold text-sm text-slate-900">{device.name}</span>
-                <FilePenLine size={12} className="text-blue-500 cursor-pointer" onClick={() => onEdit(device)} />
+            {/* Header: Name (Editable) */}
+            <div className="flex items-center gap-1 font-bold text-sm text-slate-900 min-h-[24px]">
+                <EditableField 
+                    value={device.name} 
+                    type="text" 
+                    onSave={(val) => handleFieldUpdate('name', val)} 
+                />
             </div>
 
             {/* Info Table Style */}
             <div className="space-y-1">
                 <div className="flex text-[10px]">
-                    <span className="text-slate-500 w-16">设备SN码</span>
-                    <span className="text-slate-700 font-medium">{device.sn}</span>
+                    <span className="text-slate-500 w-16 flex-shrink-0">设备SN码</span>
+                    <span className="text-slate-700 font-medium truncate">{device.sn}</span>
                 </div>
                 <div className="flex text-[10px]">
-                    <span className="text-slate-500 w-16">MAC地址</span>
-                    <span className="text-slate-700 font-medium">{device.mac || '-'}</span>
+                    <span className="text-slate-500 w-16 flex-shrink-0">MAC地址</span>
+                    <span className="text-slate-700 font-medium truncate">{device.mac || '-'}</span>
                 </div>
                 <div className="flex text-[10px] items-center">
-                    <span className="text-slate-500 w-16">设备类型</span>
-                    <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1.5 py-0.5 bg-slate-50">
-                        <span className="text-slate-700">{getTypeName(device.typeId)}</span>
-                        <FilePenLine size={10} className="text-blue-400 cursor-pointer" onClick={() => onEdit(device)} />
+                    <span className="text-slate-500 w-16 flex-shrink-0">设备类型</span>
+                    <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1.5 py-0.5 bg-slate-50 min-w-0">
+                        <EditableField 
+                            value={device.typeId}
+                            displayValue={getTypeName(device.typeId)}
+                            type="select"
+                            options={typeOptions}
+                            onSave={(val) => handleFieldUpdate('typeId', val)}
+                            className="flex-1 min-w-0"
+                        />
                     </div>
                 </div>
                 <div className="flex text-[10px] items-center">
-                    <span className="text-slate-500 w-16">所属门店</span>
-                    <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1.5 py-0.5 bg-slate-50">
-                        <span className="text-slate-700 truncate">{getStoreName(device.storeId)}</span>
-                        <FilePenLine size={10} className="text-blue-400 cursor-pointer" onClick={() => onEdit(device)} />
+                    <span className="text-slate-500 w-16 flex-shrink-0">所属门店</span>
+                    <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1.5 py-0.5 bg-slate-50 min-w-0">
+                        <EditableField 
+                             value={device.storeId}
+                             displayValue={getStoreName(device.storeId)}
+                             type="select"
+                             options={storeOptions}
+                             onSave={(val) => handleFieldUpdate('storeId', val)}
+                             className="flex-1 min-w-0"
+                        />
                     </div>
                 </div>
                 <div className="flex text-[10px] items-center">
-                    <span className="text-slate-500 w-16">房间号码</span>
-                    <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1.5 py-0.5 bg-slate-50">
-                        <span className="text-slate-700">{device.roomNumber || '-'}</span>
-                        <FilePenLine size={10} className="text-blue-400 cursor-pointer" onClick={() => onEdit(device)} />
+                    <span className="text-slate-500 w-16 flex-shrink-0">房间号码</span>
+                    <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1.5 py-0.5 bg-slate-50 min-w-0">
+                        <EditableField 
+                             value={device.roomNumber || ''}
+                             type="text"
+                             onSave={(val) => handleFieldUpdate('roomNumber', val)}
+                             className="flex-1 min-w-0"
+                        />
                     </div>
                 </div>
                  <div className="flex text-[10px] items-center">
-                    <span className="text-slate-500 w-16">体验软件</span>
-                    <div className="flex-1 flex justify-between items-center border-b border-slate-100 py-0.5">
-                        <span className="text-slate-700">{device.softwareName || '-'}</span>
-                         <FilePenLine size={10} className="text-blue-400 cursor-pointer" onClick={() => onEdit(device)} />
+                    <span className="text-slate-500 w-16 flex-shrink-0">体验软件</span>
+                    <div className="flex-1 flex justify-between items-center border-b border-slate-100 py-0.5 min-w-0">
+                        <EditableField 
+                             value={device.softwareName || ''}
+                             type="text"
+                             onSave={(val) => handleFieldUpdate('softwareName', val)}
+                             className="flex-1 min-w-0"
+                        />
                     </div>
                 </div>
                 <div className="flex text-[10px] items-center">
-                    <span className="text-slate-500 w-16">首次启动</span>
-                    <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1.5 py-0.5 bg-slate-50">
-                        <span className="text-slate-700">{device.firstStartTime.split(' ')[0] || '-'} {device.firstStartTime.split(' ')[1]?.slice(0,5) || ''}</span>
-                        <FilePenLine size={10} className="text-blue-400 cursor-pointer" onClick={() => onEdit(device)} />
+                    <span className="text-slate-500 w-16 flex-shrink-0">首次启动</span>
+                    <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1.5 py-0.5 bg-slate-50 min-w-0">
+                        <EditableField 
+                             value={device.firstStartTime ? toInputDate(device.firstStartTime) : ''}
+                             displayValue={device.firstStartTime ? `${device.firstStartTime.split(' ')[0]}` : '-'}
+                             type="datetime-local"
+                             onSave={(val) => handleFieldUpdate('firstStartTime', val)}
+                             className="flex-1 min-w-0"
+                        />
                     </div>
                 </div>
                 <div className="flex text-[10px] items-center">
-                    <span className="text-slate-500 w-16">最近测试</span>
-                    <div className="flex-1 flex items-center gap-1">
-                        <span className="text-slate-700">{device.lastTestTime.split(' ')[0] || '-'} {device.lastTestTime.split(' ')[1]?.slice(0,5) || ''}</span>
-                        <span className="bg-green-100 text-green-600 px-1 rounded text-[9px] font-bold">合格</span>
-                        <ClipboardList size={12} className="text-blue-500" />
+                    <span className="text-slate-500 w-16 flex-shrink-0">最近测试</span>
+                    <div className="flex-1 flex items-center gap-1 min-w-0">
+                        <span className="text-slate-700 truncate">{device.lastTestTime.split(' ')[0] || '-'} {device.lastTestTime.split(' ')[1]?.slice(0,5) || ''}</span>
+                        <span className="bg-green-100 text-green-600 px-1 rounded text-[9px] font-bold flex-shrink-0">合格</span>
+                        <ClipboardList size={12} className="text-blue-500 flex-shrink-0" />
                     </div>
                 </div>
             </div>
 
-            {/* Image Section */}
+            {/* Image Section (Triggers specific image modal) */}
             <div className="relative rounded-lg overflow-hidden border border-slate-200 shadow-sm mt-1 group">
                  {device.imageUrl ? (
                     <img src={device.imageUrl} alt={device.name} className="w-full h-24 object-cover" />
@@ -306,7 +553,7 @@ export const DeviceManagement: React.FC = () => {
                     </div>
                 )}
                 <div 
-                    onClick={() => onEdit(device)}
+                    onClick={() => setEditingImageDevice(device)}
                     className="absolute bottom-0 left-0 right-0 bg-blue-600/80 text-white text-[10px] text-center py-1 cursor-pointer hover:bg-blue-600 transition-colors"
                 >
                     点击进行查看/修改
@@ -342,15 +589,12 @@ export const DeviceManagement: React.FC = () => {
 
         {/* Right Column: Timeline */}
         <div className="relative pl-1">
-             {/* Vertical Line */}
             <div className="absolute left-[5px] top-1 bottom-0 w-0.5 bg-slate-200"></div>
             
             <div className="space-y-4">
                  {device.events.slice(0, 5).map(evt => (
                      <div key={evt.id} className="relative pl-4">
-                        {/* Dot */}
                         <div className="absolute left-0 top-1.5 w-2.5 h-2.5 bg-slate-300 rounded-full border-2 border-white box-content"></div>
-                        
                         <div className="flex flex-col">
                             <span className="text-[9px] text-slate-400 leading-tight mb-0.5">{evt.timestamp}</span>
                             <span className="text-[10px] font-bold text-slate-700 leading-tight">事件</span>
@@ -371,7 +615,6 @@ export const DeviceManagement: React.FC = () => {
     );
   };
 
-  // Available stores based on region selection
   const availableStores = selectedRegion 
     ? stores.filter(s => s.regionId === selectedRegion)
     : stores;
@@ -524,7 +767,7 @@ export const DeviceManagement: React.FC = () => {
                              </div>
                          </div>
                          
-                         {isExpanded && <DeviceDetailCard device={device} onEdit={openEditModal} />}
+                         {isExpanded && <DeviceDetailCard device={device} />}
                      </div>
                  );
              })}
@@ -542,20 +785,18 @@ export const DeviceManagement: React.FC = () => {
           </div>
       </div>
 
-       {/* Shared Modal (Add / Edit) */}
-       {isModalOpen && (
+       {/* Add Device Modal Only */}
+       {isAddModalOpen && (
         <div className="absolute inset-0 z-50 bg-white flex flex-col animate-fadeIn">
             <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
-              <h2 className="text-lg font-bold text-slate-800">
-                {formMode === 'add' ? '添加新设备' : '编辑设备详情'}
-              </h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-2">
+              <h2 className="text-lg font-bold text-slate-800">添加新设备</h2>
+              <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-2">
                   <span className="text-2xl">&times;</span>
               </button>
             </div>
             
             <div className="flex-1 overflow-y-auto p-4 bg-slate-50">
-                <form onSubmit={handleFormSubmit} className="space-y-4">
+                <form onSubmit={handleAddSubmit} className="space-y-4">
                     
                     {/* Image Upload Section */}
                     <div className="bg-white p-4 rounded-xl shadow-sm space-y-4">
@@ -573,12 +814,12 @@ export const DeviceManagement: React.FC = () => {
                                         <div className="h-24 w-24 rounded-lg overflow-hidden border border-slate-200">
                                             <img src={img.url} alt="Preview" className="w-full h-full object-cover" />
                                         </div>
-                                        <button type="button" onClick={() => handleRemoveImage(index)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 shadow-md">
+                                        <button type="button" onClick={() => handleRemoveFormImage(index)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 shadow-md">
                                             <X size={12} />
                                         </button>
                                         <select 
                                             value={img.category} 
-                                            onChange={(e) => handleImageCategoryChange(index, e.target.value)}
+                                            onChange={(e) => handleFormImageCategoryChange(index, e.target.value)}
                                             className="w-full text-[10px] mt-1 border border-slate-200 rounded px-1 py-0.5 bg-slate-50"
                                         >
                                             {Object.entries(CATEGORY_LIMITS).map(([cat, limit]) => {
@@ -603,7 +844,7 @@ export const DeviceManagement: React.FC = () => {
                                     <input 
                                         type="file" 
                                         accept="image/*" 
-                                        onChange={handleAddImage} 
+                                        onChange={handleAddFormImage} 
                                         disabled={isTotalLimitReached}
                                         className={`absolute inset-0 z-10 w-full h-full ${isTotalLimitReached ? 'cursor-not-allowed' : 'cursor-pointer'} opacity-0`} 
                                     />
@@ -689,14 +930,23 @@ export const DeviceManagement: React.FC = () => {
             
             <div className="p-4 bg-white border-t border-slate-200 sticky bottom-0">
                  <button 
-                    onClick={handleFormSubmit}
+                    onClick={handleAddSubmit}
                     className="w-full py-3 bg-primary text-white font-bold rounded-xl shadow-lg shadow-blue-200 active:scale-98 transition-transform"
                  >
-                    {formMode === 'add' ? '确认添加设备' : '保存修改'}
+                    确认添加设备
                  </button>
             </div>
         </div>
       )}
+
+      {/* Image Manager Modal */}
+      {editingImageDevice && (
+        <ImageManagerModal 
+            device={editingImageDevice} 
+            onClose={() => setEditingImageDevice(null)} 
+        />
+      )}
+
     </div>
   );
 };
