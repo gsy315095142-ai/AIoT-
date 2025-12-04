@@ -1,3 +1,4 @@
+
 export type Region = {
   id: string;
   name: string;
@@ -33,6 +34,7 @@ export type DeviceEvent = {
   type: 'info' | 'warning' | 'error';
   message: string;
   timestamp: string;
+  operator?: string; // New operator field
 };
 
 export type DeviceImage = {

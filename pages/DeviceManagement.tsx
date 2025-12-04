@@ -1,7 +1,14 @@
+
 import React, { useState, useMemo, ChangeEvent } from 'react';
 import { useApp } from '../context/AppContext';
 import { Device, OpsStatus, DeviceStatus, DeviceImage } from '../types';
-import { ChevronDown, ChevronUp, Plus, Wifi, Cpu, HardDrive, Image as ImageIcon, Search, CheckSquare, Square, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Wifi, Cpu, HardDrive, Image as ImageIcon, Search, CheckSquare, Square, X, FilePenLine, ClipboardList, Battery, Volume2 } from 'lucide-react';
+
+const CATEGORY_LIMITS: Record<string, number> = {
+  '设备外观': 2,
+  '安装现场': 2,
+  '其他': 1
+};
 
 export const DeviceManagement: React.FC = () => {
   const { devices, regions, stores, deviceTypes, updateDevice, addDevice } = useApp();
@@ -36,6 +43,7 @@ export const DeviceManagement: React.FC = () => {
 
   // Helpers
   const getStoreName = (id: string) => stores.find(s => s.id === id)?.name || '-';
+  const getTypeName = (id: string) => deviceTypes.find(t => t.id === id)?.name || '-';
 
   const calculateDuration = (dateStr: string) => {
     const start = new Date(dateStr).getTime();
@@ -94,16 +102,41 @@ export const DeviceManagement: React.FC = () => {
     setExpandedDeviceId(expandedDeviceId === id ? null : id);
   };
 
+  // Image Logic
+  const imageCounts = useMemo(() => {
+    const counts: Record<string, number> = { '设备外观': 0, '安装现场': 0, '其他': 0 };
+    newDeviceForm.images.forEach(img => {
+      if (counts[img.category] !== undefined) {
+        counts[img.category]++;
+      }
+    });
+    return counts;
+  }, [newDeviceForm.images]);
+
+  const isTotalLimitReached = useMemo(() => {
+     return Object.keys(CATEGORY_LIMITS).every(cat => (imageCounts[cat] || 0) >= CATEGORY_LIMITS[cat]);
+  }, [imageCounts]);
+
   // Add Device Handlers
   const handleAddImage = (e: ChangeEvent<HTMLInputElement>) => {
+    // Find first available category
+    const availableCategory = Object.keys(CATEGORY_LIMITS).find(cat => (imageCounts[cat] || 0) < CATEGORY_LIMITS[cat]);
+
+    if (!availableCategory) {
+      alert("所有分类图片的数量已达上限，无法继续添加");
+      e.target.value = '';
+      return;
+    }
+
     if (e.target.files && e.target.files[0]) {
       const url = URL.createObjectURL(e.target.files[0]);
-      const newImage: DeviceImage = { url, category: '设备外观' }; // Default category
+      // Use the available category as default
+      const newImage: DeviceImage = { url, category: availableCategory }; 
       setNewDeviceForm(prev => ({
         ...prev,
         images: [newImage, ...prev.images] // Add to top
       }));
-      // Reset input value to allow re-uploading same file if needed (though tricky with objectURL)
+      // Reset input value
       e.target.value = '';
     }
   };
@@ -149,88 +182,142 @@ export const DeviceManagement: React.FC = () => {
   };
 
   const DeviceDetailCard: React.FC<{ device: Device }> = ({ device }) => {
-     const [isEditing, setIsEditing] = useState(false);
-    const [editForm, setEditForm] = useState({
-        name: device.name,
-        sn: device.sn,
-        mac: device.mac || '',
-        roomNumber: device.roomNumber,
-        softwareName: device.softwareName
-    });
-
-    const saveEdit = () => {
-        updateDevice(device.id, editForm);
-        setIsEditing(false);
-    };
+    // In a real app, you would handle edit mode state here to toggle inputs
+    // For this UI mockup, we primarily display the read-only view with edit icons
 
     return (
-      <div className="bg-white p-4 border-t border-slate-100 text-sm animate-fadeIn shadow-inner">
-        {/* Detail Content */}
-        <div className="flex gap-4">
-             {/* Image */}
-            <div className="w-24 h-24 bg-slate-100 rounded-lg flex-shrink-0 flex items-center justify-center overflow-hidden border border-slate-200 relative group">
-                {device.imageUrl ? (
-                    <img src={device.imageUrl} alt={device.name} className="w-full h-full object-cover" />
-                ) : (
-                    <ImageIcon className="text-slate-300" size={24} />
-                )}
-                {/* Visual indicator if there are multiple images */}
-                {device.images && device.images.length > 1 && (
-                    <div className="absolute bottom-0 right-0 bg-black/50 text-white text-[10px] px-1 rounded-tl-md">
-                        +{device.images.length - 1}
-                    </div>
-                )}
-            </div>
+      <div className="bg-white p-3 border-t border-slate-100 animate-fadeIn shadow-inner grid grid-cols-2 gap-3">
+        {/* Left Column: Info & Image */}
+        <div className="flex flex-col space-y-2">
             
-            <div className="flex-1 space-y-1">
-                 {isEditing ? (
-                    <div className="grid grid-cols-2 gap-2">
-                        <input className="border rounded px-2 py-1 text-xs" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} placeholder="名称" />
-                        <input className="border rounded px-2 py-1 text-xs" value={editForm.sn} onChange={e => setEditForm({...editForm, sn: e.target.value})} placeholder="SN" />
-                        <input className="border rounded px-2 py-1 text-xs col-span-2" value={editForm.mac} onChange={e => setEditForm({...editForm, mac: e.target.value})} placeholder="MAC地址" />
-                        <input className="border rounded px-2 py-1 text-xs" value={editForm.roomNumber} onChange={e => setEditForm({...editForm, roomNumber: e.target.value})} placeholder="房间" />
-                        <input className="border rounded px-2 py-1 text-xs" value={editForm.softwareName} onChange={e => setEditForm({...editForm, softwareName: e.target.value})} placeholder="软件" />
-                        <div className="col-span-2 flex gap-2 mt-1">
-                            <button onClick={saveEdit} className="bg-blue-500 text-white px-3 py-1 rounded text-xs">保存</button>
-                            <button onClick={() => setIsEditing(false)} className="bg-slate-200 text-slate-700 px-3 py-1 rounded text-xs">取消</button>
-                        </div>
+            {/* Header: Name */}
+            <div className="flex items-center gap-1">
+                <span className="font-bold text-sm text-slate-900">{device.name}</span>
+                <FilePenLine size={12} className="text-blue-500 cursor-pointer" />
+            </div>
+
+            {/* Info Table Style */}
+            <div className="space-y-1">
+                <div className="flex text-[10px]">
+                    <span className="text-slate-500 w-16">设备SN码</span>
+                    <span className="text-slate-700 font-medium">{device.sn}</span>
+                </div>
+                <div className="flex text-[10px]">
+                    <span className="text-slate-500 w-16">MAC地址</span>
+                    <span className="text-slate-700 font-medium">{device.mac || '-'}</span>
+                </div>
+                <div className="flex text-[10px] items-center">
+                    <span className="text-slate-500 w-16">设备类型</span>
+                    <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1.5 py-0.5 bg-slate-50">
+                        <span className="text-slate-700">{getTypeName(device.typeId)}</span>
+                        <FilePenLine size={10} className="text-blue-400" />
                     </div>
-                 ) : (
-                    <>
-                        <div className="flex justify-between">
-                             <span className="font-bold">{device.name}</span>
-                             <span className="text-xs opacity-70">{device.sn}</span>
+                </div>
+                <div className="flex text-[10px] items-center">
+                    <span className="text-slate-500 w-16">所属门店</span>
+                    <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1.5 py-0.5 bg-slate-50">
+                        <span className="text-slate-700 truncate">{getStoreName(device.storeId)}</span>
+                        <FilePenLine size={10} className="text-blue-400" />
+                    </div>
+                </div>
+                <div className="flex text-[10px] items-center">
+                    <span className="text-slate-500 w-16">房间号码</span>
+                    <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1.5 py-0.5 bg-slate-50">
+                        <span className="text-slate-700">{device.roomNumber || '-'}</span>
+                        <FilePenLine size={10} className="text-blue-400" />
+                    </div>
+                </div>
+                 <div className="flex text-[10px] items-center">
+                    <span className="text-slate-500 w-16">体验软件</span>
+                    <div className="flex-1 border-b border-slate-100 py-0.5">
+                        <span className="text-slate-700">{device.softwareName || '-'}</span>
+                    </div>
+                </div>
+                <div className="flex text-[10px] items-center">
+                    <span className="text-slate-500 w-16">首次启动</span>
+                    <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1.5 py-0.5 bg-slate-50">
+                        <span className="text-slate-700">{device.firstStartTime.split(' ')[0] || '2025-08-02'} {device.firstStartTime.split(' ')[1]?.slice(0,5) || '14:00'}</span>
+                        <FilePenLine size={10} className="text-blue-400" />
+                    </div>
+                </div>
+                <div className="flex text-[10px] items-center">
+                    <span className="text-slate-500 w-16">最近测试</span>
+                    <div className="flex-1 flex items-center gap-1">
+                        <span className="text-slate-700">{device.lastTestTime.split(' ')[0] || '2025-08-25'} {device.lastTestTime.split(' ')[1]?.slice(0,5) || '11:00'}</span>
+                        <span className="bg-green-100 text-green-600 px-1 rounded text-[9px] font-bold">合格</span>
+                        <ClipboardList size={12} className="text-blue-500" />
+                    </div>
+                </div>
+            </div>
+
+            {/* Image Section */}
+            <div className="relative rounded-lg overflow-hidden border border-slate-200 shadow-sm mt-1 group">
+                 {device.imageUrl ? (
+                    <img src={device.imageUrl} alt={device.name} className="w-full h-24 object-cover" />
+                ) : (
+                    <div className="w-full h-24 bg-slate-100 flex items-center justify-center text-slate-300">
+                        <ImageIcon size={24} />
+                    </div>
+                )}
+                <div className="absolute bottom-0 left-0 right-0 bg-blue-600/80 text-white text-[10px] text-center py-1 cursor-pointer hover:bg-blue-600 transition-colors">
+                    点击进行查看/修改
+                </div>
+            </div>
+
+            {/* Stats Row */}
+            <div className="flex justify-between items-center bg-white border border-slate-200 rounded px-2 py-1">
+                 <div className="flex flex-col items-center">
+                     <span className="text-blue-600 text-[10px] font-bold leading-none">{device.cpuUsage}%</span>
+                     <span className="text-[8px] text-slate-400 leading-none scale-75">cpu</span>
+                 </div>
+                 <div className="w-px h-3 bg-slate-200"></div>
+                 <div className="flex flex-col items-center">
+                     <span className="text-blue-600 text-[10px] font-bold leading-none">{device.memoryUsage}%</span>
+                     <span className="text-[8px] text-slate-400 leading-none scale-75">内存</span>
+                 </div>
+                 <div className="w-px h-3 bg-slate-200"></div>
+                 <Wifi size={12} className="text-slate-400" />
+                 <div className="w-px h-3 bg-slate-200"></div>
+                 <Volume2 size={12} className="text-slate-400" />
+                 <div className="w-px h-3 bg-slate-200"></div>
+                 <Battery size={12} className="text-blue-400" />
+            </div>
+
+             {/* Status Badge */}
+             <div className="text-center">
+                 <span className="bg-green-100 text-green-700 px-3 py-1 rounded text-[10px] inline-block font-medium">
+                    设备运行中
+                 </span>
+             </div>
+        </div>
+
+        {/* Right Column: Timeline */}
+        <div className="relative pl-1">
+             {/* Vertical Line */}
+            <div className="absolute left-[5px] top-1 bottom-0 w-0.5 bg-slate-200"></div>
+            
+            <div className="space-y-4">
+                 {device.events.slice(0, 5).map(evt => (
+                     <div key={evt.id} className="relative pl-4">
+                        {/* Dot */}
+                        <div className="absolute left-0 top-1.5 w-2.5 h-2.5 bg-slate-300 rounded-full border-2 border-white box-content"></div>
+                        
+                        <div className="flex flex-col">
+                            <span className="text-[9px] text-slate-400 leading-tight mb-0.5">{evt.timestamp}</span>
+                            <span className="text-[10px] font-bold text-slate-700 leading-tight">事件</span>
+                            <span className="text-[10px] text-slate-600 leading-tight">{evt.message}</span>
+                            <span className="text-[9px] text-slate-400 text-right mt-0.5">操作人: {evt.operator || 'System'}</span>
                         </div>
-                        <div className="text-xs opacity-80">MAC: {device.mac || '-'}</div>
-                        <div className="text-xs opacity-80">房间: {device.roomNumber || '-'}</div>
-                        <div className="text-xs opacity-80">软件: {device.softwareName || '-'}</div>
-                        <div className="flex gap-2 mt-2">
-                             <div className="flex items-center gap-1 bg-white/50 px-2 py-0.5 rounded text-xs">
-                                <Cpu size={10} /> {device.cpuUsage}%
-                             </div>
-                             <div className="flex items-center gap-1 bg-white/50 px-2 py-0.5 rounded text-xs">
-                                <HardDrive size={10} /> {device.memoryUsage}%
-                             </div>
-                             <div className="flex items-center gap-1 bg-white/50 px-2 py-0.5 rounded text-xs">
-                                <Wifi size={10} /> {device.signalStrength}
-                             </div>
-                        </div>
-                        <button onClick={() => setIsEditing(true)} className="text-blue-600 text-xs mt-1 hover:underline">编辑详情</button>
-                    </>
+                     </div>
+                 ))}
+                 {device.events.length === 0 && (
+                     <div className="text-[10px] text-slate-400 pl-4 py-4 italic">
+                         暂无事件记录
+                     </div>
                  )}
             </div>
         </div>
-        
-         {/* Events */}
-        <div className="mt-3 border-t border-slate-100 pt-2">
-             <div className="text-xs font-bold opacity-60 mb-1">最近事件</div>
-             {device.events.slice(0, 3).map(e => (
-                 <div key={e.id} className="text-[10px] flex gap-2 opacity-80">
-                     <span>{new Date(e.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
-                     <span>{e.message}</span>
-                 </div>
-             ))}
-        </div>
+
       </div>
     );
   };
@@ -422,7 +509,12 @@ export const DeviceManagement: React.FC = () => {
                     {/* Image Upload Section - Moved to Top */}
                     <div className="bg-white p-4 rounded-xl shadow-sm space-y-4">
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">设备缩略图</label>
+                            <div className="flex justify-between items-center mb-2">
+                                <label className="block text-xs font-bold text-slate-500 uppercase">设备缩略图</label>
+                                <span className={`text-[10px] ${isTotalLimitReached ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
+                                    {newDeviceForm.images.length}/5 (总限)
+                                </span>
+                            </div>
                             
                             <div className="flex gap-2 overflow-x-auto pb-2 mb-2 no-scrollbar">
                                 {newDeviceForm.images.map((img, index) => (
@@ -438,20 +530,40 @@ export const DeviceManagement: React.FC = () => {
                                             onChange={(e) => handleImageCategoryChange(index, e.target.value)}
                                             className="w-full text-[10px] mt-1 border border-slate-200 rounded px-1 py-0.5 bg-slate-50"
                                         >
-                                            <option value="设备外观">设备外观</option>
-                                            <option value="安装现场">安装现场</option>
-                                            <option value="其他">其他</option>
+                                            {Object.entries(CATEGORY_LIMITS).map(([cat, limit]) => {
+                                                const count = imageCounts[cat] || 0;
+                                                // Disable if limit reached AND it's not the currently selected category for this image
+                                                // This allows keeping the current selection but prevents switching TO a full category
+                                                const isFull = count >= limit;
+                                                const isCurrent = img.category === cat;
+                                                const isDisabled = isFull && !isCurrent;
+                                                return (
+                                                    <option key={cat} value={cat} disabled={isDisabled}>
+                                                        {cat} ({count}/{limit})
+                                                    </option>
+                                                );
+                                            })}
                                         </select>
                                     </div>
                                 ))}
                                 
-                                <div className="flex-shrink-0 h-24 w-24 border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors relative cursor-pointer">
-                                    <input type="file" accept="image/*" onChange={handleAddImage} className="absolute inset-0 opacity-0 z-10 w-full h-full cursor-pointer" />
-                                    <Plus className="text-slate-400 mb-1" size={24} />
-                                    <span className="text-[10px] text-slate-500 text-center px-1">点击上传</span>
+                                <div 
+                                    className={`flex-shrink-0 h-24 w-24 border-2 border-dashed rounded-xl flex flex-col items-center justify-center transition-colors relative 
+                                        ${isTotalLimitReached ? 'border-slate-200 bg-slate-50 cursor-not-allowed opacity-50' : 'border-slate-300 bg-slate-50 hover:bg-slate-100 cursor-pointer'}`}
+                                >
+                                    <input 
+                                        type="file" 
+                                        accept="image/*" 
+                                        onChange={handleAddImage} 
+                                        disabled={isTotalLimitReached}
+                                        className={`absolute inset-0 z-10 w-full h-full ${isTotalLimitReached ? 'cursor-not-allowed' : 'cursor-pointer'} opacity-0`} 
+                                    />
+                                    <Plus className={isTotalLimitReached ? 'text-slate-300' : 'text-slate-400 mb-1'} size={24} />
+                                    <span className={`text-[10px] text-center px-1 ${isTotalLimitReached ? 'text-slate-300' : 'text-slate-500'}`}>
+                                        {isTotalLimitReached ? '已达上限' : '点击上传'}
+                                    </span>
                                 </div>
                             </div>
-                            <p className="text-[10px] text-slate-400">支持上传多张图片，请为每张图片选择分类</p>
                         </div>
                     </div>
 

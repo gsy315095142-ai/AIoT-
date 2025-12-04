@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent } from '../types';
 
@@ -24,47 +25,49 @@ const MOCK_DEVICE_TYPES: DeviceType[] = [
 const MOCK_DEVICES: Device[] = [
   {
     id: 'd1',
-    name: 'ZX-001',
-    sn: 'SN-2023-8888',
+    name: '桌显01号',
+    sn: 'D2H412121212',
     mac: '00:1A:2B:3C:4D:5E',
     regionId: 'r1',
     storeId: 's1',
     typeId: 't1',
-    roomNumber: '101',
-    softwareName: 'Magic Table v2.0',
-    status: DeviceStatus.STANDBY,
+    roomNumber: '2101',
+    softwareName: '爱丽丝主题V1.3.0',
+    status: DeviceStatus.ONLINE,
     opsStatus: OpsStatus.INSPECTED,
-    cpuUsage: 45,
-    memoryUsage: 60,
+    cpuUsage: 15,
+    memoryUsage: 43,
     signalStrength: 95,
-    firstStartTime: '2023-01-15T09:00:00',
-    lastTestTime: '2023-10-25T14:30:00',
-    imageUrl: 'https://picsum.photos/200/200?random=1',
-    images: [{ url: 'https://picsum.photos/200/200?random=1', category: '设备外观' }],
+    firstStartTime: '2025-08-02 14:00',
+    lastTestTime: '2025-08-25 11:00',
+    imageUrl: 'https://images.unsplash.com/photo-1593640408182-31c70c8268f5?q=80&w=300&auto=format&fit=crop',
+    images: [{ url: 'https://images.unsplash.com/photo-1593640408182-31c70c8268f5?q=80&w=300&auto=format&fit=crop', category: '设备外观' }],
     events: [
-      { id: 'e1', type: 'info', message: '系统启动成功', timestamp: '2023-10-25T09:00:00' },
-      { id: 'e2', type: 'warning', message: '网络延迟较高', timestamp: '2023-10-25T11:20:00' }
+      { id: 'e1', type: 'info', message: '设备添加成功', timestamp: '2025-08-25 11:00', operator: '张晓梦' },
+      { id: 'e2', type: 'info', message: '设备状态修改: 维修', timestamp: '2025-08-25 11:00', operator: '张晓梦' },
+      { id: 'e3', type: 'info', message: '设备测试: 合格', timestamp: '2025-08-25 11:00', operator: '张晓梦' },
+      { id: 'e4', type: 'info', message: '安装体验软件: 爱丽丝3.0', timestamp: '2025-08-25 11:00', operator: '张晓梦' },
     ]
   },
   {
     id: 'd2',
-    name: 'DT-Pro',
-    sn: 'SN-2023-9999',
+    name: '地投01号',
+    sn: 'DT-2023-9999',
     mac: 'AA:BB:CC:DD:EE:FF',
     regionId: 'r1',
     storeId: 's1',
     typeId: 't2',
     roomNumber: '102',
     softwareName: 'Floor Interactive',
-    status: DeviceStatus.IN_USE,
-    opsStatus: OpsStatus.ABNORMAL,
+    status: DeviceStatus.OFFLINE,
+    opsStatus: OpsStatus.REPAIRING,
     cpuUsage: 89,
     memoryUsage: 75,
     signalStrength: 40,
     firstStartTime: '2023-02-20T10:00:00',
     lastTestTime: '2023-10-26T10:00:00',
-    imageUrl: 'https://picsum.photos/200/200?random=2',
-    images: [{ url: 'https://picsum.photos/200/200?random=2', category: '设备外观' }],
+    imageUrl: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca4?q=80&w=300&auto=format&fit=crop',
+    images: [{ url: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca4?q=80&w=300&auto=format&fit=crop', category: '设备外观' }],
     events: []
   },
   {
@@ -77,15 +80,15 @@ const MOCK_DEVICES: Device[] = [
     typeId: 't3',
     roomNumber: 'Lobby',
     softwareName: 'VR World',
-    status: DeviceStatus.ONLINE,
+    status: DeviceStatus.STANDBY,
     opsStatus: OpsStatus.PENDING,
     cpuUsage: 15,
     memoryUsage: 30,
     signalStrength: 100,
     firstStartTime: '2023-03-10T08:00:00',
     lastTestTime: '2023-10-26T09:00:00',
-    imageUrl: 'https://picsum.photos/200/200?random=3',
-    images: [{ url: 'https://picsum.photos/200/200?random=3', category: '设备外观' }],
+    imageUrl: 'https://images.unsplash.com/photo-1622979135225-d2ba269fb1ac?q=80&w=300&auto=format&fit=crop',
+    images: [{ url: 'https://images.unsplash.com/photo-1622979135225-d2ba269fb1ac?q=80&w=300&auto=format&fit=crop', category: '设备外观' }],
     events: []
   }
 ];
@@ -150,7 +153,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const addDevice = (deviceData: Omit<Device, 'id' | 'events' | 'status' | 'opsStatus' | 'cpuUsage' | 'memoryUsage' | 'signalStrength' | 'firstStartTime' | 'lastTestTime'>) => {
-    const timestamp = new Date().toISOString();
+    const timestamp = new Date().toLocaleString(); // Simple format for demo
     const newDevice: Device = {
       ...deviceData,
       id: `d${Date.now()}`,
@@ -161,7 +164,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             id: `evt-init-${Date.now()}`,
             type: 'info',
             message: '设备首次添加',
-            timestamp: timestamp
+            timestamp: timestamp,
+            operator: currentUser || 'System'
         }
       ],
       // Simulate hardware specs
@@ -179,7 +183,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (d.id === id) {
         const currentEvents = d.events || [];
         const newEvents: DeviceEvent[] = [];
-        const timestamp = new Date().toISOString();
+        const timestamp = new Date().toLocaleString();
 
         // Check for OpsStatus Change
         if (data.opsStatus && data.opsStatus !== d.opsStatus) {
@@ -190,7 +194,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 id: `evt-ops-${Date.now()}`,
                 type: type,
                 message: `运维状态变更为: ${data.opsStatus}`,
-                timestamp: timestamp
+                timestamp: timestamp,
+                operator: currentUser || 'System'
             });
         }
         
@@ -203,7 +208,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 id: `evt-detail-${Date.now()}`,
                 type: 'info',
                 message: '设备详情已修改',
-                timestamp: timestamp
+                timestamp: timestamp,
+                operator: currentUser || 'System'
             });
         }
 
