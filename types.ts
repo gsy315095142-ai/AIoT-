@@ -74,3 +74,28 @@ export type Device = {
   
   events: DeviceEvent[];
 };
+
+export enum AuditStatus {
+  PENDING = '待审核',
+  APPROVED = '已通过',
+  REJECTED = '已拒绝',
+  INVALID = '已失效'
+}
+
+export type AuditRecord = {
+  id: string;
+  deviceId: string;
+  deviceName: string; // Snapshot for display
+  deviceSn: string; // Snapshot for display
+  prevOpsStatus: OpsStatus;
+  targetOpsStatus: OpsStatus;
+  changeReason: string;
+  
+  auditStatus: AuditStatus;
+  requestTime: string;
+  requestUser: string;
+  
+  auditTime?: string;
+  auditUser?: string;
+  rejectReason?: string;
+};

@@ -1,7 +1,7 @@
 
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent } from '../types';
+import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent, AuditRecord, AuditStatus } from '../types';
 
 // Initial Mock Data
 const MOCK_REGIONS: Region[] = [
@@ -102,6 +102,7 @@ interface AppContextType {
   stores: Store[];
   deviceTypes: DeviceType[];
   devices: Device[];
+  auditRecords: AuditRecord[];
   addRegion: (name: string) => void;
   removeRegion: (id: string) => void;
   addStore: (name: string, regionId: string) => void;
@@ -110,6 +111,9 @@ interface AppContextType {
   removeDeviceType: (id: string) => void;
   addDevice: (device: Omit<Device, 'id' | 'events' | 'status' | 'opsStatus' | 'cpuUsage' | 'memoryUsage' | 'signalStrength' | 'firstStartTime' | 'lastTestTime'>) => void;
   updateDevice: (id: string, data: Partial<Device>, customEventMessage?: string) => void;
+  submitOpsStatusChange: (deviceId: string, targetStatus: OpsStatus, reason: string) => void;
+  approveAudit: (recordId: string) => void;
+  rejectAudit: (recordId: string, reason: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -120,6 +124,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [stores, setStores] = useState<Store[]>(MOCK_STORES);
   const [deviceTypes, setDeviceTypes] = useState<DeviceType[]>(MOCK_DEVICE_TYPES);
   const [devices, setDevices] = useState<Device[]>(MOCK_DEVICES);
+  const [auditRecords, setAuditRecords] = useState<AuditRecord[]>([]);
 
   const login = (username: string) => {
     setCurrentUser(username);
@@ -255,16 +260,103 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }));
   };
 
+  // --- Audit Workflow ---
+
+  const submitOpsStatusChange = (deviceId: string, targetStatus: OpsStatus, reason: string) => {
+    const timestamp = new Date().toLocaleString();
+    const device = devices.find(d => d.id === deviceId);
+    if (!device) return;
+
+    if (device.opsStatus === targetStatus) return; // No change needed
+
+    // 1. Invalidate any existing PENDING records for this device
+    setAuditRecords(prev => prev.map(rec => {
+        if (rec.deviceId === deviceId && rec.auditStatus === AuditStatus.PENDING) {
+            return { ...rec, auditStatus: AuditStatus.INVALID, auditTime: timestamp };
+        }
+        return rec;
+    }));
+
+    // 2. Find correct previous status to record
+    // If current status is PENDING, we try to find the previous status from the pending record that we just invalidated
+    // OR just use the current one if we assume "Pending" is a transition state. 
+    // Simplified: We always record the device's *current* status as previous status. 
+    // If the device was already 'Pending', then the prev status in record is 'Pending'.
+    // Better UX: If device is Pending, look up the last stable status? 
+    // For now, let's stick to simple state transition.
+    
+    // 3. Create New Record
+    const newRecord: AuditRecord = {
+        id: `aud-${Date.now()}`,
+        deviceId,
+        deviceName: device.name,
+        deviceSn: device.sn,
+        prevOpsStatus: device.opsStatus,
+        targetOpsStatus: targetStatus,
+        changeReason: reason,
+        auditStatus: AuditStatus.PENDING,
+        requestTime: timestamp,
+        requestUser: currentUser || 'System'
+    };
+
+    setAuditRecords(prev => [newRecord, ...prev]);
+
+    // 4. Update Device to PENDING
+    updateDevice(deviceId, { opsStatus: OpsStatus.PENDING }, `提交审核: ${targetStatus} (原因: ${reason})`);
+  };
+
+  const approveAudit = (recordId: string) => {
+      const timestamp = new Date().toLocaleString();
+      const record = auditRecords.find(r => r.id === recordId);
+      if (!record || record.auditStatus !== AuditStatus.PENDING) return;
+
+      // Update Record
+      setAuditRecords(prev => prev.map(r => 
+        r.id === recordId 
+            ? { ...r, auditStatus: AuditStatus.APPROVED, auditTime: timestamp, auditUser: currentUser || 'Admin' } 
+            : r
+      ));
+
+      // Update Device
+      updateDevice(record.deviceId, { 
+          opsStatus: record.targetOpsStatus,
+          lastTestTime: timestamp.replace(' ', 'T').replace(/\//g, '-') // Reset Timer: Update lastTestTime to now
+      }, `审核通过: 状态变更为 ${record.targetOpsStatus}`);
+  };
+
+  const rejectAudit = (recordId: string, rejectReason: string) => {
+    const timestamp = new Date().toLocaleString();
+    const record = auditRecords.find(r => r.id === recordId);
+    if (!record || record.auditStatus !== AuditStatus.PENDING) return;
+
+    // Update Record
+    setAuditRecords(prev => prev.map(r => 
+        r.id === recordId 
+            ? { ...r, auditStatus: AuditStatus.REJECTED, auditTime: timestamp, auditUser: currentUser || 'Admin', rejectReason } 
+            : r
+    ));
+
+    // Revert Device Status
+    // We revert to prevOpsStatus. Note: If prevOpsStatus was also PENDING (chain), this might be weird, 
+    // but usually you can't manually set to PENDING, so prev should be stable.
+    const revertStatus = record.prevOpsStatus === OpsStatus.PENDING ? OpsStatus.INSPECTED : record.prevOpsStatus;
+
+    updateDevice(record.deviceId, { 
+        opsStatus: revertStatus 
+    }, `审核拒绝: ${rejectReason} (回退至 ${revertStatus})`);
+  };
+
   return (
     <AppContext.Provider value={{ 
       currentUser,
       login,
       logout,
-      regions, stores, deviceTypes, devices, 
+      regions, stores, deviceTypes, devices, auditRecords,
       addRegion, removeRegion, 
       addStore, removeStore, 
       addDeviceType, removeDeviceType,
-      addDevice, updateDevice
+      addDevice, updateDevice,
+      submitOpsStatusChange, approveAudit, rejectAudit
     }}>
       {children}
     </AppContext.Provider>

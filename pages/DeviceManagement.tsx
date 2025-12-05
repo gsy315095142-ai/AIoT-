@@ -1,10 +1,12 @@
 
 
 
+
+
 import React, { useState, useMemo, ChangeEvent, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Device, OpsStatus, DeviceStatus, DeviceImage } from '../types';
-import { ChevronDown, ChevronUp, Plus, Wifi, Image as ImageIcon, Search, CheckSquare, Square, X, FilePenLine, ClipboardList, Battery, Volume2, Check, X as XIcon, Upload, Settings2, Play, Moon, RotateCcw, ClipboardCheck } from 'lucide-react';
+import { Device, OpsStatus, DeviceStatus, DeviceImage, AuditStatus, AuditRecord } from '../types';
+import { ChevronDown, ChevronUp, Plus, Wifi, Image as ImageIcon, Search, CheckSquare, Square, X, FilePenLine, ClipboardList, Battery, Volume2, Check, X as XIcon, Upload, Settings2, Play, Moon, RotateCcw, ClipboardCheck, History, AlertCircle } from 'lucide-react';
 
 const CATEGORY_LIMITS: Record<string, number> = {
   '设备外观': 2,
@@ -247,10 +249,142 @@ const ImageManagerModal: React.FC<ImageManagerModalProps> = ({ device, onClose }
   );
 };
 
+// --- Audit Management Modal ---
+
+const AuditManagementModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+    const { auditRecords, approveAudit, rejectAudit } = useApp();
+    const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
+    const [rejectReason, setRejectReason] = useState('');
+    const [rejectingId, setRejectingId] = useState<string | null>(null);
+
+    const pendingRecords = auditRecords.filter(r => r.auditStatus === AuditStatus.PENDING);
+    const historyRecords = auditRecords.filter(r => r.auditStatus !== AuditStatus.PENDING);
+    
+    const displayRecords = activeTab === 'pending' ? pendingRecords : historyRecords;
+
+    const handleRejectClick = (id: string) => {
+        setRejectingId(id);
+        setRejectReason('');
+    };
+
+    const confirmReject = () => {
+        if (rejectingId && rejectReason.trim()) {
+            rejectAudit(rejectingId, rejectReason);
+            setRejectingId(null);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
+            <div className="bg-slate-50 rounded-xl shadow-2xl w-full max-w-sm h-[80vh] flex flex-col overflow-hidden">
+                <div className="bg-white p-4 border-b border-slate-200 flex justify-between items-center shadow-sm z-10">
+                    <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+                        <ClipboardCheck size={20} className="text-blue-600" />
+                        设备审核
+                    </h3>
+                    <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
+                </div>
+
+                <div className="flex bg-white border-b border-slate-200">
+                    <button 
+                        onClick={() => setActiveTab('pending')}
+                        className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'pending' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500'}`}
+                    >
+                        待审核 ({pendingRecords.length})
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('history')}
+                        className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'history' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500'}`}
+                    >
+                        历史记录
+                    </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                    {displayRecords.length === 0 && (
+                        <div className="flex flex-col items-center justify-center h-40 text-slate-400">
+                            <History size={32} className="mb-2 opacity-50" />
+                            <p className="text-xs">暂无相关记录</p>
+                        </div>
+                    )}
+                    {displayRecords.map(record => (
+                        <div key={record.id} className="bg-white p-3 rounded-lg shadow-sm border border-slate-100">
+                            <div className="flex justify-between items-start mb-2">
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-bold text-slate-800 text-sm">{record.deviceName}</span>
+                                        <span className="text-[10px] text-slate-400 bg-slate-100 px-1 rounded">{record.deviceSn}</span>
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 mt-0.5">申请人: {record.requestUser} | {record.requestTime}</div>
+                                </div>
+                                <div className={`px-2 py-0.5 rounded text-[10px] font-bold 
+                                    ${record.auditStatus === AuditStatus.APPROVED ? 'bg-green-100 text-green-600' : 
+                                      record.auditStatus === AuditStatus.REJECTED ? 'bg-red-100 text-red-600' : 
+                                      record.auditStatus === AuditStatus.INVALID ? 'bg-slate-100 text-slate-400' : 'bg-orange-100 text-orange-600'}`}>
+                                    {record.auditStatus}
+                                </div>
+                            </div>
+                            
+                            <div className="bg-slate-50 p-2 rounded border border-slate-100 mb-2 flex items-center justify-between text-xs">
+                                <div className="text-slate-500 font-medium">{record.prevOpsStatus}</div>
+                                <div className="text-slate-300">→</div>
+                                <div className="text-blue-600 font-bold">{record.targetOpsStatus}</div>
+                            </div>
+
+                            <div className="text-xs text-slate-600 bg-blue-50/50 p-2 rounded mb-2">
+                                <span className="font-bold text-slate-500">原因:</span> {record.changeReason}
+                            </div>
+                            
+                            {record.auditStatus !== AuditStatus.PENDING && record.rejectReason && (
+                                <div className="text-xs text-red-600 bg-red-50 p-2 rounded mt-1">
+                                    <span className="font-bold">拒绝原因:</span> {record.rejectReason}
+                                </div>
+                            )}
+
+                            {activeTab === 'pending' && (
+                                <div className="flex gap-2 mt-2 pt-2 border-t border-slate-50">
+                                    {rejectingId === record.id ? (
+                                        <div className="flex-1 flex gap-2 animate-fadeIn">
+                                            <input 
+                                                autoFocus
+                                                placeholder="输入拒绝原因..."
+                                                value={rejectReason}
+                                                onChange={e => setRejectReason(e.target.value)}
+                                                className="flex-1 text-xs border border-red-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-red-300"
+                                            />
+                                            <button onClick={confirmReject} className="bg-red-500 text-white text-xs px-2 py-1 rounded">确认</button>
+                                            <button onClick={() => setRejectingId(null)} className="bg-slate-200 text-slate-600 text-xs px-2 py-1 rounded">取消</button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <button 
+                                                onClick={() => handleRejectClick(record.id)}
+                                                className="flex-1 py-1.5 border border-red-200 text-red-600 rounded hover:bg-red-50 text-xs font-bold transition-colors"
+                                            >
+                                                拒绝
+                                            </button>
+                                            <button 
+                                                onClick={() => approveAudit(record.id)}
+                                                className="flex-1 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-bold transition-colors shadow-sm"
+                                            >
+                                                通过
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // --- Main Page Component ---
 
 export const DeviceManagement: React.FC = () => {
-  const { devices, regions, stores, deviceTypes, updateDevice, addDevice } = useApp();
+  const { devices, regions, stores, deviceTypes, updateDevice, addDevice, auditRecords, submitOpsStatusChange } = useApp();
   
   // Filter States
   const [selectedRegion, setSelectedRegion] = useState('');
@@ -267,11 +401,14 @@ export const DeviceManagement: React.FC = () => {
   const [editingImageDevice, setEditingImageDevice] = useState<Device | null>(null);
   const [isControlMenuOpen, setIsControlMenuOpen] = useState(false);
   const [isOpsStatusModalOpen, setIsOpsStatusModalOpen] = useState(false);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   
   // Ops Status Change State
   const [opsChangeStatus, setOpsChangeStatus] = useState<OpsStatus>(OpsStatus.INSPECTED);
   const [opsChangeReason, setOpsChangeReason] = useState('');
   const [complaintType, setComplaintType] = useState('');
+
+  const pendingAuditCount = auditRecords.filter(r => r.auditStatus === AuditStatus.PENDING).length;
 
   // Form State for Add Device Only
   interface DeviceFormState {
@@ -368,7 +505,7 @@ export const DeviceManagement: React.FC = () => {
       updateDevice(id, { status: DeviceStatus.ONLINE });
     });
     setIsControlMenuOpen(false);
-    setSelectedDeviceIds(new Set()); // Optional: clear selection after action
+    setSelectedDeviceIds(new Set()); 
   };
 
   const handleBatchSleep = () => {
@@ -406,7 +543,6 @@ export const DeviceManagement: React.FC = () => {
     
     let finalMessage = opsChangeReason;
     
-    // Validation for HOTEL_COMPLAINT
     if (opsChangeStatus === OpsStatus.HOTEL_COMPLAINT) {
         if (!complaintType) {
             alert("请选择客诉类型");
@@ -416,8 +552,8 @@ export const DeviceManagement: React.FC = () => {
     }
 
     selectedDeviceIds.forEach(id => {
-      // Pass reason as custom event message
-      updateDevice(id, { opsStatus: opsChangeStatus }, finalMessage);
+      // Use the new Audit submission workflow
+      submitOpsStatusChange(id, opsChangeStatus, finalMessage);
     });
     setIsOpsStatusModalOpen(false);
     setSelectedDeviceIds(new Set());
@@ -707,7 +843,17 @@ export const DeviceManagement: React.FC = () => {
                  <span className="text-xs font-bold">新增设备</span>
              </button>
              <h2 className="text-lg font-bold text-white tracking-wide">设备管理</h2>
-             <div className="w-8"></div>
+             
+             {/* Audit Entry Button */}
+             <button 
+                onClick={() => setIsAuditModalOpen(true)}
+                className="text-white hover:bg-white/10 p-2 rounded-lg transition-colors relative"
+             >
+                 <ClipboardCheck size={24} />
+                 {pendingAuditCount > 0 && (
+                     <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-blue-900 animate-pulse"></span>
+                 )}
+             </button>
          </div>
 
          {/* Filter Row */}
@@ -928,7 +1074,9 @@ export const DeviceManagement: React.FC = () => {
                                 onChange={(e) => setOpsChangeStatus(e.target.value as OpsStatus)}
                                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-blue-100"
                             >
-                                {Object.values(OpsStatus).map(status => (
+                                {Object.values(OpsStatus)
+                                    .filter(status => status !== OpsStatus.PENDING) // Remove Pending option
+                                    .map(status => (
                                     <option key={status} value={status}>{status}</option>
                                 ))}
                             </select>
@@ -972,7 +1120,7 @@ export const DeviceManagement: React.FC = () => {
                             onClick={handleBatchOpsStatusSubmit}
                             className="flex-1 py-2 bg-blue-600 text-white font-bold rounded-lg text-sm hover:bg-blue-700 shadow-lg shadow-blue-200"
                         >
-                            确认变更
+                            提交审核
                         </button>
                     </div>
                 </div>
@@ -1140,6 +1288,11 @@ export const DeviceManagement: React.FC = () => {
             device={editingImageDevice} 
             onClose={() => setEditingImageDevice(null)} 
         />
+      )}
+
+      {/* Audit Management Modal */}
+      {isAuditModalOpen && (
+          <AuditManagementModal onClose={() => setIsAuditModalOpen(false)} />
       )}
 
     </div>
