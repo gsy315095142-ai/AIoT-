@@ -1,4 +1,5 @@
 
+
 export type Region = {
   id: string;
   name: string;
@@ -27,6 +28,7 @@ export enum OpsStatus {
   REPAIRING = '维修中', // Repairing
   ABNORMAL = '异常', // Abnormal
   PENDING = '待审核', // Pending Audit
+  HOTEL_COMPLAINT = '酒店客诉', // Hotel Customer Complaint
 }
 
 export type DeviceEvent = {

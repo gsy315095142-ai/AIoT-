@@ -1,4 +1,6 @@
 
+
+
 import React, { useState, useMemo, ChangeEvent, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Device, OpsStatus, DeviceStatus, DeviceImage } from '../types';
@@ -146,7 +148,7 @@ const ImageManagerModal: React.FC<ImageManagerModalProps> = ({ device, onClose }
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 animate-fadeIn">
+    <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 animate-fadeIn">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[80vh]">
         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
           <h3 className="font-bold text-slate-800">管理设备图片</h3>
@@ -269,6 +271,7 @@ export const DeviceManagement: React.FC = () => {
   // Ops Status Change State
   const [opsChangeStatus, setOpsChangeStatus] = useState<OpsStatus>(OpsStatus.INSPECTED);
   const [opsChangeReason, setOpsChangeReason] = useState('');
+  const [complaintType, setComplaintType] = useState('');
 
   // Form State for Add Device Only
   interface DeviceFormState {
@@ -330,6 +333,7 @@ export const DeviceManagement: React.FC = () => {
       pending: filteredDevices.filter(d => d.opsStatus === OpsStatus.PENDING).length,
       abnormal: filteredDevices.filter(d => d.opsStatus === OpsStatus.ABNORMAL).length,
       repairing: filteredDevices.filter(d => d.opsStatus === OpsStatus.REPAIRING).length,
+      complaint: filteredDevices.filter(d => d.opsStatus === OpsStatus.HOTEL_COMPLAINT).length,
     };
   }, [filteredDevices]);
 
@@ -389,6 +393,7 @@ export const DeviceManagement: React.FC = () => {
     if (selectedDeviceIds.size === 0) return;
     setOpsChangeReason('');
     setOpsChangeStatus(OpsStatus.INSPECTED);
+    setComplaintType('');
     setIsOpsStatusModalOpen(true);
     setIsControlMenuOpen(false);
   };
@@ -398,9 +403,21 @@ export const DeviceManagement: React.FC = () => {
       alert("请输入变更说明");
       return;
     }
+    
+    let finalMessage = opsChangeReason;
+    
+    // Validation for HOTEL_COMPLAINT
+    if (opsChangeStatus === OpsStatus.HOTEL_COMPLAINT) {
+        if (!complaintType) {
+            alert("请选择客诉类型");
+            return;
+        }
+        finalMessage = `[${complaintType}] ${opsChangeReason}`;
+    }
+
     selectedDeviceIds.forEach(id => {
       // Pass reason as custom event message
-      updateDevice(id, { opsStatus: opsChangeStatus }, opsChangeReason);
+      updateDevice(id, { opsStatus: opsChangeStatus }, finalMessage);
     });
     setIsOpsStatusModalOpen(false);
     setSelectedDeviceIds(new Set());
@@ -478,6 +495,7 @@ export const DeviceManagement: React.FC = () => {
   };
 
   const getRowStyle = (d: Device) => {
+    if (d.opsStatus === OpsStatus.HOTEL_COMPLAINT) return 'bg-pink-100 border-pink-300 text-pink-900';
     if (d.opsStatus === OpsStatus.ABNORMAL) return 'bg-red-200 border-red-300 text-red-900';
     if (d.opsStatus === OpsStatus.REPAIRING) return 'bg-purple-200 border-purple-300 text-purple-900';
     if (d.opsStatus === OpsStatus.PENDING) return 'bg-orange-200 border-orange-300 text-orange-900';
@@ -648,7 +666,7 @@ export const DeviceManagement: React.FC = () => {
             <div className="space-y-4">
                  {device.events.slice(0, 5).map(evt => (
                      <div key={evt.id} className="relative pl-4">
-                        <div className="absolute left-0 top-1.5 w-2.5 h-2.5 bg-slate-300 rounded-full border-2 border-white box-content"></div>
+                        <div className={`absolute left-0 top-1.5 w-2.5 h-2.5 rounded-full border-2 border-white box-content ${evt.type === 'error' ? 'bg-red-500' : evt.type === 'warning' ? 'bg-orange-400' : 'bg-slate-300'}`}></div>
                         <div className="flex flex-col">
                             <span className="text-[9px] text-slate-400 leading-tight mb-0.5">{evt.timestamp}</span>
                             <span className="text-[10px] font-bold text-slate-700 leading-tight">事件</span>
@@ -674,7 +692,7 @@ export const DeviceManagement: React.FC = () => {
     : stores;
 
   return (
-    <div className="min-h-full bg-slate-50 relative">
+    <div className="min-h-full bg-slate-50 relative pb-32">
       
       {/* 1. Header & Filters Background Container */}
       <div className="bg-gradient-to-b from-blue-900 to-blue-800 p-4 pb-16 rounded-b-[2rem] shadow-xl relative z-0">
@@ -766,11 +784,16 @@ export const DeviceManagement: React.FC = () => {
                  <span className="text-purple-300">维修:</span>
                  <span className="text-purple-300 font-bold text-xs">{stats.repairing}台</span>
              </div>
+             <div className="flex items-center gap-1">
+                 <span className="w-2 h-2 bg-pink-500 rounded-sm"></span>
+                 <span className="text-pink-300">客诉:</span>
+                 <span className="text-pink-300 font-bold text-xs">{stats.complaint}台</span>
+             </div>
          </div>
       </div>
 
       {/* 2. Device List Header */}
-      <div className="px-3 -mt-4 relative z-10 pb-20">
+      <div className="px-3 -mt-4 relative z-10">
           <div className="bg-blue-600/90 text-white text-[10px] font-bold p-2 rounded-t-lg flex items-center shadow-md backdrop-blur-sm">
               <div className="w-8 flex justify-center"></div>
               <div className="flex-1 px-1">设备名称</div>
@@ -839,21 +862,21 @@ export const DeviceManagement: React.FC = () => {
           </div>
       </div>
 
-        {/* 4. Bottom Control Bar (Fixed) */}
-        <div className="absolute bottom-[64px] left-0 right-0 p-3 flex justify-center z-20 pointer-events-none">
+        {/* 4. Bottom Control Bar (Sticky) */}
+        <div className="sticky bottom-[85px] left-0 right-0 flex justify-center z-30 pointer-events-none w-full">
             <button
                 onClick={() => setIsControlMenuOpen(true)}
                 disabled={selectedDeviceIds.size === 0}
-                className={`bg-slate-800 text-white shadow-lg rounded-full px-6 py-3 flex items-center gap-2 font-bold text-sm pointer-events-auto transition-transform active:scale-95 ${selectedDeviceIds.size === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-700'}`}
+                className={`bg-slate-800 text-white shadow-xl shadow-slate-900/20 rounded-full px-6 py-3 flex items-center gap-2 font-bold text-sm pointer-events-auto transition-all active:scale-95 ${selectedDeviceIds.size === 0 ? 'opacity-50 cursor-not-allowed scale-90' : 'hover:bg-slate-700 hover:-translate-y-1'}`}
             >
                 <Settings2 size={18} />
                 <span>设备管控 {selectedDeviceIds.size > 0 && `(${selectedDeviceIds.size})`}</span>
             </button>
         </div>
 
-        {/* 5. Device Control Menu Popup */}
+        {/* 5. Device Control Menu Popup (Fixed) */}
         {isControlMenuOpen && (
-            <div className="absolute inset-0 z-50 flex flex-col justify-end">
+            <div className="fixed inset-0 z-50 flex flex-col justify-end">
                 <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsControlMenuOpen(false)}></div>
                 <div className="bg-white rounded-t-2xl p-6 relative z-10 animate-slideUp">
                     <div className="flex justify-between items-center mb-6">
@@ -891,9 +914,9 @@ export const DeviceManagement: React.FC = () => {
             </div>
         )}
 
-        {/* 6. Ops Status Change Modal */}
+        {/* 6. Ops Status Change Modal (Fixed) */}
         {isOpsStatusModalOpen && (
-            <div className="absolute inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                 <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden p-6 animate-scaleIn">
                     <h3 className="font-bold text-lg text-slate-800 mb-4">修改运维状态</h3>
                     
@@ -910,6 +933,23 @@ export const DeviceManagement: React.FC = () => {
                                 ))}
                             </select>
                         </div>
+
+                        {/* Conditional Dropdown for Hotel Complaint */}
+                        {opsChangeStatus === OpsStatus.HOTEL_COMPLAINT && (
+                            <div className="animate-fadeIn">
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">客诉类型 (必选)</label>
+                                <select 
+                                    value={complaintType} 
+                                    onChange={(e) => setComplaintType(e.target.value)}
+                                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-blue-100"
+                                >
+                                    <option value="">请选择类型</option>
+                                    <option value="设备质量故障">设备质量故障</option>
+                                    <option value="其他客诉情况">其他客诉情况</option>
+                                </select>
+                            </div>
+                        )}
+
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">变更说明 (必填)</label>
                             <textarea 
@@ -939,10 +979,11 @@ export const DeviceManagement: React.FC = () => {
             </div>
         )}
 
-       {/* Add Device Modal Only */}
+       {/* Add Device Modal Only (Fixed) */}
        {isAddModalOpen && (
-        <div className="absolute inset-0 z-50 bg-white flex flex-col animate-fadeIn">
-            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+        <div className="fixed inset-0 z-50 bg-white flex flex-col animate-fadeIn">
+            {/* Added md:pt-8 to accommodate notch */}
+            <div className="p-4 md:pt-8 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
               <h2 className="text-lg font-bold text-slate-800">添加新设备</h2>
               <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-2">
                   <span className="text-2xl">&times;</span>

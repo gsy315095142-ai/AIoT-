@@ -44,7 +44,7 @@ const MobileHeader = () => {
 const AuthenticatedApp: React.FC = () => {
   return (
     <>
-        <div className="hidden md:block absolute top-0 left-0 right-0 h-6 bg-slate-800 z-30 rounded-t-[30px] flex justify-center">
+        <div className="hidden md:block absolute top-0 left-0 right-0 h-6 bg-slate-800 z-[100] rounded-t-[30px] flex justify-center pointer-events-none">
             <div className="w-32 h-4 bg-slate-900 rounded-b-xl"></div>
         </div>
 
@@ -78,8 +78,8 @@ const AppContent: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-slate-900 flex justify-center items-center md:py-8 font-sans">
-            {/* Phone Frame */}
-            <div className="bg-slate-50 w-full h-[100vh] md:h-[800px] md:max-w-[400px] md:rounded-[40px] md:border-[10px] md:border-slate-800 shadow-2xl overflow-hidden flex flex-col relative transition-all duration-500">
+            {/* Phone Frame - Added transform scale-100 to create a new stacking context for fixed children */}
+            <div className="bg-slate-50 w-full h-[100vh] md:h-[800px] md:max-w-[400px] md:rounded-[40px] md:border-[10px] md:border-slate-800 shadow-2xl overflow-hidden flex flex-col relative transition-all duration-500 transform scale-100">
                 {currentUser ? <AuthenticatedApp /> : <Login />}
             </div>
         </div>

@@ -1,4 +1,5 @@
 
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent } from '../types';
 
@@ -188,7 +189,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         // 1. Handle Custom Message Event (Priority for manual log inputs)
         if (customEventMessage) {
              let type: 'info' | 'warning' | 'error' = 'info';
-             if (data.opsStatus === OpsStatus.ABNORMAL) type = 'error';
+             if (data.opsStatus === OpsStatus.ABNORMAL || data.opsStatus === OpsStatus.HOTEL_COMPLAINT) type = 'error';
              else if (data.opsStatus === OpsStatus.REPAIRING) type = 'warning';
 
              newEvents.push({
@@ -202,7 +203,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         // 2. Handle Automatic Ops Status Logging (if no custom message)
         else if (data.opsStatus && data.opsStatus !== d.opsStatus) {
             let type: 'info' | 'warning' | 'error' = 'info';
-            if (data.opsStatus === OpsStatus.ABNORMAL) type = 'error';
+            if (data.opsStatus === OpsStatus.ABNORMAL || data.opsStatus === OpsStatus.HOTEL_COMPLAINT) type = 'error';
             if (data.opsStatus === OpsStatus.REPAIRING) type = 'warning';
             newEvents.push({
                 id: `evt-ops-${Date.now()}-${Math.random()}`,
