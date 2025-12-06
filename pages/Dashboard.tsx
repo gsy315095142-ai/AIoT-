@@ -1,18 +1,54 @@
 
-
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { FilterBar } from '../components/FilterBar';
 import { DeviceStatus, OpsStatus, AuditStatus } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Activity, AlertTriangle, CheckCircle, Wrench } from 'lucide-react';
+import { Activity, AlertTriangle, CheckCircle, Wrench, Calendar } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
   const { devices, regions, stores, deviceTypes, auditRecords } = useApp();
   const [selectedRegion, setSelectedRegion] = useState('');
   const [selectedStore, setSelectedStore] = useState('');
   const [selectedType, setSelectedType] = useState('');
-  const [timeRange, setTimeRange] = useState('7d'); // Mock time range state
+  
+  // Date Range State
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  // Date Helper
+  const formatDate = (date: Date) => {
+    const offset = date.getTimezoneOffset();
+    const local = new Date(date.getTime() - (offset * 60 * 1000));
+    return local.toISOString().split('T')[0];
+  };
+
+  const setQuickDate = (type: 'today' | 'yesterday' | 'week' | 'lastWeek' | 'all') => {
+    const today = new Date();
+    let start = new Date();
+    let end = new Date();
+
+    if (type === 'today') {
+        // Start and End are today
+    } else if (type === 'yesterday') {
+        start.setDate(today.getDate() - 1);
+        end.setDate(today.getDate() - 1);
+    } else if (type === 'week') {
+        // Monday of this week
+        const day = today.getDay() || 7; // Sunday is 0, make it 7
+        if (day !== 1) start.setDate(today.getDate() - (day - 1));
+        // End is today
+    } else if (type === 'lastWeek') {
+        const day = today.getDay() || 7;
+        start.setDate(today.getDate() - day - 6); // Last Monday
+        end.setDate(today.getDate() - day); // Last Sunday
+    } else if (type === 'all') {
+        start = new Date('2020-01-01'); // Arbitrary start of "all time"
+    }
+
+    setStartDate(formatDate(start));
+    setEndDate(formatDate(end));
+  };
 
   // Filter Logic
   const filteredDevices = useMemo(() => {
@@ -20,9 +56,17 @@ export const Dashboard: React.FC = () => {
       if (selectedRegion && d.regionId !== selectedRegion) return false;
       if (selectedStore && d.storeId !== selectedStore) return false;
       if (selectedType && d.typeId !== selectedType) return false;
+      
+      // Time Filter (based on firstStartTime)
+      if (startDate || endDate) {
+          const deviceDateStr = d.firstStartTime.split(' ')[0] || d.firstStartTime.split('T')[0];
+          if (startDate && deviceDateStr < startDate) return false;
+          if (endDate && deviceDateStr > endDate) return false;
+      }
+
       return true;
     });
-  }, [devices, selectedRegion, selectedStore, selectedType]);
+  }, [devices, selectedRegion, selectedStore, selectedType, startDate, endDate]);
 
   // Helper to check if a device has a pending audit
   const hasPendingAudit = (deviceId: string) => {
@@ -63,15 +107,6 @@ export const Dashboard: React.FC = () => {
     };
     
     filteredDevices.forEach(d => {
-      // If it has pending audit, we might want to count it as pending for visual stats, 
-      // OR count its actual status. Let's count actual status here, but maybe add pending as separate metric?
-      // Based on design requirement "Display won't change to pending", we should probably count it as its current status.
-      // However, for the "Ops Status Statistics" chart, 'Pending' is a category.
-      // Let's count devices that have a pending audit as 'Pending' in the chart to show workload?
-      // Or stick to Strict Ops Status.
-      // Let's use strict Ops Status + Pending Audit count override for chart if desired.
-      
-      // Strict mapping:
       if (hasPendingAudit(d.id)) {
         counts[OpsStatus.PENDING] = (counts[OpsStatus.PENDING] || 0) + 1;
       } else {
@@ -98,17 +133,32 @@ export const Dashboard: React.FC = () => {
         onStoreChange={setSelectedStore}
         onTypeChange={setSelectedType}
         extraFilters={
-           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-bold text-slate-400 uppercase">时间段</label>
-            <select 
-              className="border border-slate-200 rounded-lg px-2 py-2 text-xs bg-slate-50 focus:ring-1 focus:ring-primary focus:outline-none w-full"
-              value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value)}
-            >
-              <option value="24h">近24小时</option>
-              <option value="7d">近7天</option>
-              <option value="30d">近30天</option>
-            </select>
+           <div className="flex flex-col gap-2">
+            <label className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
+                <Calendar size={10} /> 时间段筛选 (起始 - 结束)
+            </label>
+            <div className="flex flex-wrap gap-1.5 mb-1">
+                <button onClick={() => setQuickDate('today')} className="px-2 py-1 text-[10px] bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-blue-600 rounded transition-colors border border-slate-200">今日</button>
+                <button onClick={() => setQuickDate('yesterday')} className="px-2 py-1 text-[10px] bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-blue-600 rounded transition-colors border border-slate-200">昨日</button>
+                <button onClick={() => setQuickDate('week')} className="px-2 py-1 text-[10px] bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-blue-600 rounded transition-colors border border-slate-200">本周</button>
+                <button onClick={() => setQuickDate('lastWeek')} className="px-2 py-1 text-[10px] bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-blue-600 rounded transition-colors border border-slate-200">上周</button>
+                <button onClick={() => setQuickDate('all')} className="px-2 py-1 text-[10px] bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-blue-600 rounded transition-colors border border-slate-200">全周期</button>
+            </div>
+            <div className="flex items-center gap-2">
+                <input 
+                  type="date" 
+                  className="flex-1 border border-slate-200 rounded-lg px-2 py-1.5 text-xs bg-slate-50 focus:ring-1 focus:ring-primary focus:outline-none min-w-0"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+                <span className="text-slate-400 text-xs">至</span>
+                <input 
+                  type="date" 
+                  className="flex-1 border border-slate-200 rounded-lg px-2 py-1.5 text-xs bg-slate-50 focus:ring-1 focus:ring-primary focus:outline-none min-w-0"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+            </div>
           </div>
         }
       />

@@ -24,7 +24,7 @@ export enum DeviceStatus {
 }
 
 export enum OpsStatus {
-  INSPECTED = '已巡检', // Inspected
+  INSPECTED = '正常', // Changed from '已巡检' to '正常'
   REPAIRING = '维修中', // Repairing
   ABNORMAL = '异常', // Abnormal
   PENDING = '待审核', // Pending Audit - Kept for legacy/fallback, but logic moves to AuditRecord
@@ -69,11 +69,16 @@ export type Device = {
   cpuUsage: number; // percentage
   memoryUsage: number; // percentage
   signalStrength: number; // percentage (-dBm converted or simple 0-100)
+  currentRunDuration?: number; // hours
   
   // Timestamps
   firstStartTime: string;
   lastTestTime: string;
   lastTestResult?: 'Qualified' | 'Unqualified'; // Result of the last approved inspection
+  
+  // Cumulative Stats
+  totalStartCount?: number;
+  totalRunDuration?: number; // hours
   
   events: DeviceEvent[];
 };

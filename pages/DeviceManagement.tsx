@@ -564,6 +564,8 @@ export const DeviceManagement: React.FC = () => {
   const [selectedRegion, setSelectedRegion] = useState('');
   const [selectedStore, setSelectedStore] = useState('');
   const [selectedType, setSelectedType] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState(''); // New Device Status Filter
+  const [selectedOpsStatus, setSelectedOpsStatus] = useState(''); // New Ops Status Filter
   const [searchQuery, setSearchQuery] = useState('');
   
   const availableStores = useMemo(() => {
@@ -639,25 +641,25 @@ export const DeviceManagement: React.FC = () => {
       if (selectedRegion && d.regionId !== selectedRegion) return false;
       if (selectedStore && d.storeId !== selectedStore) return false;
       if (selectedType && d.typeId !== selectedType) return false;
+      
+      // New Filters
+      if (selectedStatus && d.status !== selectedStatus) {
+         // Special case: if selecting 'Online', usually we also want 'In Use' as they are both "Running"
+         if (selectedStatus === DeviceStatus.ONLINE) {
+             if (d.status !== DeviceStatus.ONLINE && d.status !== DeviceStatus.IN_USE) return false;
+         } else {
+             return false;
+         }
+      }
+      if (selectedOpsStatus && d.opsStatus !== selectedOpsStatus) return false;
+
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         if (!d.name.toLowerCase().includes(query) && !d.sn.toLowerCase().includes(query)) return false;
       }
       return true;
     });
-  }, [devices, selectedRegion, selectedStore, selectedType, searchQuery]);
-
-  const stats = useMemo(() => {
-    return {
-      online: filteredDevices.filter(d => d.status === DeviceStatus.ONLINE && d.opsStatus === OpsStatus.INSPECTED).length,
-      offline: filteredDevices.filter(d => d.status === DeviceStatus.OFFLINE && d.opsStatus === OpsStatus.INSPECTED).length,
-      standby: filteredDevices.filter(d => d.status === DeviceStatus.STANDBY).length,
-      pending: filteredDevices.filter(d => hasPendingAudit(d.id)).length, 
-      abnormal: filteredDevices.filter(d => d.opsStatus === OpsStatus.ABNORMAL).length,
-      repairing: filteredDevices.filter(d => d.opsStatus === OpsStatus.REPAIRING).length,
-      complaint: filteredDevices.filter(d => d.opsStatus === OpsStatus.HOTEL_COMPLAINT).length,
-    };
-  }, [filteredDevices, auditRecords]);
+  }, [devices, selectedRegion, selectedStore, selectedType, selectedStatus, selectedOpsStatus, searchQuery]);
 
   const toggleSelection = (id: string) => {
     const newSet = new Set(selectedDeviceIds);
@@ -881,10 +883,11 @@ export const DeviceManagement: React.FC = () => {
                         </div>
 
                         {/* Hardware Stats Moved Here */}
-                        <div className="bg-slate-800 text-white rounded-lg p-3 shadow-md grid grid-cols-3 gap-2 text-center">
+                        <div className="bg-slate-800 text-white rounded-lg p-3 shadow-md grid grid-cols-4 gap-2 text-center">
                             <div className="flex flex-col items-center"><span className="text-sm font-bold leading-none">{device.cpuUsage}%</span><span className="text-[8px] text-slate-400 mt-1">CPU</span></div>
                             <div className="flex flex-col items-center border-l border-slate-600"><span className="text-sm font-bold leading-none">{device.memoryUsage}%</span><span className="text-[8px] text-slate-400 mt-1">内存</span></div>
                             <div className="flex flex-col items-center border-l border-slate-600"><Wifi size={14} className={device.signalStrength > 50 ? 'text-green-400' : 'text-yellow-400'} /><span className="text-[8px] text-slate-400 mt-1">网络</span></div>
+                            <div className="flex flex-col items-center border-l border-slate-600"><span className="text-sm font-bold leading-none">{device.currentRunDuration || 0}h</span><span className="text-[8px] text-slate-400 mt-1">运行时长</span></div>
                         </div>
 
                         <div className={`p-3 rounded-lg border flex justify-between items-center ${device.opsStatus === OpsStatus.HOTEL_COMPLAINT ? 'bg-pink-50 border-pink-100' : device.opsStatus === OpsStatus.ABNORMAL ? 'bg-red-50 border-red-100' : device.opsStatus === OpsStatus.REPAIRING ? 'bg-purple-50 border-purple-100' : 'bg-green-50 border-green-100'}`}>
@@ -905,6 +908,18 @@ export const DeviceManagement: React.FC = () => {
                     <div className="space-y-3 animate-fadeIn">
                         <div className="bg-white border border-slate-100 rounded-lg p-2 shadow-sm space-y-2">
                             <h4 className="text-[10px] font-bold text-slate-400 uppercase border-b border-slate-50 pb-1 flex items-center gap-1"><Activity size={10} /> 设备巡检数据</h4>
+                            
+                            {/* Cumulative Stats */}
+                            <div className="grid grid-cols-2 gap-2 mb-2">
+                                <div className="bg-slate-50 p-2 rounded border border-slate-100 flex flex-col items-center">
+                                     <span className="text-[10px] text-slate-400">累计启动</span>
+                                     <span className="text-sm font-bold text-slate-700">{device.totalStartCount || 0}次</span>
+                                </div>
+                                <div className="bg-slate-50 p-2 rounded border border-slate-100 flex flex-col items-center">
+                                     <span className="text-[10px] text-slate-400">累计运行</span>
+                                     <span className="text-sm font-bold text-slate-700">{device.totalRunDuration || 0}h</span>
+                                </div>
+                            </div>
                             
                             <div 
                                 className="flex justify-between items-center bg-slate-50 border border-slate-100 rounded-lg p-2 cursor-pointer hover:bg-slate-100 transition-colors"
@@ -966,22 +981,30 @@ export const DeviceManagement: React.FC = () => {
              <h2 className="text-lg font-bold text-white tracking-wide">设备管理</h2>
              <button onClick={() => setIsAuditModalOpen(true)} className="text-white hover:bg-white/10 p-2 rounded-lg transition-colors relative"><ClipboardCheck size={24} />{pendingAuditCount > 0 && (<span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-blue-900 animate-pulse"></span>)}</button>
          </div>
-         {/* ... Filters & Search & Stats ... */}
-         <div className="grid grid-cols-3 gap-2 mb-3">
+         {/* ... Filters & Search ... */}
+         <div className="grid grid-cols-3 gap-2 mb-2">
             <select value={selectedRegion} onChange={e => setSelectedRegion(e.target.value)} className="bg-white text-slate-800 text-xs rounded py-1.5 px-2 focus:outline-none shadow-sm"><option value="">全部大区</option>{regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select>
             <select value={selectedStore} onChange={e => setSelectedStore(e.target.value)} className="bg-white text-slate-800 text-xs rounded py-1.5 px-2 focus:outline-none shadow-sm"><option value="">全部门店</option>{availableStores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
-            <select value={selectedType} onChange={e => setSelectedType(e.target.value)} className="bg-white text-slate-800 text-xs rounded py-1.5 px-2 focus:outline-none shadow-sm"><option value="">所有类型</option>{deviceTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
+            <select value={selectedType} onChange={e => setSelectedType(e.target.value)} className="bg-white text-slate-800 text-xs rounded py-1.5 px-2 focus:outline-none shadow-sm"><option value="">全部类型</option>{deviceTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
          </div>
+         {/* New Status Filters Row */}
+         <div className="grid grid-cols-2 gap-2 mb-3">
+             <select value={selectedStatus} onChange={e => setSelectedStatus(e.target.value)} className="bg-white text-slate-800 text-xs rounded py-1.5 px-2 focus:outline-none shadow-sm">
+                 <option value="">全部状态</option>
+                 <option value={DeviceStatus.ONLINE}>运行中</option>
+                 <option value={DeviceStatus.STANDBY}>待机中</option>
+                 <option value={DeviceStatus.OFFLINE}>未联网</option>
+             </select>
+             <select value={selectedOpsStatus} onChange={e => setSelectedOpsStatus(e.target.value)} className="bg-white text-slate-800 text-xs rounded py-1.5 px-2 focus:outline-none shadow-sm">
+                 <option value="">全部运维状态</option>
+                 <option value={OpsStatus.INSPECTED}>正常</option>
+                 <option value={OpsStatus.ABNORMAL}>异常</option>
+                 <option value={OpsStatus.HOTEL_COMPLAINT}>酒店客诉</option>
+                 <option value={OpsStatus.REPAIRING}>维修中</option>
+             </select>
+         </div>
+
          <div className="flex gap-2"><div className="flex-1 bg-white rounded-lg flex items-center px-3 py-1.5 shadow-sm"><Search size={16} className="text-slate-400 mr-2" /><input type="text" placeholder="请输入设备SN号、MAC地址或者名称" className="flex-1 text-xs outline-none text-slate-700" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /></div><button className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold px-4 rounded-lg shadow-sm">搜索</button></div>
-         <div className="mt-4 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-3 text-[10px] font-medium text-white shadow-lg grid grid-cols-2 gap-y-2 gap-x-4">
-             <div className="flex items-center gap-1"><span className="w-2 h-2 bg-green-400 rounded-sm"></span><span className="text-green-300">合格&联网:</span><span className="text-green-300 font-bold text-xs">{stats.online}台</span></div>
-             <div className="flex items-center gap-1"><span className="w-2 h-2 bg-slate-400 rounded-sm"></span><span className="text-slate-300">合格&断网:</span><span className="text-slate-300 font-bold text-xs">{stats.offline}台</span></div>
-             <div className="flex items-center gap-1"><span className="w-2 h-2 bg-yellow-400 rounded-sm"></span><span className="text-yellow-300">待检:</span><span className="text-yellow-300 font-bold text-xs">{stats.standby}台</span></div>
-              <div className="flex items-center gap-1"><span className="w-2 h-2 bg-orange-400 rounded-sm"></span><span className="text-orange-300">待审:</span><span className="text-orange-300 font-bold text-xs">{stats.pending}台</span></div>
-              <div className="flex items-center gap-1"><span className="w-2 h-2 bg-red-400 rounded-sm"></span><span className="text-red-300">异常:</span><span className="text-red-300 font-bold text-xs">{stats.abnormal}台</span></div>
-              <div className="flex items-center gap-1"><span className="w-2 h-2 bg-purple-400 rounded-sm"></span><span className="text-purple-300">维修:</span><span className="text-purple-300 font-bold text-xs">{stats.repairing}台</span></div>
-             <div className="flex items-center gap-1"><span className="w-2 h-2 bg-pink-500 rounded-sm"></span><span className="text-pink-300">客诉:</span><span className="text-pink-300 font-bold text-xs">{stats.complaint}台</span></div>
-         </div>
       </div>
 
       {/* Device List */}
@@ -1047,7 +1070,19 @@ export const DeviceManagement: React.FC = () => {
                 <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden p-6 animate-scaleIn">
                     <h3 className="font-bold text-lg text-slate-800 mb-4">设备运维状态修改申请</h3>
                     <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                        <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">新的状态</label><select value={opsChangeStatus} onChange={(e) => setOpsChangeStatus(e.target.value as OpsStatus)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-blue-100">{Object.values(OpsStatus).filter(status => status !== OpsStatus.PENDING).map(status => (<option key={status} value={status}>{status}</option>))}</select></div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">新的状态</label>
+                            <select 
+                                value={opsChangeStatus} 
+                                onChange={(e) => setOpsChangeStatus(e.target.value as OpsStatus)} 
+                                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-blue-100"
+                            >
+                                {Object.values(OpsStatus)
+                                    .filter(status => status !== OpsStatus.PENDING && status !== OpsStatus.ABNORMAL)
+                                    .map(status => (<option key={status} value={status}>{status}</option>))
+                                }
+                            </select>
+                        </div>
                         {opsChangeStatus === OpsStatus.HOTEL_COMPLAINT && (<div className="animate-fadeIn"><label className="block text-xs font-bold text-slate-500 uppercase mb-1">客诉类型 (必选)</label><select value={complaintType} onChange={(e) => setComplaintType(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-blue-100"><option value="">请选择类型</option><option value="设备质量故障">设备质量故障</option><option value="其他客诉情况">其他客诉情况</option></select></div>)}
                         <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">变更说明 (必填)</label><textarea value={opsChangeReason} onChange={(e) => setOpsChangeReason(e.target.value)} placeholder="请输入状态变更的原因..." className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-blue-100 min-h-[80px]"></textarea></div>
                         <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">上传凭证 (选填)</label><div className="flex gap-2 flex-wrap">{opsChangeImages.map((url, idx) => (<div key={idx} className="w-16 h-16 relative rounded border border-slate-200 overflow-hidden group"><img src={url} alt="upload" className="w-full h-full object-cover" /><button onClick={() => removeOpsImage(idx)} className="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl"><X size={10} /></button></div>))}<div className="w-16 h-16 border-2 border-dashed border-slate-300 rounded flex flex-col items-center justify-center text-slate-400 hover:border-blue-400 hover:text-blue-500 cursor-pointer relative bg-slate-50"><input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleOpsImageUpload} /><Plus size={20} /></div></div></div>
