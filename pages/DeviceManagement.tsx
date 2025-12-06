@@ -2,12 +2,19 @@
 import React, { useState, useMemo, ChangeEvent, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Device, OpsStatus, DeviceStatus, DeviceImage, AuditStatus, AuditRecord } from '../types';
-import { ChevronDown, ChevronUp, Plus, Wifi, Image as ImageIcon, Search, CheckSquare, Square, X, FilePenLine, ClipboardList, Battery, Volume2, Check, X as XIcon, Upload, Settings2, Play, Moon, RotateCcw, ClipboardCheck, History, AlertCircle, Info, MapPin, Headphones, Activity } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Wifi, Image as ImageIcon, Search, CheckSquare, Square, X, FilePenLine, ClipboardList, Battery, Volume2, Check, X as XIcon, Upload, Settings2, Play, Moon, RotateCcw, ClipboardCheck, History, AlertCircle, Info, MapPin, Headphones, Activity, Wrench } from 'lucide-react';
 
 const CATEGORY_LIMITS: Record<string, number> = {
   '设备外观': 2,
   '安装现场': 2,
   '其他': 1
+};
+
+const STATUS_MAP: Record<string, string> = {
+    [DeviceStatus.ONLINE]: '运行中',
+    [DeviceStatus.OFFLINE]: '未联网',
+    [DeviceStatus.STANDBY]: '待机中',
+    [DeviceStatus.IN_USE]: '使用中'
 };
 
 // --- Helper Components ---
@@ -673,7 +680,7 @@ export const DeviceManagement: React.FC = () => {
   // --- Device Detail Card with Modular Tabs ---
   const DeviceDetailCard: React.FC<{ device: Device }> = ({ device }) => {
     const { updateDevice } = useApp();
-    const [activeModule, setActiveModule] = useState<'info' | 'install' | 'aftersales' | 'inspection'>('info');
+    const [activeModule, setActiveModule] = useState<'info' | 'install' | 'maintenance'>('info');
 
     const handleFieldUpdate = (field: keyof Device, value: string) => {
         let finalValue = value;
@@ -688,13 +695,18 @@ export const DeviceManagement: React.FC = () => {
         .filter(s => !device.regionId || s.regionId === device.regionId)
         .map(s => ({ label: s.name, value: s.id }));
 
+    // Pending Audit Record for This Device
+    const pendingRecord = auditRecords.find(r => r.deviceId === device.id && r.auditStatus === AuditStatus.PENDING);
+
     // Helper to categorize events
     const getFilteredEvents = () => {
         const keywords: Record<string, string[]> = {
             'info': ['添加', '名称', 'SN', 'MAC', '图片', '类型'],
             'install': ['门店', '房间', '软件', '启动'],
-            'aftersales': ['运维', '维修', '客诉', '审核', '异常'],
-            'inspection': ['测试', 'CPU', '内存', '网络', '状态', '合格', '运行', '待机', '未联网']
+            'maintenance': [
+                '运维', '维修', '客诉', '审核', '异常', '申请', '通过', '拒绝', // After-sales
+                '测试', 'CPU', '内存', '网络', '状态', '合格', '运行', '待机', '未联网' // Inspection
+            ]
         };
 
         const targetKeywords = keywords[activeModule] || [];
@@ -733,16 +745,10 @@ export const DeviceManagement: React.FC = () => {
                 <MapPin size={14} /> 安装
             </button>
             <button 
-                onClick={() => setActiveModule('aftersales')}
-                className={`flex-1 py-2 text-xs font-bold flex items-center justify-center gap-1 transition-colors ${activeModule === 'aftersales' ? 'text-blue-600 bg-white border-t-2 border-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}
+                onClick={() => setActiveModule('maintenance')}
+                className={`flex-1 py-2 text-xs font-bold flex items-center justify-center gap-1 transition-colors ${activeModule === 'maintenance' ? 'text-blue-600 bg-white border-t-2 border-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}
             >
-                <Headphones size={14} /> 售后
-            </button>
-             <button 
-                onClick={() => setActiveModule('inspection')}
-                className={`flex-1 py-2 text-xs font-bold flex items-center justify-center gap-1 transition-colors ${activeModule === 'inspection' ? 'text-blue-600 bg-white border-t-2 border-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}
-            >
-                <Activity size={14} /> 巡检
+                <Wrench size={14} /> 售后&巡检
             </button>
         </div>
 
@@ -881,9 +887,11 @@ export const DeviceManagement: React.FC = () => {
                     </div>
                 )}
 
-                {/* After-sales Module */}
-                {activeModule === 'aftersales' && (
+                {/* Maintenance Module (Combined After-sales & Inspection) */}
+                {activeModule === 'maintenance' && (
                     <div className="space-y-3 animate-fadeIn">
+                        
+                        {/* After-sales Content Block */}
                         <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 flex flex-col gap-2">
                             <div>
                                 <p className="text-[10px] text-slate-500 mb-1">当前运维状态</p>
@@ -896,11 +904,6 @@ export const DeviceManagement: React.FC = () => {
                                     }`}>
                                         {device.opsStatus}
                                     </span>
-                                    {hasPendingAudit(device.id) && (
-                                        <span className="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-bold border border-orange-200">
-                                            待审核
-                                        </span>
-                                    )}
                                 </div>
                             </div>
                             <div className="border-t border-slate-200 pt-2">
@@ -908,47 +911,91 @@ export const DeviceManagement: React.FC = () => {
                                 <p className="text-lg font-bold text-slate-700">{calculateDuration(device.lastTestTime)}</p>
                             </div>
                         </div>
-                    </div>
-                )}
 
-                {/* Inspection Module */}
-                {activeModule === 'inspection' && (
-                    <div className="space-y-3 animate-fadeIn">
-                        {/* Stats Row */}
-                        <div className="bg-slate-800 text-white rounded-lg p-3 shadow-md grid grid-cols-3 gap-2 text-center">
-                            <div className="flex flex-col items-center">
-                                <span className="text-sm font-bold leading-none">{device.cpuUsage}%</span>
-                                <span className="text-[8px] text-slate-400 mt-1">CPU</span>
+                        {/* Pending Application Status Card */}
+                        {pendingRecord && (
+                            <div className="bg-orange-50 border border-orange-200 rounded-lg p-2.5 text-xs animate-fadeIn shadow-sm">
+                                <div className="flex justify-between items-center mb-2 border-b border-orange-100 pb-1">
+                                    <span className="font-bold text-orange-700 flex items-center gap-1">
+                                        <ClipboardCheck size={12} /> 正在审核中
+                                    </span>
+                                    <span className="text-[10px] text-orange-400">{pendingRecord.requestTime.split(' ')[0]}</span>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-2 mb-2">
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] text-orange-500">申请状态</span>
+                                        <span className="font-bold text-slate-700">{pendingRecord.targetOpsStatus}</span>
+                                    </div>
+                                    <div className="flex flex-col text-right">
+                                        <span className="text-[10px] text-orange-500">申请人</span>
+                                        <span className="font-bold text-slate-700">{pendingRecord.requestUser}</span>
+                                    </div>
+                                </div>
+                                
+                                <div className="bg-white p-2 rounded border border-orange-100 mb-2">
+                                    <span className="text-[10px] text-orange-400 block mb-0.5">备注</span>
+                                    <p className="text-slate-700 font-medium break-all">{pendingRecord.changeReason}</p>
+                                </div>
+
+                                {pendingRecord.images && pendingRecord.images.length > 0 && (
+                                    <div>
+                                         <span className="text-[10px] text-orange-400 block mb-1">凭证</span>
+                                         <div className="flex gap-1 overflow-x-auto no-scrollbar">
+                                            {pendingRecord.images.map((img, idx) => (
+                                                <div key={idx} className="w-8 h-8 rounded border border-orange-100 overflow-hidden flex-shrink-0">
+                                                    <img src={img} alt="evidence" className="w-full h-full object-cover" />
+                                                </div>
+                                            ))}
+                                         </div>
+                                    </div>
+                                )}
                             </div>
-                            <div className="flex flex-col items-center border-l border-slate-600">
-                                <span className="text-sm font-bold leading-none">{device.memoryUsage}%</span>
-                                <span className="text-[8px] text-slate-400 mt-1">内存</span>
+                        )}
+
+                        {/* Inspection Content Block */}
+                        <div className="bg-white border border-slate-100 rounded-lg p-2 shadow-sm space-y-2">
+                            <h4 className="text-[10px] font-bold text-slate-400 uppercase border-b border-slate-50 pb-1 flex items-center gap-1">
+                                <Activity size={10} /> 设备巡检数据
+                            </h4>
+                            
+                            {/* Stats Row */}
+                            <div className="bg-slate-800 text-white rounded-lg p-3 shadow-md grid grid-cols-3 gap-2 text-center">
+                                <div className="flex flex-col items-center">
+                                    <span className="text-sm font-bold leading-none">{device.cpuUsage}%</span>
+                                    <span className="text-[8px] text-slate-400 mt-1">CPU</span>
+                                </div>
+                                <div className="flex flex-col items-center border-l border-slate-600">
+                                    <span className="text-sm font-bold leading-none">{device.memoryUsage}%</span>
+                                    <span className="text-[8px] text-slate-400 mt-1">内存</span>
+                                </div>
+                                <div className="flex flex-col items-center border-l border-slate-600">
+                                    <Wifi size={14} className={device.signalStrength > 50 ? 'text-green-400' : 'text-yellow-400'} />
+                                    <span className="text-[8px] text-slate-400 mt-1">网络</span>
+                                </div>
                             </div>
-                            <div className="flex flex-col items-center border-l border-slate-600">
-                                <Wifi size={14} className={device.signalStrength > 50 ? 'text-green-400' : 'text-yellow-400'} />
-                                <span className="text-[8px] text-slate-400 mt-1">网络</span>
+                            
+                            <div className="flex justify-between items-center bg-slate-50 border border-slate-100 rounded-lg p-2">
+                                <div className="flex flex-col">
+                                    <span className="text-[9px] text-slate-500">最近测试</span>
+                                    <span className="text-[10px] font-bold text-slate-700">{device.lastTestTime}</span>
+                                </div>
+                                <span className="bg-green-100 text-green-600 px-1.5 py-0.5 rounded text-[10px] font-bold flex items-center gap-1">
+                                    <ClipboardCheck size={10} /> 合格
+                                </span>
                             </div>
-                        </div>
-                        
-                        <div className="flex justify-between items-center bg-white border border-slate-200 rounded-lg p-2">
-                            <div className="flex flex-col">
-                                <span className="text-[9px] text-slate-500">最近测试</span>
-                                <span className="text-[10px] font-bold text-slate-700">{device.lastTestTime}</span>
+
+                            <div className="text-center pt-1">
+                                <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${
+                                    device.status === DeviceStatus.ONLINE ? 'bg-green-100 text-green-700' : 
+                                    device.status === DeviceStatus.OFFLINE ? 'bg-slate-200 text-slate-600' :
+                                    'bg-yellow-100 text-yellow-700'
+                                }`}>
+                                    {STATUS_MAP[device.status]}
+                                </span>
                             </div>
-                            <span className="bg-green-100 text-green-600 px-1.5 py-0.5 rounded text-[10px] font-bold flex items-center gap-1">
-                                <ClipboardCheck size={10} /> 合格
-                            </span>
                         </div>
 
-                        <div className="text-center">
-                            <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${
-                                device.status === DeviceStatus.ONLINE ? 'bg-green-100 text-green-700' : 
-                                device.status === DeviceStatus.OFFLINE ? 'bg-slate-200 text-slate-600' :
-                                'bg-yellow-100 text-yellow-700'
-                            }`}>
-                                {device.status}
-                            </span>
-                        </div>
                     </div>
                 )}
             </div>
