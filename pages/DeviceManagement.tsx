@@ -2,7 +2,7 @@
 import React, { useState, useMemo, ChangeEvent, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Device, OpsStatus, DeviceStatus, DeviceImage, AuditStatus, AuditRecord } from '../types';
-import { ChevronDown, ChevronUp, Plus, Wifi, Image as ImageIcon, Search, CheckSquare, Square, X, FilePenLine, ClipboardList, Battery, Volume2, Check, X as XIcon, Upload, Settings2, Play, Moon, RotateCcw, ClipboardCheck, History, AlertCircle, Info, MapPin, Headphones, Activity, Wrench } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Wifi, Image as ImageIcon, Search, CheckSquare, Square, X, FilePenLine, ClipboardList, Battery, Volume2, Check, X as XIcon, Upload, Settings2, Play, Moon, RotateCcw, ClipboardCheck, History, AlertCircle, Info, MapPin, Headphones, Activity, Wrench, Clock } from 'lucide-react';
 
 const CATEGORY_LIMITS: Record<string, number> = {
   '设备外观': 2,
@@ -891,24 +891,35 @@ export const DeviceManagement: React.FC = () => {
                 {activeModule === 'maintenance' && (
                     <div className="space-y-3 animate-fadeIn">
                         
-                        {/* After-sales Content Block */}
-                        <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 flex flex-col gap-2">
+                        {/* After-sales Content Block - Merged Status & Duration */}
+                        <div className={`p-3 rounded-lg border flex justify-between items-center ${
+                             device.opsStatus === OpsStatus.HOTEL_COMPLAINT ? 'bg-pink-50 border-pink-100' :
+                             device.opsStatus === OpsStatus.ABNORMAL ? 'bg-red-50 border-red-100' :
+                             device.opsStatus === OpsStatus.REPAIRING ? 'bg-purple-50 border-purple-100' :
+                             'bg-green-50 border-green-100'
+                        }`}>
                             <div>
-                                <p className="text-[10px] text-slate-500 mb-1">当前运维状态</p>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <span className={`text-sm font-bold px-2 py-1 rounded ${
-                                        device.opsStatus === OpsStatus.HOTEL_COMPLAINT ? 'bg-pink-100 text-pink-700' :
-                                        device.opsStatus === OpsStatus.ABNORMAL ? 'bg-red-100 text-red-700' :
-                                        device.opsStatus === OpsStatus.REPAIRING ? 'bg-purple-100 text-purple-700' :
-                                        'bg-green-100 text-green-700'
-                                    }`}>
-                                        {device.opsStatus}
-                                    </span>
-                                </div>
+                                <p className="text-[10px] opacity-60 mb-0.5 uppercase tracking-wide">当前运维状态</p>
+                                <span className={`text-base font-bold ${
+                                    device.opsStatus === OpsStatus.HOTEL_COMPLAINT ? 'text-pink-700' :
+                                    device.opsStatus === OpsStatus.ABNORMAL ? 'text-red-700' :
+                                    device.opsStatus === OpsStatus.REPAIRING ? 'text-purple-700' :
+                                    'text-green-700'
+                                }`}>
+                                    {device.opsStatus}
+                                </span>
                             </div>
-                            <div className="border-t border-slate-200 pt-2">
-                                <p className="text-[10px] text-slate-500 mb-1">该状态持续时长</p>
-                                <p className="text-lg font-bold text-slate-700">{calculateDuration(device.lastTestTime)}</p>
+                            <div className="text-right">
+                                <p className="text-[10px] opacity-60 mb-0.5">已持续</p>
+                                <div className={`flex items-center gap-1 justify-end ${
+                                    device.opsStatus === OpsStatus.HOTEL_COMPLAINT ? 'text-pink-700' :
+                                    device.opsStatus === OpsStatus.ABNORMAL ? 'text-red-700' :
+                                    device.opsStatus === OpsStatus.REPAIRING ? 'text-purple-700' :
+                                    'text-green-700'
+                                }`}>
+                                     <Clock size={12} />
+                                     <p className="text-lg font-bold font-mono leading-none">{calculateDuration(device.lastTestTime)}</p>
+                                </div>
                             </div>
                         </div>
 
