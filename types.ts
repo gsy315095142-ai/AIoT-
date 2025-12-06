@@ -82,6 +82,11 @@ export enum AuditStatus {
   INVALID = '已失效'
 }
 
+export enum AuditType {
+  OPS_STATUS = '运维状态变更',
+  INSPECTION = '巡检报告'
+}
+
 export type AuditRecord = {
   id: string;
   deviceId: string;
@@ -89,9 +94,17 @@ export type AuditRecord = {
   deviceSn: string; // Snapshot for display
   storeName?: string; // Snapshot
   roomNumber?: string; // Snapshot
-  prevOpsStatus: OpsStatus;
-  targetOpsStatus: OpsStatus;
-  changeReason: string;
+  
+  type: AuditType; // New field to distinguish audit type
+
+  // Fields for OPS_STATUS type
+  prevOpsStatus?: OpsStatus;
+  targetOpsStatus?: OpsStatus;
+  
+  // Fields for INSPECTION type
+  testResult?: 'Qualified' | 'Unqualified';
+
+  changeReason: string; // Shared: Reason for change OR Remark for inspection
   images?: string[]; // Evidence images for the request
   
   auditStatus: AuditStatus;

@@ -1,7 +1,7 @@
 
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent, AuditRecord, AuditStatus } from '../types';
+import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent, AuditRecord, AuditStatus, AuditType } from '../types';
 
 // Initial Mock Data
 const MOCK_REGIONS: Region[] = [
@@ -112,6 +112,7 @@ interface AppContextType {
   addDevice: (device: Omit<Device, 'id' | 'events' | 'status' | 'opsStatus' | 'cpuUsage' | 'memoryUsage' | 'signalStrength' | 'firstStartTime' | 'lastTestTime'>) => void;
   updateDevice: (id: string, data: Partial<Device>, customEventMessage?: string) => void;
   submitOpsStatusChange: (deviceId: string, targetStatus: OpsStatus, reason: string, images?: string[]) => void;
+  submitInspectionReport: (deviceId: string, result: 'Qualified' | 'Unqualified', remark: string, images?: string[]) => void;
   approveAudit: (recordId: string) => void;
   rejectAudit: (recordId: string, reason: string) => void;
 }
@@ -275,7 +276,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // 1. Invalidate any existing PENDING records for this device
     setAuditRecords(prev => prev.map(rec => {
-        if (rec.deviceId === deviceId && rec.auditStatus === AuditStatus.PENDING) {
+        if (rec.deviceId === deviceId && rec.auditStatus === AuditStatus.PENDING && rec.type === AuditType.OPS_STATUS) {
             return { ...rec, auditStatus: AuditStatus.INVALID, auditTime: timestamp };
         }
         return rec;
@@ -289,6 +290,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         deviceSn: device.sn,
         storeName: storeName, // Snapshot
         roomNumber: device.roomNumber, // Snapshot
+        type: AuditType.OPS_STATUS,
         prevOpsStatus: device.opsStatus,
         targetOpsStatus: targetStatus,
         changeReason: reason,
@@ -300,9 +302,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setAuditRecords(prev => [newRecord, ...prev]);
 
-    // 3. Log Event, BUT DO NOT CHANGE STATUS YET
-    // We update the device only to append the event.
+    // 3. Log Event
     updateDevice(deviceId, {}, `提交审核: ${targetStatus} (原因: ${reason})`);
+  };
+
+  const submitInspectionReport = (deviceId: string, result: 'Qualified' | 'Unqualified', remark: string, images?: string[]) => {
+    const timestamp = new Date().toLocaleString();
+    const device = devices.find(d => d.id === deviceId);
+    if (!device) return;
+
+    const storeName = stores.find(s => s.id === device.storeId)?.name;
+
+    const newRecord: AuditRecord = {
+        id: `insp-${Date.now()}`,
+        deviceId,
+        deviceName: device.name,
+        deviceSn: device.sn,
+        storeName: storeName,
+        roomNumber: device.roomNumber,
+        type: AuditType.INSPECTION,
+        testResult: result,
+        changeReason: remark,
+        images: images,
+        auditStatus: AuditStatus.PENDING,
+        requestTime: timestamp,
+        requestUser: currentUser || 'System'
+    };
+
+    setAuditRecords(prev => [newRecord, ...prev]);
+
+    updateDevice(deviceId, {}, `提交巡检报告: ${result === 'Qualified' ? '合格' : '不合格'} (备注: ${remark})`);
   };
 
   const approveAudit = (recordId: string) => {
@@ -317,11 +346,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             : r
       ));
 
-      // Update Device Status
-      updateDevice(record.deviceId, { 
-          opsStatus: record.targetOpsStatus,
-          lastTestTime: timestamp.replace(' ', 'T').replace(/\//g, '-') // Reset Timer: Update lastTestTime to now
-      }, `审核通过: 状态变更为 ${record.targetOpsStatus}`);
+      if (record.type === AuditType.OPS_STATUS && record.targetOpsStatus) {
+          // Update Device Status for Ops Change
+          updateDevice(record.deviceId, { 
+              opsStatus: record.targetOpsStatus,
+              lastTestTime: timestamp.replace(' ', 'T').replace(/\//g, '-') // Reset Timer
+          }, `审核通过: 状态变更为 ${record.targetOpsStatus}`);
+      } else if (record.type === AuditType.INSPECTION) {
+          // Update Last Test Time for Inspection
+          updateDevice(record.deviceId, {
+              lastTestTime: timestamp.replace(' ', 'T').replace(/\//g, '-')
+          }, `巡检报告审核通过: ${record.testResult === 'Qualified' ? '合格' : '不合格'}`);
+      }
   };
 
   const rejectAudit = (recordId: string, rejectReason: string) => {
@@ -337,7 +373,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     ));
 
     // Log Rejection event on device (Status remains unchanged)
-    updateDevice(record.deviceId, {}, `审核拒绝: 申请变更至 ${record.targetOpsStatus} 被拒绝 (${rejectReason})`);
+    if (record.type === AuditType.OPS_STATUS) {
+        updateDevice(record.deviceId, {}, `审核拒绝: 申请变更至 ${record.targetOpsStatus} 被拒绝 (${rejectReason})`);
+    } else if (record.type === AuditType.INSPECTION) {
+        updateDevice(record.deviceId, {}, `巡检报告审核拒绝: 报告被驳回 (${rejectReason})`);
+    }
   };
 
   return (
@@ -350,7 +390,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addStore, removeStore, 
       addDeviceType, removeDeviceType,
       addDevice, updateDevice,
-      submitOpsStatusChange, approveAudit, rejectAudit
+      submitOpsStatusChange, submitInspectionReport, approveAudit, rejectAudit
     }}>
       {children}
     </AppContext.Provider>
