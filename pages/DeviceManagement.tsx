@@ -1,16 +1,8 @@
 
-
-
-
-
-
-
-
-
 import React, { useState, useMemo, ChangeEvent, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Device, OpsStatus, DeviceStatus, DeviceImage, AuditStatus, AuditRecord } from '../types';
-import { ChevronDown, ChevronUp, Plus, Wifi, Image as ImageIcon, Search, CheckSquare, Square, X, FilePenLine, ClipboardList, Battery, Volume2, Check, X as XIcon, Upload, Settings2, Play, Moon, RotateCcw, ClipboardCheck, History, AlertCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Wifi, Image as ImageIcon, Search, CheckSquare, Square, X, FilePenLine, ClipboardList, Battery, Volume2, Check, X as XIcon, Upload, Settings2, Play, Moon, RotateCcw, ClipboardCheck, History, AlertCircle, Info, MapPin, Headphones, Activity } from 'lucide-react';
 
 const CATEGORY_LIMITS: Record<string, number> = {
   '设备外观': 2,
@@ -678,9 +670,10 @@ export const DeviceManagement: React.FC = () => {
     return 'bg-yellow-100 border-yellow-200 text-yellow-900'; 
   };
 
-  // --- Device Detail Card with Inline Editing ---
+  // --- Device Detail Card with Modular Tabs ---
   const DeviceDetailCard: React.FC<{ device: Device }> = ({ device }) => {
     const { updateDevice } = useApp();
+    const [activeModule, setActiveModule] = useState<'info' | 'install' | 'aftersales' | 'inspection'>('info');
 
     const handleFieldUpdate = (field: keyof Device, value: string) => {
         let finalValue = value;
@@ -692,169 +685,300 @@ export const DeviceManagement: React.FC = () => {
 
     const typeOptions = deviceTypes.map(t => ({ label: t.name, value: t.id }));
     const storeOptions = stores
-        .filter(s => !device.regionId || s.regionId === device.regionId) // Filter stores by current region if region is set
+        .filter(s => !device.regionId || s.regionId === device.regionId)
         .map(s => ({ label: s.name, value: s.id }));
 
+    // Helper to categorize events
+    const getFilteredEvents = () => {
+        const keywords: Record<string, string[]> = {
+            'info': ['添加', '名称', 'SN', 'MAC', '图片', '类型'],
+            'install': ['门店', '房间', '软件', '启动'],
+            'aftersales': ['运维', '维修', '客诉', '审核', '异常'],
+            'inspection': ['测试', 'CPU', '内存', '网络', '状态', '合格', '运行', '待机', '未联网']
+        };
+
+        const targetKeywords = keywords[activeModule] || [];
+        
+        return device.events.filter(evt => {
+            const msg = evt.message;
+            // Default 'Info' if matches keywords OR if it's the default catch-all for unknown
+            if (activeModule === 'info') {
+                 // Info captures its keywords AND anything that doesn't match other categories? 
+                 // For simplicity, just strict matching + "device added" usually goes here
+                 if (msg.includes('设备首次添加')) return true;
+                 if (msg.includes('设备详情已修改')) return true; // Generic detail change
+                 return targetKeywords.some(k => msg.includes(k));
+            }
+            return targetKeywords.some(k => msg.includes(k));
+        });
+    };
+
+    const filteredEvents = getFilteredEvents();
+
     return (
-      <div className="bg-white p-3 border-t border-slate-100 animate-fadeIn shadow-inner grid grid-cols-2 gap-3">
-        {/* Left Column: Info & Image */}
-        <div className="flex flex-col space-y-2">
-            
-            {/* Header: Name (Editable) */}
-            <div className="flex items-center gap-1 font-bold text-sm text-slate-900 min-h-[24px]">
-                <EditableField 
-                    value={device.name} 
-                    type="text" 
-                    onSave={(val) => handleFieldUpdate('name', val)} 
-                />
-            </div>
-
-            {/* Info Table Style */}
-            <div className="space-y-1">
-                <div className="flex text-[10px]">
-                    <span className="text-slate-500 w-16 flex-shrink-0">设备SN码</span>
-                    <span className="text-slate-700 font-medium truncate">{device.sn}</span>
-                </div>
-                <div className="flex text-[10px]">
-                    <span className="text-slate-500 w-16 flex-shrink-0">MAC地址</span>
-                    <span className="text-slate-700 font-medium truncate">{device.mac || '-'}</span>
-                </div>
-                <div className="flex text-[10px] items-center">
-                    <span className="text-slate-500 w-16 flex-shrink-0">设备类型</span>
-                    <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1.5 py-0.5 bg-slate-50 min-w-0">
-                        <EditableField 
-                            value={device.typeId}
-                            displayValue={getTypeName(device.typeId)}
-                            type="select"
-                            options={typeOptions}
-                            onSave={(val) => handleFieldUpdate('typeId', val)}
-                            className="flex-1 min-w-0"
-                        />
-                    </div>
-                </div>
-                <div className="flex text-[10px] items-center">
-                    <span className="text-slate-500 w-16 flex-shrink-0">所属门店</span>
-                    <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1.5 py-0.5 bg-slate-50 min-w-0">
-                        <EditableField 
-                             value={device.storeId}
-                             displayValue={getStoreName(device.storeId)}
-                             type="select"
-                             options={storeOptions}
-                             onSave={(val) => handleFieldUpdate('storeId', val)}
-                             className="flex-1 min-w-0"
-                        />
-                    </div>
-                </div>
-                <div className="flex text-[10px] items-center">
-                    <span className="text-slate-500 w-16 flex-shrink-0">房间号码</span>
-                    <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1.5 py-0.5 bg-slate-50 min-w-0">
-                        <EditableField 
-                             value={device.roomNumber || ''}
-                             type="text"
-                             onSave={(val) => handleFieldUpdate('roomNumber', val)}
-                             className="flex-1 min-w-0"
-                        />
-                    </div>
-                </div>
-                 <div className="flex text-[10px] items-center">
-                    <span className="text-slate-500 w-16 flex-shrink-0">体验软件</span>
-                    <div className="flex-1 flex justify-between items-center border-b border-slate-100 py-0.5 min-w-0">
-                        <EditableField 
-                             value={device.softwareName || ''}
-                             type="text"
-                             onSave={(val) => handleFieldUpdate('softwareName', val)}
-                             className="flex-1 min-w-0"
-                        />
-                    </div>
-                </div>
-                <div className="flex text-[10px] items-center">
-                    <span className="text-slate-500 w-16 flex-shrink-0">首次启动</span>
-                    <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1.5 py-0.5 bg-slate-50 min-w-0">
-                        <EditableField 
-                             value={device.firstStartTime ? toInputDate(device.firstStartTime) : ''}
-                             displayValue={device.firstStartTime ? `${device.firstStartTime.split(' ')[0]}` : '-'}
-                             type="datetime-local"
-                             onSave={(val) => handleFieldUpdate('firstStartTime', val)}
-                             className="flex-1 min-w-0"
-                        />
-                    </div>
-                </div>
-                <div className="flex text-[10px] items-center">
-                    <span className="text-slate-500 w-16 flex-shrink-0">最近测试</span>
-                    <div className="flex-1 flex items-center gap-1 min-w-0">
-                        <span className="text-slate-700 truncate">{device.lastTestTime.split(' ')[0] || '-'} {device.lastTestTime.split(' ')[1]?.slice(0,5) || ''}</span>
-                        <span className="bg-green-100 text-green-600 px-1 rounded text-[9px] font-bold flex-shrink-0">合格</span>
-                        <ClipboardList size={12} className="text-blue-500 flex-shrink-0" />
-                    </div>
-                </div>
-            </div>
-
-            {/* Image Section (Triggers specific image modal) */}
-            <div className="relative rounded-lg overflow-hidden border border-slate-200 shadow-sm mt-1 group">
-                 {device.imageUrl ? (
-                    <img src={device.imageUrl} alt={device.name} className="w-full h-24 object-cover" />
-                ) : (
-                    <div className="w-full h-24 bg-slate-100 flex items-center justify-center text-slate-300">
-                        <ImageIcon size={24} />
-                    </div>
-                )}
-                <div 
-                    onClick={() => setEditingImageDevice(device)}
-                    className="absolute bottom-0 left-0 right-0 bg-blue-600/80 text-white text-[10px] text-center py-1 cursor-pointer hover:bg-blue-600 transition-colors"
-                >
-                    点击进行查看/修改
-                </div>
-            </div>
-
-            {/* Stats Row */}
-            <div className="flex justify-between items-center bg-white border border-slate-200 rounded px-2 py-1">
-                 <div className="flex flex-col items-center">
-                     <span className="text-blue-600 text-[10px] font-bold leading-none">{device.cpuUsage}%</span>
-                     <span className="text-[8px] text-slate-400 leading-none scale-75">cpu</span>
-                 </div>
-                 <div className="w-px h-3 bg-slate-200"></div>
-                 <div className="flex flex-col items-center">
-                     <span className="text-blue-600 text-[10px] font-bold leading-none">{device.memoryUsage}%</span>
-                     <span className="text-[8px] text-slate-400 leading-none scale-75">内存</span>
-                 </div>
-                 <div className="w-px h-3 bg-slate-200"></div>
-                 <Wifi size={12} className="text-slate-400" />
-                 <div className="w-px h-3 bg-slate-200"></div>
-                 <Volume2 size={12} className="text-slate-400" />
-                 <div className="w-px h-3 bg-slate-200"></div>
-                 <Battery size={12} className="text-blue-400" />
-            </div>
-
-             {/* Status Badge */}
-             <div className="text-center">
-                 <span className="bg-green-100 text-green-700 px-3 py-1 rounded text-[10px] inline-block font-medium">
-                    设备运行中
-                 </span>
-             </div>
+      <div className="bg-white border-t border-slate-100 animate-fadeIn shadow-inner flex flex-col">
+        
+        {/* Module Tabs */}
+        <div className="flex border-b border-slate-100 bg-slate-50">
+            <button 
+                onClick={() => setActiveModule('info')}
+                className={`flex-1 py-2 text-xs font-bold flex items-center justify-center gap-1 transition-colors ${activeModule === 'info' ? 'text-blue-600 bg-white border-t-2 border-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}
+            >
+                <Info size={14} /> 信息
+            </button>
+            <button 
+                onClick={() => setActiveModule('install')}
+                className={`flex-1 py-2 text-xs font-bold flex items-center justify-center gap-1 transition-colors ${activeModule === 'install' ? 'text-blue-600 bg-white border-t-2 border-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}
+            >
+                <MapPin size={14} /> 安装
+            </button>
+            <button 
+                onClick={() => setActiveModule('aftersales')}
+                className={`flex-1 py-2 text-xs font-bold flex items-center justify-center gap-1 transition-colors ${activeModule === 'aftersales' ? 'text-blue-600 bg-white border-t-2 border-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}
+            >
+                <Headphones size={14} /> 售后
+            </button>
+             <button 
+                onClick={() => setActiveModule('inspection')}
+                className={`flex-1 py-2 text-xs font-bold flex items-center justify-center gap-1 transition-colors ${activeModule === 'inspection' ? 'text-blue-600 bg-white border-t-2 border-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}
+            >
+                <Activity size={14} /> 巡检
+            </button>
         </div>
 
-        {/* Right Column: Timeline */}
-        <div className="relative pl-1">
-            <div className="absolute left-[5px] top-1 bottom-0 w-0.5 bg-slate-200"></div>
+        <div className="p-3 grid grid-cols-12 gap-2">
             
-            <div className="space-y-4">
-                 {device.events.slice(0, 5).map(evt => (
-                     <div key={evt.id} className="relative pl-4">
-                        <div className={`absolute left-0 top-1.5 w-2.5 h-2.5 rounded-full border-2 border-white box-content ${evt.type === 'error' ? 'bg-red-500' : evt.type === 'warning' ? 'bg-orange-400' : 'bg-slate-300'}`}></div>
-                        <div className="flex flex-col">
-                            <span className="text-[9px] text-slate-400 leading-tight mb-0.5">{evt.timestamp}</span>
-                            <span className="text-[10px] font-bold text-slate-700 leading-tight">事件</span>
-                            <span className="text-[10px] text-slate-600 leading-tight">{evt.message}</span>
-                            <span className="text-[9px] text-slate-400 text-right mt-0.5">操作人: {evt.operator || 'System'}</span>
+            {/* LEFT COLUMN: MODULE SPECIFIC CONTENT (7/12) */}
+            <div className="col-span-7 space-y-3">
+                
+                {/* Info Module */}
+                {activeModule === 'info' && (
+                    <div className="space-y-3 animate-fadeIn">
+                        {/* Header: Name (Editable) */}
+                        <div className="flex items-center gap-1 font-bold text-sm text-slate-900 border-b border-slate-100 pb-2">
+                            <EditableField 
+                                value={device.name} 
+                                type="text" 
+                                onSave={(val) => handleFieldUpdate('name', val)} 
+                            />
                         </div>
-                     </div>
-                 ))}
-                 {device.events.length === 0 && (
-                     <div className="text-[10px] text-slate-400 pl-4 py-4 italic">
-                         暂无事件记录
-                     </div>
-                 )}
+
+                        {/* Image Section */}
+                        <div className="relative rounded-lg overflow-hidden border border-slate-200 shadow-sm group bg-slate-50">
+                            {device.imageUrl ? (
+                                <img src={device.imageUrl} alt={device.name} className="w-full h-24 object-contain bg-slate-100" />
+                            ) : (
+                                <div className="w-full h-24 bg-slate-100 flex items-center justify-center text-slate-300">
+                                    <ImageIcon size={32} />
+                                </div>
+                            )}
+                            <div 
+                                onClick={() => setEditingImageDevice(device)}
+                                className="absolute bottom-0 left-0 right-0 bg-blue-600/80 text-white text-[10px] text-center py-1 cursor-pointer hover:bg-blue-600 transition-colors"
+                            >
+                                点击管理图片
+                            </div>
+                        </div>
+
+                        {/* Fields */}
+                        <div className="space-y-1">
+                            <div className="flex text-[10px] items-center">
+                                <span className="text-slate-500 w-12 flex-shrink-0">SN码</span>
+                                <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0">
+                                    <EditableField 
+                                        value={device.sn}
+                                        type="text"
+                                        onSave={(val) => handleFieldUpdate('sn', val)}
+                                        className="flex-1 min-w-0"
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex text-[10px] items-center">
+                                <span className="text-slate-500 w-12 flex-shrink-0">MAC</span>
+                                <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0">
+                                    <EditableField 
+                                        value={device.mac || ''}
+                                        type="text"
+                                        onSave={(val) => handleFieldUpdate('mac', val)}
+                                        className="flex-1 min-w-0"
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex text-[10px] items-center">
+                                <span className="text-slate-500 w-12 flex-shrink-0">类型</span>
+                                <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0">
+                                    <EditableField 
+                                        value={device.typeId}
+                                        displayValue={getTypeName(device.typeId)}
+                                        type="select"
+                                        options={typeOptions}
+                                        onSave={(val) => handleFieldUpdate('typeId', val)}
+                                        className="flex-1 min-w-0"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Installation Module */}
+                {activeModule === 'install' && (
+                    <div className="space-y-3 animate-fadeIn">
+                        <div className="bg-blue-50 p-2 rounded-lg border border-blue-100">
+                            <h4 className="text-[10px] font-bold text-blue-800 mb-2 flex items-center gap-1">
+                                <MapPin size={10} /> 位置与软件
+                            </h4>
+                            <div className="space-y-1.5">
+                                <div className="flex text-[10px] items-center">
+                                    <span className="text-slate-500 w-12 flex-shrink-0">门店</span>
+                                    <div className="flex-1 flex justify-between items-center border border-blue-200 rounded px-1 py-0.5 bg-white min-w-0">
+                                        <EditableField 
+                                            value={device.storeId}
+                                            displayValue={getStoreName(device.storeId)}
+                                            type="select"
+                                            options={storeOptions}
+                                            onSave={(val) => handleFieldUpdate('storeId', val)}
+                                            className="flex-1 min-w-0"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex text-[10px] items-center">
+                                    <span className="text-slate-500 w-12 flex-shrink-0">房间</span>
+                                    <div className="flex-1 flex justify-between items-center border border-blue-200 rounded px-1 py-0.5 bg-white min-w-0">
+                                        <EditableField 
+                                            value={device.roomNumber || ''}
+                                            type="text"
+                                            onSave={(val) => handleFieldUpdate('roomNumber', val)}
+                                            className="flex-1 min-w-0"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex text-[10px] items-center">
+                                    <span className="text-slate-500 w-12 flex-shrink-0">软件</span>
+                                    <div className="flex-1 flex justify-between items-center border border-blue-200 rounded px-1 py-0.5 bg-white min-w-0">
+                                        <EditableField 
+                                            value={device.softwareName || ''}
+                                            type="text"
+                                            onSave={(val) => handleFieldUpdate('softwareName', val)}
+                                            className="flex-1 min-w-0"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex text-[10px] items-center">
+                                    <span className="text-slate-500 w-12 flex-shrink-0">启动</span>
+                                    <div className="flex-1 flex justify-between items-center border border-blue-200 rounded px-1 py-0.5 bg-white min-w-0">
+                                        <EditableField 
+                                            value={device.firstStartTime ? toInputDate(device.firstStartTime) : ''}
+                                            displayValue={device.firstStartTime ? `${device.firstStartTime}` : '-'}
+                                            type="datetime-local"
+                                            onSave={(val) => handleFieldUpdate('firstStartTime', val)}
+                                            className="flex-1 min-w-0"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* After-sales Module */}
+                {activeModule === 'aftersales' && (
+                    <div className="space-y-3 animate-fadeIn">
+                        <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 flex flex-col gap-2">
+                            <div>
+                                <p className="text-[10px] text-slate-500 mb-1">当前运维状态</p>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className={`text-sm font-bold px-2 py-1 rounded ${
+                                        device.opsStatus === OpsStatus.HOTEL_COMPLAINT ? 'bg-pink-100 text-pink-700' :
+                                        device.opsStatus === OpsStatus.ABNORMAL ? 'bg-red-100 text-red-700' :
+                                        device.opsStatus === OpsStatus.REPAIRING ? 'bg-purple-100 text-purple-700' :
+                                        'bg-green-100 text-green-700'
+                                    }`}>
+                                        {device.opsStatus}
+                                    </span>
+                                    {hasPendingAudit(device.id) && (
+                                        <span className="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-bold border border-orange-200">
+                                            待审核
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="border-t border-slate-200 pt-2">
+                                <p className="text-[10px] text-slate-500 mb-1">该状态持续时长</p>
+                                <p className="text-lg font-bold text-slate-700">{calculateDuration(device.lastTestTime)}</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Inspection Module */}
+                {activeModule === 'inspection' && (
+                    <div className="space-y-3 animate-fadeIn">
+                        {/* Stats Row */}
+                        <div className="bg-slate-800 text-white rounded-lg p-3 shadow-md grid grid-cols-3 gap-2 text-center">
+                            <div className="flex flex-col items-center">
+                                <span className="text-sm font-bold leading-none">{device.cpuUsage}%</span>
+                                <span className="text-[8px] text-slate-400 mt-1">CPU</span>
+                            </div>
+                            <div className="flex flex-col items-center border-l border-slate-600">
+                                <span className="text-sm font-bold leading-none">{device.memoryUsage}%</span>
+                                <span className="text-[8px] text-slate-400 mt-1">内存</span>
+                            </div>
+                            <div className="flex flex-col items-center border-l border-slate-600">
+                                <Wifi size={14} className={device.signalStrength > 50 ? 'text-green-400' : 'text-yellow-400'} />
+                                <span className="text-[8px] text-slate-400 mt-1">网络</span>
+                            </div>
+                        </div>
+                        
+                        <div className="flex justify-between items-center bg-white border border-slate-200 rounded-lg p-2">
+                            <div className="flex flex-col">
+                                <span className="text-[9px] text-slate-500">最近测试</span>
+                                <span className="text-[10px] font-bold text-slate-700">{device.lastTestTime}</span>
+                            </div>
+                            <span className="bg-green-100 text-green-600 px-1.5 py-0.5 rounded text-[10px] font-bold flex items-center gap-1">
+                                <ClipboardCheck size={10} /> 合格
+                            </span>
+                        </div>
+
+                        <div className="text-center">
+                            <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${
+                                device.status === DeviceStatus.ONLINE ? 'bg-green-100 text-green-700' : 
+                                device.status === DeviceStatus.OFFLINE ? 'bg-slate-200 text-slate-600' :
+                                'bg-yellow-100 text-yellow-700'
+                            }`}>
+                                {device.status}
+                            </span>
+                        </div>
+                    </div>
+                )}
             </div>
+
+            {/* RIGHT COLUMN: TIMELINE (5/12) */}
+            <div className="col-span-5 border-l border-slate-100 pl-2">
+                <h5 className="text-[9px] font-bold text-slate-400 mb-2 uppercase flex items-center gap-1 sticky top-0 bg-white z-10 py-1">
+                     <History size={10} /> 历史记录
+                </h5>
+                <div className="space-y-3 relative pl-1">
+                     <div className="absolute left-[5px] top-1 bottom-0 w-0.5 bg-slate-100"></div>
+                     {filteredEvents.length > 0 ? (
+                         filteredEvents.slice(0, 10).map(evt => (
+                             <div key={evt.id} className="relative pl-3 animate-fadeIn">
+                                <div className={`absolute left-0 top-1 w-2.5 h-2.5 rounded-full border-2 border-white box-content z-10 ${evt.type === 'error' ? 'bg-red-500' : evt.type === 'warning' ? 'bg-orange-400' : 'bg-blue-300'}`}></div>
+                                <div className="flex flex-col">
+                                    <span className="text-[8px] text-slate-400 leading-tight mb-0.5 scale-90 origin-left">{evt.timestamp.split(' ')[0]}</span>
+                                    <span className="text-[9px] text-slate-700 leading-tight font-medium line-clamp-2" title={evt.message}>{evt.message}</span>
+                                    <span className="text-[8px] text-slate-400 mt-0.5 scale-90 origin-left">@{evt.operator || 'Sys'}</span>
+                                </div>
+                             </div>
+                         ))
+                     ) : (
+                         <div className="text-[9px] text-slate-300 pl-2 py-2 italic">
+                             无记录
+                         </div>
+                     )}
+                </div>
+            </div>
+            
         </div>
 
       </div>
