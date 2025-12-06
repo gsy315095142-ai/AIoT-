@@ -41,6 +41,7 @@ const MOCK_DEVICES: Device[] = [
     signalStrength: 95,
     firstStartTime: '2025-08-02 14:00',
     lastTestTime: '2025-08-25 11:00',
+    lastTestResult: 'Qualified',
     imageUrl: 'https://images.unsplash.com/photo-1593640408182-31c70c8268f5?q=80&w=300&auto=format&fit=crop',
     images: [{ url: 'https://images.unsplash.com/photo-1593640408182-31c70c8268f5?q=80&w=300&auto=format&fit=crop', category: '设备外观' }],
     events: [
@@ -67,6 +68,7 @@ const MOCK_DEVICES: Device[] = [
     signalStrength: 40,
     firstStartTime: '2023-02-20T10:00:00',
     lastTestTime: '2023-10-26T10:00:00',
+    lastTestResult: 'Unqualified',
     imageUrl: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca4?q=80&w=300&auto=format&fit=crop',
     images: [{ url: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca4?q=80&w=300&auto=format&fit=crop', category: '设备外观' }],
     events: []
@@ -88,6 +90,7 @@ const MOCK_DEVICES: Device[] = [
     signalStrength: 100,
     firstStartTime: '2023-03-10T08:00:00',
     lastTestTime: '2023-10-26T09:00:00',
+    lastTestResult: 'Qualified',
     imageUrl: 'https://images.unsplash.com/photo-1622979135225-d2ba269fb1ac?q=80&w=300&auto=format&fit=crop',
     images: [{ url: 'https://images.unsplash.com/photo-1622979135225-d2ba269fb1ac?q=80&w=300&auto=format&fit=crop', category: '设备外观' }],
     events: []
@@ -110,7 +113,7 @@ interface AppContextType {
   addDeviceType: (name: string) => void;
   removeDeviceType: (id: string) => void;
   addDevice: (device: Omit<Device, 'id' | 'events' | 'status' | 'opsStatus' | 'cpuUsage' | 'memoryUsage' | 'signalStrength' | 'firstStartTime' | 'lastTestTime'>) => void;
-  updateDevice: (id: string, data: Partial<Device>, customEventMessage?: string) => void;
+  updateDevice: (id: string, data: Partial<Device>, customEventMessage?: string, eventMeta?: { remark?: string, images?: string[] }) => void;
   submitOpsStatusChange: (deviceId: string, targetStatus: OpsStatus, reason: string, images?: string[]) => void;
   submitInspectionReport: (deviceId: string, result: 'Qualified' | 'Unqualified', remark: string, images?: string[]) => void;
   approveAudit: (recordId: string) => void;
@@ -181,11 +184,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       signalStrength: Math.floor(Math.random() * 100),
       firstStartTime: timestamp,
       lastTestTime: timestamp,
+      lastTestResult: 'Qualified',
     };
     setDevices([newDevice, ...devices]);
   };
 
-  const updateDevice = (id: string, data: Partial<Device>, customEventMessage?: string) => {
+  const updateDevice = (id: string, data: Partial<Device>, customEventMessage?: string, eventMeta?: { remark?: string, images?: string[] }) => {
     setDevices(prevDevices => prevDevices.map(d => {
       if (d.id === id) {
         const currentEvents = d.events || [];
@@ -204,7 +208,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 type: type,
                 message: customEventMessage,
                 timestamp: timestamp,
-                operator: currentUser || 'System'
+                operator: currentUser || 'System',
+                remark: eventMeta?.remark,
+                images: eventMeta?.images
             });
         }
         // 2. Handle Automatic Ops Status Logging (if no custom message)
@@ -217,7 +223,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 type: type,
                 message: `运维状态变更为: ${data.opsStatus}`,
                 timestamp: timestamp,
-                operator: currentUser || 'System'
+                operator: currentUser || 'System',
+                remark: eventMeta?.remark,
+                images: eventMeta?.images
             });
         }
 
@@ -234,7 +242,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 type: 'info',
                 message: `设备状态变更为: ${statusMap[data.status] || data.status}`,
                 timestamp: timestamp,
-                operator: currentUser || 'System'
+                operator: currentUser || 'System',
+                remark: eventMeta?.remark,
+                images: eventMeta?.images
             });
         }
         
@@ -248,7 +258,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 type: 'info',
                 message: '设备详情已修改',
                 timestamp: timestamp,
-                operator: currentUser || 'System'
+                operator: currentUser || 'System',
+                remark: eventMeta?.remark,
+                images: eventMeta?.images
             });
         }
 
@@ -303,7 +315,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setAuditRecords(prev => [newRecord, ...prev]);
 
     // 3. Log Event
-    updateDevice(deviceId, {}, `提交审核: ${targetStatus} (原因: ${reason})`);
+    updateDevice(deviceId, {}, `提交审核: ${targetStatus}`, { remark: reason, images: images });
   };
 
   const submitInspectionReport = (deviceId: string, result: 'Qualified' | 'Unqualified', remark: string, images?: string[]) => {
@@ -312,6 +324,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!device) return;
 
     const storeName = stores.find(s => s.id === device.storeId)?.name;
+
+    // 1. Invalidate any existing PENDING inspection records for this device
+    setAuditRecords(prev => prev.map(rec => {
+        if (rec.deviceId === deviceId && rec.auditStatus === AuditStatus.PENDING && rec.type === AuditType.INSPECTION) {
+            return { ...rec, auditStatus: AuditStatus.INVALID, auditTime: timestamp };
+        }
+        return rec;
+    }));
 
     const newRecord: AuditRecord = {
         id: `insp-${Date.now()}`,
@@ -331,7 +351,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setAuditRecords(prev => [newRecord, ...prev]);
 
-    updateDevice(deviceId, {}, `提交巡检报告: ${result === 'Qualified' ? '合格' : '不合格'} (备注: ${remark})`);
+    updateDevice(deviceId, {}, `提交巡检报告: ${result === 'Qualified' ? '合格' : '不合格'}`, { remark: remark, images: images });
   };
 
   const approveAudit = (recordId: string) => {
@@ -353,9 +373,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               lastTestTime: timestamp.replace(' ', 'T').replace(/\//g, '-') // Reset Timer
           }, `审核通过: 状态变更为 ${record.targetOpsStatus}`);
       } else if (record.type === AuditType.INSPECTION) {
-          // Update Last Test Time for Inspection
+          // Update Last Test Time AND Result for Inspection
           updateDevice(record.deviceId, {
-              lastTestTime: timestamp.replace(' ', 'T').replace(/\//g, '-')
+              lastTestTime: timestamp.replace(' ', 'T').replace(/\//g, '-'),
+              lastTestResult: record.testResult
           }, `巡检报告审核通过: ${record.testResult === 'Qualified' ? '合格' : '不合格'}`);
       }
   };
@@ -374,9 +395,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Log Rejection event on device (Status remains unchanged)
     if (record.type === AuditType.OPS_STATUS) {
-        updateDevice(record.deviceId, {}, `审核拒绝: 申请变更至 ${record.targetOpsStatus} 被拒绝 (${rejectReason})`);
+        updateDevice(record.deviceId, {}, `审核拒绝: 申请变更至 ${record.targetOpsStatus} 被拒绝`, { remark: rejectReason });
     } else if (record.type === AuditType.INSPECTION) {
-        updateDevice(record.deviceId, {}, `巡检报告审核拒绝: 报告被驳回 (${rejectReason})`);
+        updateDevice(record.deviceId, {}, `巡检报告审核拒绝: 报告被驳回`, { remark: rejectReason });
     }
   };
 

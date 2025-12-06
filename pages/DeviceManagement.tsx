@@ -2,8 +2,8 @@
 
 import React, { useState, useMemo, ChangeEvent, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Device, OpsStatus, DeviceStatus, DeviceImage, AuditStatus, AuditRecord, AuditType } from '../types';
-import { ChevronDown, ChevronUp, Plus, Wifi, Image as ImageIcon, Search, CheckSquare, Square, X, FilePenLine, ClipboardList, Battery, Volume2, Check, X as XIcon, Upload, Settings2, Play, Moon, RotateCcw, ClipboardCheck, History, AlertCircle, Info, MapPin, Headphones, Activity, Wrench, Clock, FileText } from 'lucide-react';
+import { Device, OpsStatus, DeviceStatus, DeviceImage, AuditStatus, AuditRecord, AuditType, DeviceEvent } from '../types';
+import { ChevronDown, ChevronUp, Plus, Wifi, Image as ImageIcon, Search, CheckSquare, Square, X, FilePenLine, ClipboardList, Battery, Volume2, Check, X as XIcon, Upload, Settings2, Play, Moon, RotateCcw, ClipboardCheck, History, AlertCircle, Info, MapPin, Headphones, Activity, Wrench, Clock, FileText, Eye } from 'lucide-react';
 
 const CATEGORY_LIMITS: Record<string, number> = {
   '设备外观': 2,
@@ -253,6 +253,125 @@ const ImageManagerModal: React.FC<ImageManagerModalProps> = ({ device, onClose }
   );
 };
 
+// --- Report Detail Modal ---
+
+const ReportDetailModal: React.FC<{ record: AuditRecord | null; device: Device; onClose: () => void }> = ({ record, device, onClose }) => {
+    return (
+        <div className="fixed inset-0 z-[80] bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
+             <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[80vh] animate-scaleIn">
+                <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
+                    <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+                        <ClipboardCheck size={20} className="text-blue-600" />
+                        巡检报告详情
+                    </h3>
+                    <button onClick={onClose}><X size={20} className="text-slate-400" /></button>
+                </div>
+                
+                <div className="p-5 space-y-4 overflow-y-auto">
+                    <div className="flex justify-between items-center">
+                        <span className="text-sm font-bold text-slate-600">测试结果</span>
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                            (record?.testResult || device.lastTestResult) === 'Qualified' ? 'bg-green-100 text-green-700' : 
+                            (record?.testResult || device.lastTestResult) === 'Unqualified' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-500'
+                        }`}>
+                            {(record?.testResult || device.lastTestResult) === 'Qualified' ? '合格' : '不合格'}
+                        </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                        <div>
+                            <p className="text-[10px] text-slate-400 uppercase">巡检时间</p>
+                            <p className="text-xs font-bold text-slate-800">{record?.auditTime || device.lastTestTime || '-'}</p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] text-slate-400 uppercase">操作人</p>
+                            <p className="text-xs font-bold text-slate-800">{record?.requestUser || '-'}</p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <p className="text-xs font-bold text-slate-600 mb-1">备注说明</p>
+                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-xs text-slate-700 min-h-[60px]">
+                            {record?.changeReason || '暂无详细备注'}
+                        </div>
+                    </div>
+
+                    {record?.images && record.images.length > 0 && (
+                        <div>
+                            <p className="text-xs font-bold text-slate-600 mb-2">现场凭证</p>
+                            <div className="grid grid-cols-3 gap-2">
+                                {record.images.map((img, idx) => (
+                                    <div key={idx} className="aspect-square rounded-lg border border-slate-200 overflow-hidden cursor-pointer hover:opacity-90">
+                                        <img src={img} alt="evidence" className="w-full h-full object-cover" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+                
+                <div className="p-4 border-t border-slate-100 bg-slate-50 text-center">
+                    <button onClick={onClose} className="w-full py-2 bg-white border border-slate-200 text-slate-600 font-bold rounded-lg shadow-sm">关闭</button>
+                </div>
+             </div>
+        </div>
+    )
+}
+
+// --- Event Detail Modal ---
+
+const EventDetailModal: React.FC<{ event: DeviceEvent; onClose: () => void }> = ({ event, onClose }) => {
+    return (
+        <div className="fixed inset-0 z-[80] bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
+             <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-scaleIn">
+                <div className={`p-4 border-b flex justify-between items-center ${
+                    event.type === 'error' ? 'bg-red-50 border-red-100' : event.type === 'warning' ? 'bg-orange-50 border-orange-100' : 'bg-blue-50 border-blue-100'
+                }`}>
+                    <h3 className={`font-bold text-lg flex items-center gap-2 ${
+                         event.type === 'error' ? 'text-red-700' : event.type === 'warning' ? 'text-orange-700' : 'text-blue-700'
+                    }`}>
+                        <Info size={20} />
+                        事件详情
+                    </h3>
+                    <button onClick={onClose}><X size={20} className="opacity-50 hover:opacity-100" /></button>
+                </div>
+                <div className="p-6 space-y-4">
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                        <p className="text-sm font-bold text-slate-800 mb-2 leading-relaxed">{event.message}</p>
+                    </div>
+                    
+                    {event.remark && (
+                        <div>
+                            <span className="text-xs font-bold text-slate-500 block mb-1 uppercase">备注信息</span>
+                            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-sm text-slate-700">
+                                {event.remark}
+                            </div>
+                        </div>
+                    )}
+
+                    {event.images && event.images.length > 0 && (
+                        <div>
+                            <span className="text-xs font-bold text-slate-500 block mb-2 uppercase">附带图片</span>
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                                {event.images.map((img, i) => (
+                                    <div key={i} className="w-16 h-16 rounded border border-slate-200 overflow-hidden flex-shrink-0 cursor-pointer hover:opacity-90">
+                                        <img src={img} alt="event evidence" className="w-full h-full object-cover" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex justify-between items-center text-xs text-slate-500 border-t border-slate-100 pt-4">
+                        <div className="flex items-center gap-1"><Clock size={12} /> {event.timestamp}</div>
+                        <div className="flex items-center gap-1"><Wrench size={12} /> {event.operator || 'System'}</div>
+                    </div>
+                </div>
+             </div>
+        </div>
+    )
+}
+
 // --- Audit Management Modal ---
 
 const AuditManagementModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
@@ -463,6 +582,10 @@ export const DeviceManagement: React.FC = () => {
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [isInspectionModalOpen, setIsInspectionModalOpen] = useState(false);
   const [inspectingDeviceId, setInspectingDeviceId] = useState<string | null>(null);
+
+  // Detail Modal States
+  const [viewingReportDevice, setViewingReportDevice] = useState<Device | null>(null);
+  const [viewingEvent, setViewingEvent] = useState<DeviceEvent | null>(null);
   
   // Ops Status Change State
   const [opsChangeStatus, setOpsChangeStatus] = useState<OpsStatus>(OpsStatus.INSPECTED);
@@ -661,8 +784,8 @@ export const DeviceManagement: React.FC = () => {
 
   // --- Device Detail Card ---
   const DeviceDetailCard: React.FC<{ device: Device }> = ({ device }) => {
-    const { updateDevice } = useApp();
-    const [activeModule, setActiveModule] = useState<'info' | 'install' | 'maintenance'>('info');
+    const { updateDevice, auditRecords } = useApp();
+    const [activeModule, setActiveModule] = useState<'info' | 'install' | 'aftersales' | 'inspection'>('info');
 
     const handleFieldUpdate = (field: keyof Device, value: string) => {
         let finalValue = value;
@@ -672,13 +795,15 @@ export const DeviceManagement: React.FC = () => {
 
     const typeOptions = deviceTypes.map(t => ({ label: t.name, value: t.id }));
     const storeOptions = stores.filter(s => !device.regionId || s.regionId === device.regionId).map(s => ({ label: s.name, value: s.id }));
-    const pendingRecord = auditRecords.find(r => r.deviceId === device.id && r.auditStatus === AuditStatus.PENDING && r.type === AuditType.OPS_STATUS);
+    const pendingOpsRecord = auditRecords.find(r => r.deviceId === device.id && r.auditStatus === AuditStatus.PENDING && r.type === AuditType.OPS_STATUS);
+    const pendingInspRecord = auditRecords.find(r => r.deviceId === device.id && r.auditStatus === AuditStatus.PENDING && r.type === AuditType.INSPECTION);
 
     const getFilteredEvents = () => {
         const keywords: Record<string, string[]> = {
             'info': ['添加', '名称', 'SN', 'MAC', '图片', '类型'],
             'install': ['门店', '房间', '软件', '启动'],
-            'maintenance': ['运维', '维修', '客诉', '审核', '异常', '申请', '通过', '拒绝', '测试', 'CPU', '内存', '网络', '状态', '合格', '运行', '待机', '未联网']
+            'aftersales': ['运维', '维修', '客诉', '审核', '异常', '申请', '通过', '拒绝', '运行', '待机', '未联网'],
+            'inspection': ['测试', 'CPU', '内存', '网络', '状态', '合格']
         };
         const targetKeywords = keywords[activeModule] || [];
         return device.events.filter(evt => {
@@ -686,6 +811,13 @@ export const DeviceManagement: React.FC = () => {
             if (activeModule === 'info') {
                  if (msg.includes('设备首次添加') || msg.includes('设备详情已修改')) return true;
                  return targetKeywords.some(k => msg.includes(k));
+            }
+            if (activeModule === 'aftersales') {
+                if (msg.includes('巡检')) return false; // Exclude inspection audits from aftersales
+                return targetKeywords.some(k => msg.includes(k));
+            }
+            if (activeModule === 'inspection') {
+                return targetKeywords.some(k => msg.includes(k));
             }
             return targetKeywords.some(k => msg.includes(k));
         });
@@ -698,7 +830,8 @@ export const DeviceManagement: React.FC = () => {
         <div className="flex border-b border-slate-100 bg-slate-50">
             <button onClick={() => setActiveModule('info')} className={`flex-1 py-2 text-xs font-bold flex items-center justify-center gap-1 transition-colors ${activeModule === 'info' ? 'text-blue-600 bg-white border-t-2 border-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}><Info size={14} /> 信息</button>
             <button onClick={() => setActiveModule('install')} className={`flex-1 py-2 text-xs font-bold flex items-center justify-center gap-1 transition-colors ${activeModule === 'install' ? 'text-blue-600 bg-white border-t-2 border-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}><MapPin size={14} /> 安装</button>
-            <button onClick={() => setActiveModule('maintenance')} className={`flex-1 py-2 text-xs font-bold flex items-center justify-center gap-1 transition-colors ${activeModule === 'maintenance' ? 'text-blue-600 bg-white border-t-2 border-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}><Wrench size={14} /> 售后&巡检</button>
+            <button onClick={() => setActiveModule('aftersales')} className={`flex-1 py-2 text-xs font-bold flex items-center justify-center gap-1 transition-colors ${activeModule === 'aftersales' ? 'text-blue-600 bg-white border-t-2 border-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}><Wrench size={14} /> 售后</button>
+            <button onClick={() => setActiveModule('inspection')} className={`flex-1 py-2 text-xs font-bold flex items-center justify-center gap-1 transition-colors ${activeModule === 'inspection' ? 'text-blue-600 bg-white border-t-2 border-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}><Activity size={14} /> 巡检</button>
         </div>
 
         <div className="p-3 grid grid-cols-12 gap-2">
@@ -732,31 +865,64 @@ export const DeviceManagement: React.FC = () => {
                         </div>
                     </div>
                 )}
-                {activeModule === 'maintenance' && (
+                {activeModule === 'aftersales' && (
                     <div className="space-y-3 animate-fadeIn">
+                        {/* Device Status Moved Here */}
+                        <div className={`py-2 px-3 rounded-lg border flex items-center justify-between ${
+                            device.status === DeviceStatus.ONLINE ? 'bg-green-100 border-green-200 text-green-800' : 
+                            device.status === DeviceStatus.OFFLINE ? 'bg-slate-100 border-slate-200 text-slate-600' : 
+                            'bg-yellow-100 border-yellow-200 text-yellow-800'
+                        }`}>
+                            <span className="text-[10px] font-bold opacity-70 uppercase">运行状态</span>
+                            <span className="text-sm font-bold flex items-center gap-1">
+                                {device.status === DeviceStatus.ONLINE ? <Activity size={14} /> : device.status === DeviceStatus.OFFLINE ? <Moon size={14} /> : <AlertCircle size={14} />}
+                                {STATUS_MAP[device.status]}
+                            </span>
+                        </div>
+
+                        {/* Hardware Stats Moved Here */}
+                        <div className="bg-slate-800 text-white rounded-lg p-3 shadow-md grid grid-cols-3 gap-2 text-center">
+                            <div className="flex flex-col items-center"><span className="text-sm font-bold leading-none">{device.cpuUsage}%</span><span className="text-[8px] text-slate-400 mt-1">CPU</span></div>
+                            <div className="flex flex-col items-center border-l border-slate-600"><span className="text-sm font-bold leading-none">{device.memoryUsage}%</span><span className="text-[8px] text-slate-400 mt-1">内存</span></div>
+                            <div className="flex flex-col items-center border-l border-slate-600"><Wifi size={14} className={device.signalStrength > 50 ? 'text-green-400' : 'text-yellow-400'} /><span className="text-[8px] text-slate-400 mt-1">网络</span></div>
+                        </div>
+
                         <div className={`p-3 rounded-lg border flex justify-between items-center ${device.opsStatus === OpsStatus.HOTEL_COMPLAINT ? 'bg-pink-50 border-pink-100' : device.opsStatus === OpsStatus.ABNORMAL ? 'bg-red-50 border-red-100' : device.opsStatus === OpsStatus.REPAIRING ? 'bg-purple-50 border-purple-100' : 'bg-green-50 border-green-100'}`}>
                             <div><p className="text-[10px] opacity-60 mb-0.5 uppercase tracking-wide">当前运维状态</p><span className={`text-base font-bold ${device.opsStatus === OpsStatus.HOTEL_COMPLAINT ? 'text-pink-700' : device.opsStatus === OpsStatus.ABNORMAL ? 'text-red-700' : device.opsStatus === OpsStatus.REPAIRING ? 'text-purple-700' : 'text-green-700'}`}>{device.opsStatus}</span></div>
                             <div className="text-right"><p className="text-[10px] opacity-60 mb-0.5">已持续</p><div className={`flex items-center gap-1 justify-end ${device.opsStatus === OpsStatus.HOTEL_COMPLAINT ? 'text-pink-700' : device.opsStatus === OpsStatus.ABNORMAL ? 'text-red-700' : device.opsStatus === OpsStatus.REPAIRING ? 'text-purple-700' : 'text-green-700'}`}><Clock size={12} /><p className="text-lg font-bold font-mono leading-none">{calculateDuration(device.lastTestTime)}</p></div></div>
                         </div>
-                        {pendingRecord && (
+                        {pendingOpsRecord && (
                             <div className="bg-orange-50 border border-orange-200 rounded-lg p-2.5 text-xs animate-fadeIn shadow-sm">
-                                <div className="flex justify-between items-center mb-2 border-b border-orange-100 pb-1"><span className="font-bold text-orange-700 flex items-center gap-1"><ClipboardCheck size={12} /> 正在审核中</span><span className="text-[10px] text-orange-400">{pendingRecord.requestTime.split(' ')[0]}</span></div>
-                                <div className="grid grid-cols-2 gap-2 mb-2"><div className="flex flex-col"><span className="text-[10px] text-orange-500">申请状态</span><span className="font-bold text-slate-700">{pendingRecord.targetOpsStatus}</span></div><div className="flex flex-col text-right"><span className="text-[10px] text-orange-500">申请人</span><span className="font-bold text-slate-700">{pendingRecord.requestUser}</span></div></div>
-                                <div className="bg-white p-2 rounded border border-orange-100 mb-2"><span className="text-[10px] text-orange-400 block mb-0.5">备注</span><p className="text-slate-700 font-medium break-all">{pendingRecord.changeReason}</p></div>
-                                {pendingRecord.images && pendingRecord.images.length > 0 && (<div><span className="text-[10px] text-orange-400 block mb-1">凭证</span><div className="flex gap-1 overflow-x-auto no-scrollbar">{pendingRecord.images.map((img, idx) => (<div key={idx} className="w-8 h-8 rounded border border-orange-100 overflow-hidden flex-shrink-0"><img src={img} alt="evidence" className="w-full h-full object-cover" /></div>))}</div></div>)}
+                                <div className="flex justify-between items-center mb-2 border-b border-orange-100 pb-1"><span className="font-bold text-orange-700 flex items-center gap-1"><ClipboardCheck size={12} /> 状态审核中</span><span className="text-[10px] text-orange-400">{pendingOpsRecord.requestTime.split(' ')[0]}</span></div>
+                                <div className="grid grid-cols-2 gap-2 mb-2"><div className="flex flex-col"><span className="text-[10px] text-orange-500">申请状态</span><span className="font-bold text-slate-700">{pendingOpsRecord.targetOpsStatus}</span></div><div className="flex flex-col text-right"><span className="text-[10px] text-orange-500">申请人</span><span className="font-bold text-slate-700">{pendingOpsRecord.requestUser}</span></div></div>
+                                <div className="bg-white p-2 rounded border border-orange-100 mb-2"><span className="text-[10px] text-orange-400 block mb-0.5">备注</span><p className="text-slate-700 font-medium break-all">{pendingOpsRecord.changeReason}</p></div>
+                                {pendingOpsRecord.images && pendingOpsRecord.images.length > 0 && (<div><span className="text-[10px] text-orange-400 block mb-1">凭证</span><div className="flex gap-1 overflow-x-auto no-scrollbar">{pendingOpsRecord.images.map((img, idx) => (<div key={idx} className="w-8 h-8 rounded border border-orange-100 overflow-hidden flex-shrink-0"><img src={img} alt="evidence" className="w-full h-full object-cover" /></div>))}</div></div>)}
                             </div>
                         )}
+                    </div>
+                )}
+                {activeModule === 'inspection' && (
+                    <div className="space-y-3 animate-fadeIn">
                         <div className="bg-white border border-slate-100 rounded-lg p-2 shadow-sm space-y-2">
                             <h4 className="text-[10px] font-bold text-slate-400 uppercase border-b border-slate-50 pb-1 flex items-center gap-1"><Activity size={10} /> 设备巡检数据</h4>
-                            <div className="bg-slate-800 text-white rounded-lg p-3 shadow-md grid grid-cols-3 gap-2 text-center">
-                                <div className="flex flex-col items-center"><span className="text-sm font-bold leading-none">{device.cpuUsage}%</span><span className="text-[8px] text-slate-400 mt-1">CPU</span></div>
-                                <div className="flex flex-col items-center border-l border-slate-600"><span className="text-sm font-bold leading-none">{device.memoryUsage}%</span><span className="text-[8px] text-slate-400 mt-1">内存</span></div>
-                                <div className="flex flex-col items-center border-l border-slate-600"><Wifi size={14} className={device.signalStrength > 50 ? 'text-green-400' : 'text-yellow-400'} /><span className="text-[8px] text-slate-400 mt-1">网络</span></div>
-                            </div>
-                            <div className="flex justify-between items-center bg-slate-50 border border-slate-100 rounded-lg p-2">
+                            
+                            <div 
+                                className="flex justify-between items-center bg-slate-50 border border-slate-100 rounded-lg p-2 cursor-pointer hover:bg-slate-100 transition-colors"
+                                onClick={() => setViewingReportDevice(device)}
+                            >
                                 <div className="flex flex-col"><span className="text-[9px] text-slate-500">最近测试</span><span className="text-[10px] font-bold text-slate-700">{device.lastTestTime}</span></div>
-                                <span className="bg-green-100 text-green-600 px-1.5 py-0.5 rounded text-[10px] font-bold flex items-center gap-1"><ClipboardCheck size={10} /> 合格</span>
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 ${device.lastTestResult === 'Qualified' ? 'bg-green-100 text-green-600' : device.lastTestResult === 'Unqualified' ? 'bg-red-100 text-red-600' : 'bg-slate-200 text-slate-500'}`}>
+                                    <ClipboardCheck size={10} /> {device.lastTestResult === 'Qualified' ? '合格' : device.lastTestResult === 'Unqualified' ? '不合格' : '无记录'}
+                                </span>
                             </div>
+
+                            {pendingInspRecord && (
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 text-xs animate-fadeIn shadow-sm">
+                                    <div className="flex justify-between items-center mb-2 border-b border-blue-100 pb-1"><span className="font-bold text-blue-700 flex items-center gap-1"><ClipboardCheck size={12} /> 巡检审核中</span><span className="text-[10px] text-blue-400">{pendingInspRecord.requestTime.split(' ')[0]}</span></div>
+                                    <div className="grid grid-cols-2 gap-2 mb-2"><div className="flex flex-col"><span className="text-[10px] text-blue-500">巡检结果</span><span className={`font-bold ${pendingInspRecord.testResult === 'Qualified' ? 'text-green-600' : 'text-red-600'}`}>{pendingInspRecord.testResult === 'Qualified' ? '合格' : '不合格'}</span></div><div className="flex flex-col text-right"><span className="text-[10px] text-blue-500">申请人</span><span className="font-bold text-slate-700">{pendingInspRecord.requestUser}</span></div></div>
+                                    <div className="bg-white p-2 rounded border border-blue-100 mb-2"><span className="text-[10px] text-blue-400 block mb-0.5">备注</span><p className="text-slate-700 font-medium break-all">{pendingInspRecord.changeReason}</p></div>
+                                </div>
+                            )}
 
                             {/* New Inspection Report Button */}
                             <button 
@@ -765,8 +931,6 @@ export const DeviceManagement: React.FC = () => {
                             >
                                 <FileText size={12} /> 提交巡检报告
                             </button>
-
-                            <div className="text-center pt-1"><span className={`px-2 py-1 rounded-full text-[10px] font-bold ${device.status === DeviceStatus.ONLINE ? 'bg-green-100 text-green-700' : device.status === DeviceStatus.OFFLINE ? 'bg-slate-200 text-slate-600' : 'bg-yellow-100 text-yellow-700'}`}>{STATUS_MAP[device.status]}</span></div>
                         </div>
                     </div>
                 )}
@@ -775,7 +939,16 @@ export const DeviceManagement: React.FC = () => {
                 <h5 className="text-[9px] font-bold text-slate-400 mb-2 uppercase flex items-center gap-1 sticky top-0 bg-white z-10 py-1"><History size={10} /> 历史记录</h5>
                 <div className="space-y-3 relative pl-1">
                      <div className="absolute left-[5px] top-1 bottom-0 w-0.5 bg-slate-100"></div>
-                     {filteredEvents.length > 0 ? (filteredEvents.slice(0, 10).map(evt => (<div key={evt.id} className="relative pl-3 animate-fadeIn"><div className={`absolute left-0 top-1 w-2.5 h-2.5 rounded-full border-2 border-white box-content z-10 ${evt.type === 'error' ? 'bg-red-500' : evt.type === 'warning' ? 'bg-orange-400' : 'bg-blue-300'}`}></div><div className="flex flex-col"><span className="text-[8px] text-slate-400 leading-tight mb-0.5 scale-90 origin-left">{evt.timestamp.split(' ')[0]}</span><span className="text-[9px] text-slate-700 leading-tight font-medium line-clamp-2" title={evt.message}>{evt.message}</span><span className="text-[8px] text-slate-400 mt-0.5 scale-90 origin-left">@{evt.operator || 'Sys'}</span></div></div>))) : (<div className="text-[9px] text-slate-300 pl-2 py-2 italic">无记录</div>)}
+                     {filteredEvents.length > 0 ? (filteredEvents.slice(0, 10).map(evt => (
+                        <div key={evt.id} className="relative pl-3 animate-fadeIn cursor-pointer group" onClick={() => setViewingEvent(evt)}>
+                            <div className={`absolute left-0 top-1 w-2.5 h-2.5 rounded-full border-2 border-white box-content z-10 ${evt.type === 'error' ? 'bg-red-500' : evt.type === 'warning' ? 'bg-orange-400' : 'bg-blue-300'}`}></div>
+                            <div className="flex flex-col group-hover:bg-slate-50 rounded p-1 -ml-1 transition-colors">
+                                <span className="text-[8px] text-slate-400 leading-tight mb-0.5 scale-90 origin-left">{evt.timestamp.split(' ')[0]}</span>
+                                <span className="text-[9px] text-slate-700 leading-tight font-medium line-clamp-2" title={evt.message}>{evt.message}</span>
+                                <span className="text-[8px] text-slate-400 mt-0.5 scale-90 origin-left">@{evt.operator || 'Sys'}</span>
+                            </div>
+                        </div>
+                     ))) : (<div className="text-[9px] text-slate-300 pl-2 py-2 italic">无记录</div>)}
                 </div>
             </div>
         </div>
@@ -975,6 +1148,18 @@ export const DeviceManagement: React.FC = () => {
       {/* ... (Other Modals) ... */}
       {editingImageDevice && <ImageManagerModal device={editingImageDevice} onClose={() => setEditingImageDevice(null)} />}
       {isAuditModalOpen && <AuditManagementModal onClose={() => setIsAuditModalOpen(false)} />}
+      
+      {/* Detail Modals */}
+      {viewingReportDevice && (
+          <ReportDetailModal 
+            device={viewingReportDevice} 
+            record={auditRecords.find(r => r.deviceId === viewingReportDevice.id && r.type === AuditType.INSPECTION && r.auditStatus === AuditStatus.APPROVED) || null} 
+            onClose={() => setViewingReportDevice(null)} 
+          />
+      )}
+      
+      {viewingEvent && <EventDetailModal event={viewingEvent} onClose={() => setViewingEvent(null)} />}
+
     </div>
   );
 };

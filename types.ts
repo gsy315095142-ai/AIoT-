@@ -37,6 +37,8 @@ export type DeviceEvent = {
   message: string;
   timestamp: string;
   operator?: string; // New operator field
+  remark?: string; // Additional remark details
+  images?: string[]; // Attached images
 };
 
 export type DeviceImage = {
@@ -71,6 +73,7 @@ export type Device = {
   // Timestamps
   firstStartTime: string;
   lastTestTime: string;
+  lastTestResult?: 'Qualified' | 'Unqualified'; // Result of the last approved inspection
   
   events: DeviceEvent[];
 };
