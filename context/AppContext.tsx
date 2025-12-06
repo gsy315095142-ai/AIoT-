@@ -82,7 +82,7 @@ const MOCK_DEVICES: Device[] = [
     roomNumber: 'Lobby',
     softwareName: 'VR World',
     status: DeviceStatus.STANDBY,
-    opsStatus: OpsStatus.PENDING,
+    opsStatus: OpsStatus.INSPECTED, // Changed from PENDING for demo consistency
     cpuUsage: 15,
     memoryUsage: 30,
     signalStrength: 100,
@@ -111,7 +111,7 @@ interface AppContextType {
   removeDeviceType: (id: string) => void;
   addDevice: (device: Omit<Device, 'id' | 'events' | 'status' | 'opsStatus' | 'cpuUsage' | 'memoryUsage' | 'signalStrength' | 'firstStartTime' | 'lastTestTime'>) => void;
   updateDevice: (id: string, data: Partial<Device>, customEventMessage?: string) => void;
-  submitOpsStatusChange: (deviceId: string, targetStatus: OpsStatus, reason: string) => void;
+  submitOpsStatusChange: (deviceId: string, targetStatus: OpsStatus, reason: string, images?: string[]) => void;
   approveAudit: (recordId: string) => void;
   rejectAudit: (recordId: string, reason: string) => void;
 }
@@ -164,7 +164,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ...deviceData,
       id: `d${Date.now()}`,
       status: DeviceStatus.STANDBY,
-      opsStatus: OpsStatus.PENDING,
+      opsStatus: OpsStatus.INSPECTED, // Default to Inspected, not Pending
       events: [
         {
             id: `evt-init-${Date.now()}`,
@@ -194,9 +194,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         // 1. Handle Custom Message Event (Priority for manual log inputs)
         if (customEventMessage) {
              let type: 'info' | 'warning' | 'error' = 'info';
+             // Determine type based on data.opsStatus if available, or just info
              if (data.opsStatus === OpsStatus.ABNORMAL || data.opsStatus === OpsStatus.HOTEL_COMPLAINT) type = 'error';
              else if (data.opsStatus === OpsStatus.REPAIRING) type = 'warning';
-
+             
              newEvents.push({
                 id: `evt-custom-${Date.now()}-${Math.random()}`,
                 type: type,
@@ -262,12 +263,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // --- Audit Workflow ---
 
-  const submitOpsStatusChange = (deviceId: string, targetStatus: OpsStatus, reason: string) => {
+  const submitOpsStatusChange = (deviceId: string, targetStatus: OpsStatus, reason: string, images?: string[]) => {
     const timestamp = new Date().toLocaleString();
     const device = devices.find(d => d.id === deviceId);
     if (!device) return;
 
     if (device.opsStatus === targetStatus) return; // No change needed
+    
+    // Find store name for snapshot
+    const storeName = stores.find(s => s.id === device.storeId)?.name;
 
     // 1. Invalidate any existing PENDING records for this device
     setAuditRecords(prev => prev.map(rec => {
@@ -276,24 +280,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
         return rec;
     }));
-
-    // 2. Find correct previous status to record
-    // If current status is PENDING, we try to find the previous status from the pending record that we just invalidated
-    // OR just use the current one if we assume "Pending" is a transition state. 
-    // Simplified: We always record the device's *current* status as previous status. 
-    // If the device was already 'Pending', then the prev status in record is 'Pending'.
-    // Better UX: If device is Pending, look up the last stable status? 
-    // For now, let's stick to simple state transition.
     
-    // 3. Create New Record
+    // 2. Create New Record
     const newRecord: AuditRecord = {
         id: `aud-${Date.now()}`,
         deviceId,
         deviceName: device.name,
         deviceSn: device.sn,
+        storeName: storeName, // Snapshot
+        roomNumber: device.roomNumber, // Snapshot
         prevOpsStatus: device.opsStatus,
         targetOpsStatus: targetStatus,
         changeReason: reason,
+        images: images,
         auditStatus: AuditStatus.PENDING,
         requestTime: timestamp,
         requestUser: currentUser || 'System'
@@ -301,8 +300,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     setAuditRecords(prev => [newRecord, ...prev]);
 
-    // 4. Update Device to PENDING
-    updateDevice(deviceId, { opsStatus: OpsStatus.PENDING }, `提交审核: ${targetStatus} (原因: ${reason})`);
+    // 3. Log Event, BUT DO NOT CHANGE STATUS YET
+    // We update the device only to append the event.
+    updateDevice(deviceId, {}, `提交审核: ${targetStatus} (原因: ${reason})`);
   };
 
   const approveAudit = (recordId: string) => {
@@ -317,7 +317,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             : r
       ));
 
-      // Update Device
+      // Update Device Status
       updateDevice(record.deviceId, { 
           opsStatus: record.targetOpsStatus,
           lastTestTime: timestamp.replace(' ', 'T').replace(/\//g, '-') // Reset Timer: Update lastTestTime to now
@@ -336,14 +336,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             : r
     ));
 
-    // Revert Device Status
-    // We revert to prevOpsStatus. Note: If prevOpsStatus was also PENDING (chain), this might be weird, 
-    // but usually you can't manually set to PENDING, so prev should be stable.
-    const revertStatus = record.prevOpsStatus === OpsStatus.PENDING ? OpsStatus.INSPECTED : record.prevOpsStatus;
-
-    updateDevice(record.deviceId, { 
-        opsStatus: revertStatus 
-    }, `审核拒绝: ${rejectReason} (回退至 ${revertStatus})`);
+    // Log Rejection event on device (Status remains unchanged)
+    updateDevice(record.deviceId, {}, `审核拒绝: 申请变更至 ${record.targetOpsStatus} 被拒绝 (${rejectReason})`);
   };
 
   return (

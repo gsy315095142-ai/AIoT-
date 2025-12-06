@@ -27,7 +27,7 @@ export enum OpsStatus {
   INSPECTED = '已巡检', // Inspected
   REPAIRING = '维修中', // Repairing
   ABNORMAL = '异常', // Abnormal
-  PENDING = '待审核', // Pending Audit
+  PENDING = '待审核', // Pending Audit - Kept for legacy/fallback, but logic moves to AuditRecord
   HOTEL_COMPLAINT = '酒店客诉', // Hotel Customer Complaint
 }
 
@@ -87,9 +87,12 @@ export type AuditRecord = {
   deviceId: string;
   deviceName: string; // Snapshot for display
   deviceSn: string; // Snapshot for display
+  storeName?: string; // Snapshot
+  roomNumber?: string; // Snapshot
   prevOpsStatus: OpsStatus;
   targetOpsStatus: OpsStatus;
   changeReason: string;
+  images?: string[]; // Evidence images for the request
   
   auditStatus: AuditStatus;
   requestTime: string;

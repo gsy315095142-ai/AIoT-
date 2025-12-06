@@ -3,6 +3,10 @@
 
 
 
+
+
+
+
 import React, { useState, useMemo, ChangeEvent, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Device, OpsStatus, DeviceStatus, DeviceImage, AuditStatus, AuditRecord } from '../types';
@@ -315,6 +319,11 @@ const AuditManagementModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
                                         <span className="font-bold text-slate-800 text-sm">{record.deviceName}</span>
                                         <span className="text-[10px] text-slate-400 bg-slate-100 px-1 rounded">{record.deviceSn}</span>
                                     </div>
+                                    <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
+                                       <span className="font-medium">{record.storeName || '未知门店'}</span>
+                                       <span className="w-px h-2 bg-slate-300"></span>
+                                       <span>{record.roomNumber ? `${record.roomNumber}房` : '无房号'}</span>
+                                    </div>
                                     <div className="text-[10px] text-slate-400 mt-0.5">申请人: {record.requestUser} | {record.requestTime}</div>
                                 </div>
                                 <div className={`px-2 py-0.5 rounded text-[10px] font-bold 
@@ -332,8 +341,19 @@ const AuditManagementModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
                             </div>
 
                             <div className="text-xs text-slate-600 bg-blue-50/50 p-2 rounded mb-2">
-                                <span className="font-bold text-slate-500">原因:</span> {record.changeReason}
+                                <span className="font-bold text-slate-500">备注:</span> {record.changeReason}
                             </div>
+                            
+                            {/* Evidence Images */}
+                            {record.images && record.images.length > 0 && (
+                                <div className="flex gap-2 overflow-x-auto pb-2 mb-2 no-scrollbar">
+                                    {record.images.map((img, idx) => (
+                                        <div key={idx} className="w-12 h-12 rounded border border-slate-200 overflow-hidden flex-shrink-0">
+                                            <img src={img} alt="evidence" className="w-full h-full object-cover" />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                             
                             {record.auditStatus !== AuditStatus.PENDING && record.rejectReason && (
                                 <div className="text-xs text-red-600 bg-red-50 p-2 rounded mt-1">
@@ -407,6 +427,7 @@ export const DeviceManagement: React.FC = () => {
   const [opsChangeStatus, setOpsChangeStatus] = useState<OpsStatus>(OpsStatus.INSPECTED);
   const [opsChangeReason, setOpsChangeReason] = useState('');
   const [complaintType, setComplaintType] = useState('');
+  const [opsChangeImages, setOpsChangeImages] = useState<string[]>([]);
 
   const pendingAuditCount = auditRecords.filter(r => r.auditStatus === AuditStatus.PENDING).length;
 
@@ -446,6 +467,10 @@ export const DeviceManagement: React.FC = () => {
   const toInputDate = (dateStr: string) => dateStr.replace(' ', 'T');
   const fromInputDate = (dateStr: string) => dateStr.replace('T', ' ');
 
+  const hasPendingAudit = (deviceId: string) => {
+      return auditRecords.some(r => r.deviceId === deviceId && r.auditStatus === AuditStatus.PENDING);
+  };
+
   // Filter Logic
   const filteredDevices = useMemo(() => {
     return devices.filter(d => {
@@ -467,12 +492,12 @@ export const DeviceManagement: React.FC = () => {
       online: filteredDevices.filter(d => d.status === DeviceStatus.ONLINE && d.opsStatus === OpsStatus.INSPECTED).length,
       offline: filteredDevices.filter(d => d.status === DeviceStatus.OFFLINE && d.opsStatus === OpsStatus.INSPECTED).length,
       standby: filteredDevices.filter(d => d.status === DeviceStatus.STANDBY).length,
-      pending: filteredDevices.filter(d => d.opsStatus === OpsStatus.PENDING).length,
+      pending: filteredDevices.filter(d => hasPendingAudit(d.id)).length, // Count based on Audit Records
       abnormal: filteredDevices.filter(d => d.opsStatus === OpsStatus.ABNORMAL).length,
       repairing: filteredDevices.filter(d => d.opsStatus === OpsStatus.REPAIRING).length,
       complaint: filteredDevices.filter(d => d.opsStatus === OpsStatus.HOTEL_COMPLAINT).length,
     };
-  }, [filteredDevices]);
+  }, [filteredDevices, auditRecords]);
 
   // Selection Logic
   const toggleSelection = (id: string) => {
@@ -531,9 +556,22 @@ export const DeviceManagement: React.FC = () => {
     setOpsChangeReason('');
     setOpsChangeStatus(OpsStatus.INSPECTED);
     setComplaintType('');
+    setOpsChangeImages([]);
     setIsOpsStatusModalOpen(true);
     setIsControlMenuOpen(false);
   };
+
+  const handleOpsImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          const url = URL.createObjectURL(e.target.files[0]);
+          setOpsChangeImages(prev => [...prev, url]);
+      }
+      e.target.value = '';
+  }
+
+  const removeOpsImage = (idx: number) => {
+      setOpsChangeImages(prev => prev.filter((_, i) => i !== idx));
+  }
 
   const handleBatchOpsStatusSubmit = () => {
     if (!opsChangeReason.trim()) {
@@ -552,8 +590,8 @@ export const DeviceManagement: React.FC = () => {
     }
 
     selectedDeviceIds.forEach(id => {
-      // Use the new Audit submission workflow
-      submitOpsStatusChange(id, opsChangeStatus, finalMessage);
+      // Use the new Audit submission workflow with images
+      submitOpsStatusChange(id, opsChangeStatus, finalMessage, opsChangeImages);
     });
     setIsOpsStatusModalOpen(false);
     setSelectedDeviceIds(new Set());
@@ -955,9 +993,10 @@ export const DeviceManagement: React.FC = () => {
                  const isSelected = selectedDeviceIds.has(device.id);
                  const styleClass = getRowStyle(device);
                  const isExpanded = expandedDeviceId === device.id;
+                 const isPending = hasPendingAudit(device.id);
 
                  return (
-                     <div key={device.id} className="rounded-md overflow-hidden shadow-sm">
+                     <div key={device.id} className="relative rounded-md overflow-hidden shadow-sm">
                          <div 
                              className={`flex items-center p-2 text-xs cursor-pointer transition-colors border-l-4 ${styleClass}`}
                              onClick={() => toggleExpand(device.id)}
@@ -980,8 +1019,10 @@ export const DeviceManagement: React.FC = () => {
                                   device.status === DeviceStatus.IN_USE ? '使用中' : '待机中'}
                              </div>
 
-                             <div className="w-20 text-right pr-2">
-                                 <span className="font-bold">{device.opsStatus}</span>
+                             <div className="w-20 text-right pr-2 flex flex-col items-end">
+                                 <div className="flex items-center gap-1">
+                                     <span className="font-bold">{device.opsStatus}</span>
+                                 </div>
                                  <span className="opacity-60 ml-1 text-[10px]">({calculateDuration(device.lastTestTime)})</span>
                              </div>
 
@@ -990,6 +1031,12 @@ export const DeviceManagement: React.FC = () => {
                              </div>
                          </div>
                          
+                         {isPending && (
+                            <div className="absolute top-0 right-0 bg-orange-100 text-orange-600 text-[10px] px-2 py-0.5 rounded-bl-lg font-bold border-b border-l border-orange-200 z-10 whitespace-nowrap">
+                                待审核
+                            </div>
+                         )}
+
                          {isExpanded && <DeviceDetailCard device={device} />}
                      </div>
                  );
@@ -1064,9 +1111,9 @@ export const DeviceManagement: React.FC = () => {
         {isOpsStatusModalOpen && (
             <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                 <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden p-6 animate-scaleIn">
-                    <h3 className="font-bold text-lg text-slate-800 mb-4">修改运维状态</h3>
+                    <h3 className="font-bold text-lg text-slate-800 mb-4">设备运维状态修改申请</h3>
                     
-                    <div className="space-y-4">
+                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">新的状态</label>
                             <select 
@@ -1106,6 +1153,25 @@ export const DeviceManagement: React.FC = () => {
                                 placeholder="请输入状态变更的原因..."
                                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-blue-100 min-h-[80px]"
                             ></textarea>
+                        </div>
+
+                        {/* Image Upload for Change Reason */}
+                        <div>
+                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">上传凭证 (选填)</label>
+                             <div className="flex gap-2 flex-wrap">
+                                 {opsChangeImages.map((url, idx) => (
+                                     <div key={idx} className="w-16 h-16 relative rounded border border-slate-200 overflow-hidden group">
+                                         <img src={url} alt="upload" className="w-full h-full object-cover" />
+                                         <button onClick={() => removeOpsImage(idx)} className="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl">
+                                             <X size={10} />
+                                         </button>
+                                     </div>
+                                 ))}
+                                 <div className="w-16 h-16 border-2 border-dashed border-slate-300 rounded flex flex-col items-center justify-center text-slate-400 hover:border-blue-400 hover:text-blue-500 cursor-pointer relative bg-slate-50">
+                                     <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleOpsImageUpload} />
+                                     <Plus size={20} />
+                                 </div>
+                             </div>
                         </div>
                     </div>
 

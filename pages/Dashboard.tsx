@@ -1,12 +1,14 @@
+
+
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { FilterBar } from '../components/FilterBar';
-import { DeviceStatus, OpsStatus } from '../types';
+import { DeviceStatus, OpsStatus, AuditStatus } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Activity, AlertTriangle, CheckCircle, Wrench } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
-  const { devices, regions, stores, deviceTypes } = useApp();
+  const { devices, regions, stores, deviceTypes, auditRecords } = useApp();
   const [selectedRegion, setSelectedRegion] = useState('');
   const [selectedStore, setSelectedStore] = useState('');
   const [selectedType, setSelectedType] = useState('');
@@ -21,6 +23,11 @@ export const Dashboard: React.FC = () => {
       return true;
     });
   }, [devices, selectedRegion, selectedStore, selectedType]);
+
+  // Helper to check if a device has a pending audit
+  const hasPendingAudit = (deviceId: string) => {
+    return auditRecords.some(r => r.deviceId === deviceId && r.auditStatus === AuditStatus.PENDING);
+  };
 
   // Stats Calculation
   const stats = useMemo(() => {
@@ -52,13 +59,28 @@ export const Dashboard: React.FC = () => {
       [OpsStatus.INSPECTED]: 0,
       [OpsStatus.REPAIRING]: 0,
       [OpsStatus.ABNORMAL]: 0,
-      [OpsStatus.PENDING]: 0,
+      [OpsStatus.PENDING]: 0, // Keep this key for chart data structure
     };
+    
     filteredDevices.forEach(d => {
-      counts[d.opsStatus] = (counts[d.opsStatus] || 0) + 1;
+      // If it has pending audit, we might want to count it as pending for visual stats, 
+      // OR count its actual status. Let's count actual status here, but maybe add pending as separate metric?
+      // Based on design requirement "Display won't change to pending", we should probably count it as its current status.
+      // However, for the "Ops Status Statistics" chart, 'Pending' is a category.
+      // Let's count devices that have a pending audit as 'Pending' in the chart to show workload?
+      // Or stick to Strict Ops Status.
+      // Let's use strict Ops Status + Pending Audit count override for chart if desired.
+      
+      // Strict mapping:
+      if (hasPendingAudit(d.id)) {
+        counts[OpsStatus.PENDING] = (counts[OpsStatus.PENDING] || 0) + 1;
+      } else {
+        counts[d.opsStatus] = (counts[d.opsStatus] || 0) + 1;
+      }
     });
+
     return Object.keys(counts).map(key => ({ name: key, value: counts[key as OpsStatus] }));
-  }, [filteredDevices]);
+  }, [filteredDevices, auditRecords]);
 
   const COLORS = ['#22c55e', '#64748b', '#3b82f6', '#f59e0b'];
   const OPS_COLORS = ['#22c55e', '#f59e0b', '#ef4444', '#64748b'];
