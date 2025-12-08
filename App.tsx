@@ -1,3 +1,5 @@
+
+
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -25,6 +27,8 @@ const BottomNavLink = ({ to, icon: Icon, label }: { to: string; icon: any; label
 
 const MobileHeader = () => {
   const location = useLocation();
+  const { headerRightAction } = useApp();
+  
   const getTitle = () => {
     switch (location.pathname) {
       case '/dashboard': return '数据总览';
@@ -35,8 +39,11 @@ const MobileHeader = () => {
   };
 
   return (
-    <div className="bg-white border-b border-slate-100 p-4 sticky top-0 z-20 flex items-center justify-center shadow-sm h-14">
+    <div className="bg-white border-b border-slate-100 p-4 sticky top-0 z-20 flex items-center justify-center shadow-sm h-14 relative">
       <h1 className="text-lg font-bold text-slate-800">{getTitle()}</h1>
+      <div className="absolute right-4 top-0 bottom-0 flex items-center">
+          {headerRightAction}
+      </div>
     </div>
   );
 };

@@ -1,13 +1,45 @@
 
-import React, { useState, useMemo } from 'react';
+
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { FilterBar } from '../components/FilterBar';
 import { DeviceStatus, OpsStatus, AuditStatus } from '../types';
 import { Calendar, Play, Download, Settings2, Zap, Clock, AlertTriangle, Activity, AlertOctagon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
+// Custom Tick Component for X-Axis to handle multi-line labels (Week + Date Range)
+const CustomXAxisTick = ({ x, y, payload }: any) => {
+    const val = payload.value;
+    // Check if value contains a space (our delimiter for Week + Range)
+    if (typeof val === 'string' && val.includes(' ')) {
+        const [line1, line2] = val.split(' ');
+        return (
+            <g transform={`translate(${x},${y})`}>
+                <text x={0} y={0} dy={10} textAnchor="middle" fill="#64748b" fontSize={10} fontWeight="bold">{line1}</text>
+                <text x={0} y={0} dy={22} textAnchor="middle" fill="#94a3b8" fontSize={8} transform="scale(0.9)">{line2}</text>
+            </g>
+        );
+    }
+    // For regular date labels, rotate them to avoid overlap
+    return (
+        <g transform={`translate(${x},${y})`}>
+            <text 
+                x={0} 
+                y={0} 
+                dy={16} 
+                textAnchor="end" 
+                fill="#64748b" 
+                fontSize={10}
+                transform="rotate(-45)"
+            >
+                {val}
+            </text>
+        </g>
+    );
+};
+
 export const Dashboard: React.FC = () => {
-  const { devices, regions, stores, deviceTypes, auditRecords } = useApp();
+  const { devices, regions, stores, deviceTypes, setHeaderRightAction } = useApp();
   const [selectedRegion, setSelectedRegion] = useState('');
   const [selectedStore, setSelectedStore] = useState('');
   const [selectedType, setSelectedType] = useState('');
@@ -157,8 +189,18 @@ export const Dashboard: React.FC = () => {
 
     const weeks = 8;
     const weeklyData = Array.from({ length: weeks }).map((_, i) => {
+        // Calculate date range for the week
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() - (weeks - 1 - i) * 7);
+        const startDate = new Date(endDate);
+        startDate.setDate(startDate.getDate() - 6);
+        
+        const startStr = `${startDate.getMonth() + 1}/${startDate.getDate()}`;
+        const endStr = `${endDate.getMonth() + 1}/${endDate.getDate()}`;
+        const dateRange = `(${startStr}-${endStr})`;
+
         return {
-            week: `W${i + 1}`,
+            week: `W${i + 1} ${dateRange}`,
             weeklyFailureRate: Math.max(0, stats.deviceFailureRate + (Math.random() * 10 - 5)),
             weeklyStartupFailRate: Math.max(0, stats.startupFailureRate + (Math.random() * 2 - 1)),
             weeklyDurationFailRate: Math.max(0, stats.durationFailureRate + (Math.random() * 1 - 0.5)),
@@ -243,6 +285,62 @@ export const Dashboard: React.FC = () => {
   const handlePrevChart = () => {
     setCurrentChartIndex((prev) => (prev - 1 + chartConfigs.length) % chartConfigs.length);
   };
+
+  const handleExport = useCallback(() => {
+    const headers = ['设备名称', 'SN号', 'MAC地址', '大区', '门店', '设备类型', '运行状态', '运维状态', '首次启动时间', '累计运行时长(h)', '累计启动次数'];
+    const csvContent = [
+      headers.join(','),
+      ...scopedDevices.map(d => {
+        const regionName = regions.find(r => r.id === d.regionId)?.name || '';
+        const storeName = stores.find(s => s.id === d.storeId)?.name || '';
+        const typeName = deviceTypes.find(t => t.id === d.typeId)?.name || '';
+        const statusMap: Record<string, string> = {
+            [DeviceStatus.ONLINE]: '运行中',
+            [DeviceStatus.OFFLINE]: '未联网',
+            [DeviceStatus.STANDBY]: '待机中',
+            [DeviceStatus.IN_USE]: '使用中'
+        };
+        return [
+          d.name,
+          d.sn,
+          d.mac || '',
+          regionName,
+          storeName,
+          typeName,
+          statusMap[d.status] || d.status,
+          d.opsStatus,
+          d.firstStartTime,
+          d.totalRunDuration || 0,
+          d.totalStartCount || 0
+        ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(','); // Handle commas in data
+      })
+    ].join('\n');
+
+    const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' }); // Add BOM for Excel
+    const link = document.createElement('a');
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `设备数据导出_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  }, [scopedDevices, regions, stores, deviceTypes]);
+
+  useEffect(() => {
+    setHeaderRightAction(
+        <button 
+            onClick={handleExport} 
+            className="flex items-center gap-1 bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-1.5 rounded hover:bg-blue-100 transition-colors"
+        >
+            <Download size={14} />
+            导出
+        </button>
+    );
+    return () => setHeaderRightAction(null);
+  }, [handleExport, setHeaderRightAction]);
 
   const CurrentChart = chartConfigs[currentChartIndex];
 
@@ -388,10 +486,11 @@ export const Dashboard: React.FC = () => {
                     <CartesianGrid stroke="#f1f5f9" vertical={false} />
                     <XAxis 
                         dataKey={CurrentChart.xKey} 
-                        tick={{ fontSize: 10, fill: '#64748b' }} 
+                        tick={<CustomXAxisTick />}
                         axisLine={false} 
                         tickLine={false} 
-                        dy={10}
+                        interval={0}
+                        height={60}
                     />
                     <YAxis 
                         tick={{ fontSize: 10, fill: '#64748b' }} 

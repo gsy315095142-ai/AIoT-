@@ -1043,7 +1043,7 @@ export const DeviceManagement: React.FC = () => {
           <div className="mt-2 flex items-center gap-2 px-2 pb-4"><div className="cursor-pointer text-slate-500 flex items-center gap-1" onClick={toggleSelectAll}>{selectedDeviceIds.size > 0 && selectedDeviceIds.size === filteredDevices.length ? <CheckSquare size={16} className="text-blue-500" /> : <Square size={16} />}<span className="text-xs font-bold">全部选择</span></div></div>
       </div>
 
-      <div className="sticky bottom-[85px] left-0 right-0 flex justify-center z-30 pointer-events-none w-full">
+      <div className="fixed bottom-[5rem] left-0 right-0 flex justify-center z-30 pointer-events-none w-full">
             <button onClick={() => setIsControlMenuOpen(true)} disabled={selectedDeviceIds.size === 0} className={`bg-slate-800 text-white shadow-xl shadow-slate-900/20 rounded-full px-6 py-3 flex items-center gap-2 font-bold text-sm pointer-events-auto transition-all active:scale-95 ${selectedDeviceIds.size === 0 ? 'opacity-50 cursor-not-allowed scale-90' : 'hover:bg-slate-700 hover:-translate-y-1'}`}><Settings2 size={18} /><span>设备管控 {selectedDeviceIds.size > 0 && `(${selectedDeviceIds.size})`}</span></button>
       </div>
 

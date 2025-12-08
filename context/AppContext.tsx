@@ -115,6 +115,11 @@ interface AppContextType {
   deviceTypes: DeviceType[];
   devices: Device[];
   auditRecords: AuditRecord[];
+  
+  // Header Action
+  headerRightAction: ReactNode;
+  setHeaderRightAction: (node: ReactNode) => void;
+
   addRegion: (name: string) => void;
   removeRegion: (id: string) => void;
   addStore: (name: string, regionId: string) => void;
@@ -138,6 +143,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [deviceTypes, setDeviceTypes] = useState<DeviceType[]>(MOCK_DEVICE_TYPES);
   const [devices, setDevices] = useState<Device[]>(MOCK_DEVICES);
   const [auditRecords, setAuditRecords] = useState<AuditRecord[]>([]);
+  const [headerRightAction, setHeaderRightAction] = useState<ReactNode>(null);
 
   const login = (username: string) => {
     setCurrentUser(username);
@@ -419,6 +425,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       login,
       logout,
       regions, stores, deviceTypes, devices, auditRecords,
+      headerRightAction, setHeaderRightAction,
       addRegion, removeRegion, 
       addStore, removeStore, 
       addDeviceType, removeDeviceType,
