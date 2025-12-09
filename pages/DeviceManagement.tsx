@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, ChangeEvent, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Device, OpsStatus, DeviceStatus, DeviceImage, AuditStatus, AuditRecord, AuditType, DeviceEvent } from '../types';
@@ -15,6 +16,11 @@ const STATUS_MAP: Record<string, string> = {
     [DeviceStatus.OFFLINE]: '未联网',
     [DeviceStatus.STANDBY]: '待机中',
     [DeviceStatus.IN_USE]: '使用中'
+};
+
+const SUB_TYPE_MAPPING: Record<string, string[]> = {
+  '桌显': ['桌显1.0', '桌显2.0', '桌显3.0'],
+  '头显': ['大堂头显', '大空间头显（魔法学院）', '健身头显（阿拉丁）', '竞技大空间头显']
 };
 
 // --- Helper Components ---
@@ -629,13 +635,14 @@ export const DeviceManagement: React.FC = () => {
     regionId: string;
     storeId: string;
     typeId: string;
+    subType: string; // Add SubType to form state
     roomNumber: string;
     softwareName: string;
     firstStartTime: string; 
     images: DeviceImage[];
   }
   const initialFormState: DeviceFormState = {
-    name: '', sn: '', mac: '', regionId: '', storeId: '', typeId: '', roomNumber: '', softwareName: '', firstStartTime: '', images: []
+    name: '', sn: '', mac: '', regionId: '', storeId: '', typeId: '', subType: '', roomNumber: '', softwareName: '', firstStartTime: '', images: []
   };
   const [deviceForm, setDeviceForm] = useState<DeviceFormState>(initialFormState);
 
@@ -815,6 +822,9 @@ export const DeviceManagement: React.FC = () => {
 
     const typeOptions = deviceTypes.map(t => ({ label: t.name, value: t.id }));
     const storeOptions = stores.filter(s => !device.regionId || s.regionId === device.regionId).map(s => ({ label: s.name, value: s.id }));
+    const currentTypeName = getTypeName(device.typeId);
+    const detailSubTypeOptions = SUB_TYPE_MAPPING[currentTypeName]?.map(s => ({ label: s, value: s }));
+
     const pendingOpsRecord = auditRecords.find(r => r.deviceId === device.id && r.auditStatus === AuditStatus.PENDING && r.type === AuditType.OPS_STATUS);
     const pendingInspRecord = auditRecords.find(r => r.deviceId === device.id && r.auditStatus === AuditStatus.PENDING && r.type === AuditType.INSPECTION);
 
@@ -871,6 +881,10 @@ export const DeviceManagement: React.FC = () => {
                             <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">SN码</span><div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0"><EditableField value={device.sn} type="text" onSave={(val) => handleFieldUpdate('sn', val)} className="flex-1 min-w-0" /></div></div>
                             <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">MAC</span><div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0"><EditableField value={device.mac || ''} type="text" onSave={(val) => handleFieldUpdate('mac', val)} className="flex-1 min-w-0" /></div></div>
                             <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">类型</span><div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0"><EditableField value={device.typeId} displayValue={getTypeName(device.typeId)} type="select" options={typeOptions} onSave={(val) => handleFieldUpdate('typeId', val)} className="flex-1 min-w-0" /></div></div>
+                            {/* Sub Type Field */}
+                            {detailSubTypeOptions && (
+                                <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">子类型</span><div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0"><EditableField value={device.subType || ''} type="select" options={detailSubTypeOptions} onSave={(val) => handleFieldUpdate('subType', val)} className="flex-1 min-w-0" /></div></div>
+                            )}
                         </div>
                     </div>
                 )}
@@ -1305,7 +1319,35 @@ export const DeviceManagement: React.FC = () => {
                                 <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">所属大区</label><select className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white" value={deviceForm.regionId} onChange={e => setDeviceForm({...deviceForm, regionId: e.target.value})}><option value="">选择大区</option>{regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></div>
                                 <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">所属门店</label><select className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white" value={deviceForm.storeId} onChange={e => setDeviceForm({...deviceForm, storeId: e.target.value})}><option value="">选择门店</option>{stores.filter(s => !deviceForm.regionId || s.regionId === deviceForm.regionId).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
                             </div>
-                             <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">设备类型 *</label><select required className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white" value={deviceForm.typeId} onChange={e => setDeviceForm({...deviceForm, typeId: e.target.value})}><option value="">选择类型</option>{deviceTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
+                             <div>
+                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">设备类型 *</label>
+                                 <select required className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white" value={deviceForm.typeId} onChange={e => setDeviceForm({...deviceForm, typeId: e.target.value, subType: ''})}>
+                                     <option value="">选择类型</option>
+                                     {deviceTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                 </select>
+                             </div>
+                             
+                             {/* Sub Type Dropdown */}
+                             {(() => {
+                                 const selectedTypeName = deviceTypes.find(t => t.id === deviceForm.typeId)?.name;
+                                 const subTypeOptions = selectedTypeName ? SUB_TYPE_MAPPING[selectedTypeName] : undefined;
+                                 if (!subTypeOptions) return null;
+                                 
+                                 return (
+                                     <div>
+                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">设备子类型</label>
+                                         <select 
+                                            className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white" 
+                                            value={deviceForm.subType} 
+                                            onChange={e => setDeviceForm({...deviceForm, subType: e.target.value})}
+                                        >
+                                             <option value="">选择子类型</option>
+                                             {subTypeOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                         </select>
+                                     </div>
+                                 );
+                             })()}
+
                              <div className="grid grid-cols-2 gap-3">
                                 <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">房间号码</label><input className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" value={deviceForm.roomNumber} onChange={e => setDeviceForm({...deviceForm, roomNumber: e.target.value})} /></div>
                                 <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">首次启动</label><input type="datetime-local" className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" value={deviceForm.firstStartTime} onChange={e => setDeviceForm({...deviceForm, firstStartTime: e.target.value})} /></div>

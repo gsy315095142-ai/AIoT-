@@ -54,6 +54,7 @@ export type Device = {
   regionId: string;
   storeId: string;
   typeId: string;
+  subType?: string; // New Sub-type field
   
   // Hardware/Soft Details
   roomNumber: string;

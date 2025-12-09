@@ -20,7 +20,7 @@ const MOCK_STORES: Store[] = [
 const MOCK_DEVICE_TYPES: DeviceType[] = [
   { id: 't1', name: '桌显' },
   { id: 't2', name: '地投' },
-  { id: 't3', name: 'YVR' },
+  { id: 't3', name: '头显' },
 ];
 
 const MOCK_DEVICES: Device[] = [
@@ -32,6 +32,7 @@ const MOCK_DEVICES: Device[] = [
     regionId: 'r1',
     storeId: 's1',
     typeId: 't1',
+    subType: '桌显2.0',
     roomNumber: '2101',
     softwareName: '爱丽丝主题V1.3.0',
     status: DeviceStatus.ONLINE,
@@ -62,6 +63,7 @@ const MOCK_DEVICES: Device[] = [
     regionId: 'r1',
     storeId: 's1',
     typeId: 't2',
+    // subType: undefined for Floor Projector
     roomNumber: '102',
     softwareName: 'Floor Interactive',
     status: DeviceStatus.OFFLINE,
@@ -81,12 +83,13 @@ const MOCK_DEVICES: Device[] = [
   },
   {
     id: 'd3',
-    name: 'YVR-Lite',
+    name: '头显-Lite',
     sn: 'SN-2023-7777',
     mac: '11:22:33:44:55:66',
     regionId: 'r2',
     storeId: 's3',
     typeId: 't3',
+    subType: '大堂头显',
     roomNumber: 'Lobby',
     softwareName: 'VR World',
     status: DeviceStatus.STANDBY,
@@ -268,7 +271,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
         
         // 4. Check for Detail Changes (only if not covered above, though they can coexist)
-        const relevantKeys: (keyof Device)[] = ['name', 'sn', 'roomNumber', 'softwareName', 'imageUrl', 'mac'];
+        const relevantKeys: (keyof Device)[] = ['name', 'sn', 'roomNumber', 'softwareName', 'imageUrl', 'mac', 'subType'];
         const hasDetailChanges = relevantKeys.some(key => data[key] !== undefined && data[key] !== d[key]);
         
         if (hasDetailChanges) {
