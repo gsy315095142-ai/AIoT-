@@ -1,5 +1,7 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { Cpu } from 'lucide-react';
 
 export const Login: React.FC = () => {
   const { login } = useApp();
@@ -23,8 +25,8 @@ export const Login: React.FC = () => {
       {/* Content */}
       <div className="z-10 text-center mt-10">
         <h1 className="text-3xl font-extrabold text-white tracking-widest drop-shadow-[0_0_15px_rgba(59,130,246,0.8)] leading-tight">
-          IoT软硬件<br/>
-          <span className="text-2xl text-blue-300">联调控制平台</span>
+          IoT设备<br/>
+          <span className="text-2xl text-blue-300">管理平台</span>
         </h1>
         <div className="mt-2 h-1 w-20 bg-blue-500 mx-auto rounded-full shadow-[0_0_10px_rgba(59,130,246,1)]"></div>
       </div>
@@ -36,12 +38,8 @@ export const Login: React.FC = () => {
            <div className="absolute inset-0 border border-blue-500/30 rounded-full animate-[spin_10s_linear_infinite]"></div>
            <div className="absolute inset-4 border border-cyan-400/20 rounded-full animate-[spin_15s_linear_infinite_reverse]"></div>
            
-           {/* Device Image */}
-           <img 
-             src="https://images.unsplash.com/photo-1622979135225-d2ba269fb1ac?q=80&w=600&auto=format&fit=crop" 
-             alt="VR Headset"
-             className="relative z-10 w-full h-full object-contain drop-shadow-2xl scale-110"
-           />
+           {/* Replaced broken image with abstract tech icon */}
+           <Cpu size={80} className="text-blue-500/50 relative z-10 animate-pulse drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
            
            {/* HUD overlay effects simulation */}
            <div className="absolute top-1/2 -left-4 w-8 h-[2px] bg-blue-400/80"></div>

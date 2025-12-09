@@ -1,9 +1,8 @@
 
-
 import React, { useState, useMemo, ChangeEvent, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Device, OpsStatus, DeviceStatus, DeviceImage, AuditStatus, AuditRecord, AuditType, DeviceEvent } from '../types';
-import { ChevronDown, ChevronUp, Plus, Wifi, Image as ImageIcon, Search, CheckSquare, Square, X, FilePenLine, ClipboardList, Battery, Volume2, Check, X as XIcon, Upload, Settings2, Play, Moon, RotateCcw, ClipboardCheck, History, AlertCircle, Info, MapPin, Headphones, Activity, Wrench, Clock, FileText, Eye } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Wifi, Image as ImageIcon, Search, CheckSquare, Square, X, FilePenLine, ClipboardList, Battery, Volume2, Check, X as XIcon, Upload, Settings2, Play, Moon, RotateCcw, ClipboardCheck, History, AlertCircle, Info, MapPin, Headphones, Activity, Wrench, Clock, FileText, Eye, Trash2 } from 'lucide-react';
 
 const CATEGORY_LIMITS: Record<string, number> = {
   '设备外观': 2,
@@ -320,11 +319,20 @@ const ReportDetailModal: React.FC<{ record: AuditRecord | null; device: Device; 
 
 // --- Event Detail Modal ---
 
-const EventDetailModal: React.FC<{ event: DeviceEvent; onClose: () => void }> = ({ event, onClose }) => {
+const EventDetailModal: React.FC<{ event: DeviceEvent; deviceId: string; onClose: () => void }> = ({ event, deviceId, onClose }) => {
+    const { deleteDeviceEvent } = useApp();
+
+    const handleDelete = () => {
+        if (window.confirm("确定要删除这条事件记录吗？")) {
+            deleteDeviceEvent(deviceId, event.id);
+            onClose();
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-[80] bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
-             <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-scaleIn">
-                <div className={`p-4 border-b flex justify-between items-center ${
+             <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-scaleIn flex flex-col max-h-[80vh]">
+                <div className={`p-4 border-b flex justify-between items-center flex-shrink-0 ${
                     event.type === 'error' ? 'bg-red-50 border-red-100' : event.type === 'warning' ? 'bg-orange-50 border-orange-100' : 'bg-blue-50 border-blue-100'
                 }`}>
                     <h3 className={`font-bold text-lg flex items-center gap-2 ${
@@ -335,7 +343,8 @@ const EventDetailModal: React.FC<{ event: DeviceEvent; onClose: () => void }> = 
                     </h3>
                     <button onClick={onClose}><X size={20} className="opacity-50 hover:opacity-100" /></button>
                 </div>
-                <div className="p-6 space-y-4">
+                
+                <div className="p-6 space-y-4 overflow-y-auto">
                     <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
                         <p className="text-sm font-bold text-slate-800 mb-2 leading-relaxed">{event.message}</p>
                     </div>
@@ -366,6 +375,16 @@ const EventDetailModal: React.FC<{ event: DeviceEvent; onClose: () => void }> = 
                         <div className="flex items-center gap-1"><Clock size={12} /> {event.timestamp}</div>
                         <div className="flex items-center gap-1"><Wrench size={12} /> {event.operator || 'System'}</div>
                     </div>
+                </div>
+
+                <div className="p-4 border-t border-slate-100 bg-slate-50 flex-shrink-0">
+                    <button 
+                        onClick={handleDelete}
+                        className="w-full py-2 bg-white border border-red-200 text-red-500 hover:bg-red-50 font-bold rounded-lg shadow-sm flex items-center justify-center gap-2 transition-colors"
+                    >
+                        <Trash2 size={16} />
+                        删除事件
+                    </button>
                 </div>
              </div>
         </div>
@@ -587,7 +606,7 @@ export const DeviceManagement: React.FC = () => {
 
   // Detail Modal States
   const [viewingReportDevice, setViewingReportDevice] = useState<Device | null>(null);
-  const [viewingEvent, setViewingEvent] = useState<DeviceEvent | null>(null);
+  const [viewingEventData, setViewingEventData] = useState<{ event: DeviceEvent, deviceId: string } | null>(null);
   
   // Ops Status Change State
   const [opsChangeStatus, setOpsChangeStatus] = useState<OpsStatus>(OpsStatus.INSPECTED);
@@ -776,7 +795,6 @@ export const DeviceManagement: React.FC = () => {
 
   const getRowStyle = (d: Device) => {
     if (d.opsStatus === OpsStatus.HOTEL_COMPLAINT) return 'bg-pink-100 border-pink-300 text-pink-900';
-    if (d.opsStatus === OpsStatus.ABNORMAL) return 'bg-red-200 border-red-300 text-red-900';
     if (d.opsStatus === OpsStatus.REPAIRING) return 'bg-purple-200 border-purple-300 text-purple-900';
     if (d.opsStatus === OpsStatus.PENDING) return 'bg-orange-200 border-orange-300 text-orange-900';
     if (d.status === DeviceStatus.OFFLINE) return 'bg-slate-200 border-slate-300 text-slate-700';
@@ -804,7 +822,7 @@ export const DeviceManagement: React.FC = () => {
         const keywords: Record<string, string[]> = {
             'info': ['添加', '名称', 'SN', 'MAC', '图片', '类型'],
             'install': ['门店', '房间', '软件', '启动'],
-            'aftersales': ['运维', '维修', '客诉', '审核', '异常', '申请', '通过', '拒绝', '运行', '待机', '未联网'],
+            'aftersales': ['运维', '维修', '客诉', '审核', '申请', '通过', '拒绝', '运行', '待机', '未联网'],
             'inspection': ['测试', 'CPU', '内存', '网络', '状态', '合格']
         };
         const targetKeywords = keywords[activeModule] || [];
@@ -832,7 +850,7 @@ export const DeviceManagement: React.FC = () => {
         <div className="flex border-b border-slate-100 bg-slate-50">
             <button onClick={() => setActiveModule('info')} className={`flex-1 py-2 text-xs font-bold flex items-center justify-center gap-1 transition-colors ${activeModule === 'info' ? 'text-blue-600 bg-white border-t-2 border-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}><Info size={14} /> 信息</button>
             <button onClick={() => setActiveModule('install')} className={`flex-1 py-2 text-xs font-bold flex items-center justify-center gap-1 transition-colors ${activeModule === 'install' ? 'text-blue-600 bg-white border-t-2 border-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}><MapPin size={14} /> 安装</button>
-            <button onClick={() => setActiveModule('aftersales')} className={`flex-1 py-2 text-xs font-bold flex items-center justify-center gap-1 transition-colors ${activeModule === 'aftersales' ? 'text-blue-600 bg-white border-t-2 border-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}><Wrench size={14} /> 售后</button>
+            <button onClick={() => setActiveModule('aftersales')} className={`flex-1 py-2 text-xs font-bold flex items-center justify-center gap-1 transition-colors ${activeModule === 'aftersales' ? 'text-blue-600 bg-white border-t-2 border-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}><Wrench size={14} /> 状态</button>
             <button onClick={() => setActiveModule('inspection')} className={`flex-1 py-2 text-xs font-bold flex items-center justify-center gap-1 transition-colors ${activeModule === 'inspection' ? 'text-blue-600 bg-white border-t-2 border-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}><Activity size={14} /> 巡检</button>
         </div>
 
@@ -843,10 +861,12 @@ export const DeviceManagement: React.FC = () => {
                         <div className="flex items-center gap-1 font-bold text-sm text-slate-900 border-b border-slate-100 pb-2">
                             <EditableField value={device.name} type="text" onSave={(val) => handleFieldUpdate('name', val)} />
                         </div>
+                        
                         <div className="relative rounded-lg overflow-hidden border border-slate-200 shadow-sm group bg-slate-50">
                             {device.imageUrl ? (<img src={device.imageUrl} alt={device.name} className="w-full h-24 object-contain bg-slate-100" />) : (<div className="w-full h-24 bg-slate-100 flex items-center justify-center text-slate-300"><ImageIcon size={32} /></div>)}
                             <div onClick={() => setEditingImageDevice(device)} className="absolute bottom-0 left-0 right-0 bg-blue-600/80 text-white text-[10px] text-center py-1 cursor-pointer hover:bg-blue-600 transition-colors">点击管理图片</div>
                         </div>
+
                         <div className="space-y-1">
                             <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">SN码</span><div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0"><EditableField value={device.sn} type="text" onSave={(val) => handleFieldUpdate('sn', val)} className="flex-1 min-w-0" /></div></div>
                             <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">MAC</span><div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0"><EditableField value={device.mac || ''} type="text" onSave={(val) => handleFieldUpdate('mac', val)} className="flex-1 min-w-0" /></div></div>
@@ -862,14 +882,18 @@ export const DeviceManagement: React.FC = () => {
                                 <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">门店</span><div className="flex-1 flex justify-between items-center border border-blue-200 rounded px-1 py-0.5 bg-white min-w-0"><EditableField value={device.storeId} displayValue={getStoreName(device.storeId)} type="select" options={storeOptions} onSave={(val) => handleFieldUpdate('storeId', val)} className="flex-1 min-w-0" /></div></div>
                                 <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">房间</span><div className="flex-1 flex justify-between items-center border border-blue-200 rounded px-1 py-0.5 bg-white min-w-0"><EditableField value={device.roomNumber || ''} type="text" onSave={(val) => handleFieldUpdate('roomNumber', val)} className="flex-1 min-w-0" /></div></div>
                                 <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">软件</span><div className="flex-1 flex justify-between items-center border border-blue-200 rounded px-1 py-0.5 bg-white min-w-0"><EditableField value={device.softwareName || ''} type="text" onSave={(val) => handleFieldUpdate('softwareName', val)} className="flex-1 min-w-0" /></div></div>
-                                <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">启动</span><div className="flex-1 flex justify-between items-center border border-blue-200 rounded px-1 py-0.5 bg-white min-w-0"><EditableField value={device.firstStartTime ? toInputDate(device.firstStartTime) : ''} displayValue={device.firstStartTime ? `${device.firstStartTime}` : '-'} type="datetime-local" onSave={(val) => handleFieldUpdate('firstStartTime', val)} className="flex-1 min-w-0" /></div></div>
                             </div>
+                        </div>
+
+                        <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                             <h4 className="text-[10px] font-bold text-slate-600 mb-2 flex items-center gap-1"><Clock size={10} /> 启动时间</h4>
+                             <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">首次启动</span><div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-white min-w-0"><EditableField value={toInputDate(device.firstStartTime)} displayValue={device.firstStartTime} type="datetime-local" onSave={(val) => handleFieldUpdate('firstStartTime', val)} className="flex-1 min-w-0" /></div></div>
                         </div>
                     </div>
                 )}
                 {activeModule === 'aftersales' && (
                     <div className="space-y-3 animate-fadeIn">
-                        {/* Device Status Moved Here */}
+                        {/* Device Status Moved Back Here */}
                         <div className={`py-2 px-3 rounded-lg border flex items-center justify-between ${
                             device.status === DeviceStatus.ONLINE ? 'bg-green-100 border-green-200 text-green-800' : 
                             device.status === DeviceStatus.OFFLINE ? 'bg-slate-100 border-slate-200 text-slate-600' : 
@@ -882,7 +906,7 @@ export const DeviceManagement: React.FC = () => {
                             </span>
                         </div>
 
-                        {/* Hardware Stats Moved Here */}
+                        {/* Hardware Stats Moved Back Here */}
                         <div className="bg-slate-800 text-white rounded-lg p-3 shadow-md grid grid-cols-4 gap-2 text-center">
                             <div className="flex flex-col items-center"><span className="text-sm font-bold leading-none">{device.cpuUsage}%</span><span className="text-[8px] text-slate-400 mt-1">CPU</span></div>
                             <div className="flex flex-col items-center border-l border-slate-600"><span className="text-sm font-bold leading-none">{device.memoryUsage}%</span><span className="text-[8px] text-slate-400 mt-1">内存</span></div>
@@ -890,80 +914,132 @@ export const DeviceManagement: React.FC = () => {
                             <div className="flex flex-col items-center border-l border-slate-600"><span className="text-sm font-bold leading-none">{device.currentRunDuration || 0}h</span><span className="text-[8px] text-slate-400 mt-1">运行时长</span></div>
                         </div>
 
-                        <div className={`p-3 rounded-lg border flex justify-between items-center ${device.opsStatus === OpsStatus.HOTEL_COMPLAINT ? 'bg-pink-50 border-pink-100' : device.opsStatus === OpsStatus.ABNORMAL ? 'bg-red-50 border-red-100' : device.opsStatus === OpsStatus.REPAIRING ? 'bg-purple-50 border-purple-100' : 'bg-green-50 border-green-100'}`}>
-                            <div><p className="text-[10px] opacity-60 mb-0.5 uppercase tracking-wide">当前运维状态</p><span className={`text-base font-bold ${device.opsStatus === OpsStatus.HOTEL_COMPLAINT ? 'text-pink-700' : device.opsStatus === OpsStatus.ABNORMAL ? 'text-red-700' : device.opsStatus === OpsStatus.REPAIRING ? 'text-purple-700' : 'text-green-700'}`}>{device.opsStatus}</span></div>
-                            <div className="text-right"><p className="text-[10px] opacity-60 mb-0.5">已持续</p><div className={`flex items-center gap-1 justify-end ${device.opsStatus === OpsStatus.HOTEL_COMPLAINT ? 'text-pink-700' : device.opsStatus === OpsStatus.ABNORMAL ? 'text-red-700' : device.opsStatus === OpsStatus.REPAIRING ? 'text-purple-700' : 'text-green-700'}`}><Clock size={12} /><p className="text-lg font-bold font-mono leading-none">{calculateDuration(device.lastTestTime)}</p></div></div>
+                        {/* Current Ops Status Card */}
+                         <div className={`p-3 rounded-lg border flex items-center justify-between ${
+                            device.opsStatus === OpsStatus.HOTEL_COMPLAINT ? 'bg-pink-50 border-pink-200 text-pink-700' :
+                            device.opsStatus === OpsStatus.REPAIRING ? 'bg-purple-50 border-purple-200 text-purple-700' :
+                            'bg-green-50 border-green-200 text-green-700'
+                        }`}>
+                            <div className="flex items-center gap-2">
+                                <div className={`p-1.5 rounded-full ${
+                                    device.opsStatus === OpsStatus.HOTEL_COMPLAINT ? 'bg-pink-200 text-pink-700' :
+                                    device.opsStatus === OpsStatus.REPAIRING ? 'bg-purple-200 text-purple-700' :
+                                    'bg-green-200 text-green-700'
+                                }`}>
+                                    <Wrench size={16} />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] uppercase opacity-70 font-bold">运维状态</p>
+                                    <p className="font-bold text-lg leading-none">{device.opsStatus}</p>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-[10px] uppercase opacity-70 font-bold">持续时长</p>
+                                <p className="font-bold text-lg leading-none">{calculateDuration(device.lastTestTime)}</p>
+                            </div>
                         </div>
+
+                        {/* Pending Ops Audit Card */}
                         {pendingOpsRecord && (
-                            <div className="bg-orange-50 border border-orange-200 rounded-lg p-2.5 text-xs animate-fadeIn shadow-sm">
-                                <div className="flex justify-between items-center mb-2 border-b border-orange-100 pb-1"><span className="font-bold text-orange-700 flex items-center gap-1"><ClipboardCheck size={12} /> 状态审核中</span><span className="text-[10px] text-orange-400">{pendingOpsRecord.requestTime.split(' ')[0]}</span></div>
-                                <div className="grid grid-cols-2 gap-2 mb-2"><div className="flex flex-col"><span className="text-[10px] text-orange-500">申请状态</span><span className="font-bold text-slate-700">{pendingOpsRecord.targetOpsStatus}</span></div><div className="flex flex-col text-right"><span className="text-[10px] text-orange-500">申请人</span><span className="font-bold text-slate-700">{pendingOpsRecord.requestUser}</span></div></div>
-                                <div className="bg-white p-2 rounded border border-orange-100 mb-2"><span className="text-[10px] text-orange-400 block mb-0.5">备注</span><p className="text-slate-700 font-medium break-all">{pendingOpsRecord.changeReason}</p></div>
-                                {pendingOpsRecord.images && pendingOpsRecord.images.length > 0 && (<div><span className="text-[10px] text-orange-400 block mb-1">凭证</span><div className="flex gap-1 overflow-x-auto no-scrollbar">{pendingOpsRecord.images.map((img, idx) => (<div key={idx} className="w-8 h-8 rounded border border-orange-100 overflow-hidden flex-shrink-0"><img src={img} alt="evidence" className="w-full h-full object-cover" /></div>))}</div></div>)}
+                            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-orange-800">
+                                <div className="flex justify-between items-start mb-2">
+                                    <h5 className="font-bold text-xs flex items-center gap-1"><History size={12} /> 正在审核中</h5>
+                                    <span className="text-[10px] bg-orange-200 px-1.5 py-0.5 rounded text-orange-800 font-bold">申请: {pendingOpsRecord.targetOpsStatus}</span>
+                                </div>
+                                <div className="text-[10px] space-y-1 opacity-80">
+                                    <p>提交时间: {pendingOpsRecord.requestTime}</p>
+                                    <p>变更说明: {pendingOpsRecord.changeReason}</p>
+                                    <p>操作人: {pendingOpsRecord.requestUser}</p>
+                                </div>
+                                {pendingOpsRecord.images && pendingOpsRecord.images.length > 0 && (
+                                     <div className="flex gap-1 mt-2">
+                                        {pendingOpsRecord.images.map((img, idx) => (
+                                            <div key={idx} className="w-8 h-8 rounded border border-orange-200 overflow-hidden">
+                                                <img src={img} className="w-full h-full object-cover" />
+                                            </div>
+                                        ))}
+                                     </div>
+                                )}
                             </div>
                         )}
                     </div>
                 )}
                 {activeModule === 'inspection' && (
-                    <div className="space-y-3 animate-fadeIn">
-                        <div className="bg-white border border-slate-100 rounded-lg p-2 shadow-sm space-y-2">
-                            <h4 className="text-[10px] font-bold text-slate-400 uppercase border-b border-slate-50 pb-1 flex items-center gap-1"><Activity size={10} /> 设备巡检数据</h4>
-                            
-                            {/* Cumulative Stats */}
-                            <div className="grid grid-cols-2 gap-2 mb-2">
-                                <div className="bg-slate-50 p-2 rounded border border-slate-100 flex flex-col items-center">
-                                     <span className="text-[10px] text-slate-400">累计启动</span>
-                                     <span className="text-sm font-bold text-slate-700">{device.totalStartCount || 0}次</span>
-                                </div>
-                                <div className="bg-slate-50 p-2 rounded border border-slate-100 flex flex-col items-center">
-                                     <span className="text-[10px] text-slate-400">累计运行</span>
-                                     <span className="text-sm font-bold text-slate-700">{device.totalRunDuration || 0}h</span>
-                                </div>
+                     <div className="space-y-3 animate-fadeIn">
+                        {/* Cumulative Stats */}
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="bg-slate-50 p-2 rounded-lg border border-slate-200 flex flex-col items-center">
+                                <span className="text-[10px] text-slate-500 uppercase">累计启动</span>
+                                <span className="text-sm font-bold text-slate-800">{device.totalStartCount || 0}次</span>
                             </div>
-                            
-                            <div 
-                                className="flex justify-between items-center bg-slate-50 border border-slate-100 rounded-lg p-2 cursor-pointer hover:bg-slate-100 transition-colors"
-                                onClick={() => setViewingReportDevice(device)}
-                            >
-                                <div className="flex flex-col"><span className="text-[9px] text-slate-500">最近测试</span><span className="text-[10px] font-bold text-slate-700">{device.lastTestTime}</span></div>
-                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 ${device.lastTestResult === 'Qualified' ? 'bg-green-100 text-green-600' : device.lastTestResult === 'Unqualified' ? 'bg-red-100 text-red-600' : 'bg-slate-200 text-slate-500'}`}>
-                                    <ClipboardCheck size={10} /> {device.lastTestResult === 'Qualified' ? '合格' : device.lastTestResult === 'Unqualified' ? '不合格' : '无记录'}
-                                </span>
+                            <div className="bg-slate-50 p-2 rounded-lg border border-slate-200 flex flex-col items-center">
+                                <span className="text-[10px] text-slate-500 uppercase">累计运行</span>
+                                <span className="text-sm font-bold text-slate-800">{device.totalRunDuration || 0}h</span>
                             </div>
-
-                            {pendingInspRecord && (
-                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 text-xs animate-fadeIn shadow-sm">
-                                    <div className="flex justify-between items-center mb-2 border-b border-blue-100 pb-1"><span className="font-bold text-blue-700 flex items-center gap-1"><ClipboardCheck size={12} /> 巡检审核中</span><span className="text-[10px] text-blue-400">{pendingInspRecord.requestTime.split(' ')[0]}</span></div>
-                                    <div className="grid grid-cols-2 gap-2 mb-2"><div className="flex flex-col"><span className="text-[10px] text-blue-500">巡检结果</span><span className={`font-bold ${pendingInspRecord.testResult === 'Qualified' ? 'text-green-600' : 'text-red-600'}`}>{pendingInspRecord.testResult === 'Qualified' ? '合格' : '不合格'}</span></div><div className="flex flex-col text-right"><span className="text-[10px] text-blue-500">申请人</span><span className="font-bold text-slate-700">{pendingInspRecord.requestUser}</span></div></div>
-                                    <div className="bg-white p-2 rounded border border-blue-100 mb-2"><span className="text-[10px] text-blue-400 block mb-0.5">备注</span><p className="text-slate-700 font-medium break-all">{pendingInspRecord.changeReason}</p></div>
-                                </div>
-                            )}
-
-                            {/* New Inspection Report Button */}
-                            <button 
-                                onClick={() => openInspectionModal(device.id)}
-                                className="w-full py-2 border border-blue-200 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-50 transition-colors flex items-center justify-center gap-1"
-                            >
-                                <FileText size={12} /> 提交巡检报告
-                            </button>
                         </div>
-                    </div>
+
+                        <div className="bg-white border border-slate-100 rounded-lg p-2 space-y-2 shadow-sm">
+                             <div 
+                                onClick={() => setViewingReportDevice(device)}
+                                className="flex text-[10px] items-center cursor-pointer hover:bg-slate-50 p-1 rounded transition-colors group"
+                             >
+                                 <span className="text-slate-500 w-12 flex-shrink-0">最近测试</span>
+                                 <div className="flex-1 flex justify-between items-center pl-2">
+                                    <span className="text-slate-700 font-medium">{device.lastTestTime}</span>
+                                    <div className="flex items-center gap-1">
+                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${device.lastTestResult === 'Qualified' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                            {device.lastTestResult === 'Qualified' ? '合格' : '不合格'}
+                                        </span>
+                                        <Eye size={12} className="text-blue-400 group-hover:text-blue-600" />
+                                    </div>
+                                 </div>
+                             </div>
+
+                             {/* Pending Inspection Audit Card */}
+                             {pendingInspRecord && (
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 text-blue-800 text-[10px]">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="font-bold flex items-center gap-1"><ClipboardCheck size={10} /> 巡检报告审核中</span>
+                                        <span className={`px-1 rounded ${pendingInspRecord.testResult === 'Qualified' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                            {pendingInspRecord.testResult === 'Qualified' ? '合格' : '不合格'}
+                                        </span>
+                                    </div>
+                                    <p className="opacity-80 truncate">{pendingInspRecord.changeReason}</p>
+                                    <div className="flex justify-between items-center mt-1 text-[9px] opacity-70">
+                                        <span>{pendingInspRecord.requestTime}</span>
+                                        <span>操作人: {pendingInspRecord.requestUser}</span>
+                                    </div>
+                                </div>
+                             )}
+
+                             <button 
+                                onClick={() => openInspectionModal(device.id)}
+                                className="w-full py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded hover:bg-blue-100 transition-colors border border-blue-200 flex items-center justify-center gap-1"
+                             >
+                                <ClipboardList size={12} /> 提交巡检报告
+                             </button>
+                        </div>
+                     </div>
                 )}
             </div>
-            <div className="col-span-5 border-l border-slate-100 pl-2">
-                <h5 className="text-[9px] font-bold text-slate-400 mb-2 uppercase flex items-center gap-1 sticky top-0 bg-white z-10 py-1"><History size={10} /> 历史记录</h5>
-                <div className="space-y-3 relative pl-1">
-                     <div className="absolute left-[5px] top-1 bottom-0 w-0.5 bg-slate-100"></div>
-                     {filteredEvents.length > 0 ? (filteredEvents.slice(0, 10).map(evt => (
-                        <div key={evt.id} className="relative pl-3 animate-fadeIn cursor-pointer group" onClick={() => setViewingEvent(evt)}>
-                            <div className={`absolute left-0 top-1 w-2.5 h-2.5 rounded-full border-2 border-white box-content z-10 ${evt.type === 'error' ? 'bg-red-500' : evt.type === 'warning' ? 'bg-orange-400' : 'bg-blue-300'}`}></div>
-                            <div className="flex flex-col group-hover:bg-slate-50 rounded p-1 -ml-1 transition-colors">
-                                <span className="text-[8px] text-slate-400 leading-tight mb-0.5 scale-90 origin-left">{evt.timestamp.split(' ')[0]}</span>
-                                <span className="text-[9px] text-slate-700 leading-tight font-medium line-clamp-2" title={evt.message}>{evt.message}</span>
-                                <span className="text-[8px] text-slate-400 mt-0.5 scale-90 origin-left">@{evt.operator || 'Sys'}</span>
+            
+            <div className="col-span-5 border-l border-slate-100 pl-2 relative">
+                <div className="absolute left-2 top-0 bottom-0 w-px bg-slate-100 -ml-[0.5px]"></div>
+                <div className="space-y-4 relative">
+                    {filteredEvents.length === 0 ? (
+                        <div className="text-[10px] text-slate-300 text-center py-4">暂无相关事件</div>
+                    ) : (
+                        filteredEvents.map(event => (
+                            <div key={event.id} className="relative pl-3 group cursor-pointer" onClick={() => setViewingEventData({ event, deviceId: device.id })}>
+                                <div className={`absolute left-0 top-1.5 w-1.5 h-1.5 rounded-full border border-white shadow-sm z-10 ${
+                                    event.type === 'error' ? 'bg-red-500' : event.type === 'warning' ? 'bg-orange-400' : 'bg-blue-400'
+                                }`}></div>
+                                <div className="text-[9px] text-slate-400 mb-0.5">{event.timestamp}</div>
+                                <div className="text-[10px] text-slate-700 font-medium leading-tight group-hover:text-blue-600 transition-colors line-clamp-2">{event.message}</div>
+                                <div className="text-[9px] text-slate-300 mt-0.5 text-right">{event.operator || 'System'}</div>
                             </div>
-                        </div>
-                     ))) : (<div className="text-[9px] text-slate-300 pl-2 py-2 italic">无记录</div>)}
+                        ))
+                    )}
                 </div>
             </div>
         </div>
@@ -971,229 +1047,423 @@ export const DeviceManagement: React.FC = () => {
     );
   };
 
-  // ... (Return Block) ...
   return (
-    <div className="min-h-full bg-slate-50 relative pb-32">
-        {/* ... (Header & Filters) ... */}
-      <div className="bg-gradient-to-b from-blue-900 to-blue-800 p-4 pb-16 rounded-b-[2rem] shadow-xl relative z-0">
-         <div className="flex justify-between items-center mb-4">
-             <button onClick={openAddModal} className="text-white hover:bg-white/10 p-2 rounded-lg transition-colors flex items-center gap-1"><Plus size={24} /><span className="text-xs font-bold">新增设备</span></button>
-             <h2 className="text-lg font-bold text-white tracking-wide">设备管理</h2>
-             <button onClick={() => setIsAuditModalOpen(true)} className="text-white hover:bg-white/10 p-2 rounded-lg transition-colors relative"><ClipboardCheck size={24} />{pendingAuditCount > 0 && (<span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-blue-900 animate-pulse"></span>)}</button>
-         </div>
-         {/* ... Filters & Search ... */}
-         <div className="grid grid-cols-3 gap-2 mb-2">
-            <select value={selectedRegion} onChange={e => setSelectedRegion(e.target.value)} className="bg-white text-slate-800 text-xs rounded py-1.5 px-2 focus:outline-none shadow-sm"><option value="">全部大区</option>{regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select>
-            <select value={selectedStore} onChange={e => setSelectedStore(e.target.value)} className="bg-white text-slate-800 text-xs rounded py-1.5 px-2 focus:outline-none shadow-sm"><option value="">全部门店</option>{availableStores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
-            <select value={selectedType} onChange={e => setSelectedType(e.target.value)} className="bg-white text-slate-800 text-xs rounded py-1.5 px-2 focus:outline-none shadow-sm"><option value="">全部类型</option>{deviceTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
-         </div>
-         {/* New Status Filters Row */}
-         <div className="grid grid-cols-2 gap-2 mb-3">
-             <select value={selectedStatus} onChange={e => setSelectedStatus(e.target.value)} className="bg-white text-slate-800 text-xs rounded py-1.5 px-2 focus:outline-none shadow-sm">
-                 <option value="">全部状态</option>
-                 <option value={DeviceStatus.ONLINE}>运行中</option>
-                 <option value={DeviceStatus.STANDBY}>待机中</option>
-                 <option value={DeviceStatus.OFFLINE}>未联网</option>
-             </select>
-             <select value={selectedOpsStatus} onChange={e => setSelectedOpsStatus(e.target.value)} className="bg-white text-slate-800 text-xs rounded py-1.5 px-2 focus:outline-none shadow-sm">
-                 <option value="">全部运维状态</option>
-                 <option value={OpsStatus.INSPECTED}>正常</option>
-                 <option value={OpsStatus.ABNORMAL}>异常</option>
-                 <option value={OpsStatus.HOTEL_COMPLAINT}>酒店客诉</option>
-                 <option value={OpsStatus.REPAIRING}>维修中</option>
-             </select>
-         </div>
+    <div className="p-4 pb-20"> {/* pb-20 for fixed button space */}
+        {/* Header Controls */}
+        <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-4 rounded-t-xl shadow-lg mb-0 relative overflow-hidden">
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
+            
+            <div className="relative z-10">
+                <div className="flex justify-between items-center mb-4">
+                    <button 
+                        onClick={openAddModal}
+                        className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-lg backdrop-blur-sm transition-all border border-white/10"
+                    >
+                        <Plus size={20} />
+                    </button>
+                    
+                    <button 
+                        onClick={() => setIsAuditModalOpen(true)}
+                        className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-lg backdrop-blur-sm transition-all border border-white/10 relative"
+                    >
+                        <ClipboardCheck size={20} />
+                        {pendingAuditCount > 0 && (
+                            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] flex items-center justify-center rounded-full font-bold border-2 border-blue-600">
+                                {pendingAuditCount}
+                            </span>
+                        )}
+                    </button>
+                </div>
 
-         <div className="flex gap-2"><div className="flex-1 bg-white rounded-lg flex items-center px-3 py-1.5 shadow-sm"><Search size={16} className="text-slate-400 mr-2" /><input type="text" placeholder="请输入设备SN号、MAC地址或者名称" className="flex-1 text-xs outline-none text-slate-700" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /></div><button className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold px-4 rounded-lg shadow-sm">搜索</button></div>
-      </div>
+                <div className="bg-white/10 backdrop-blur-md rounded-lg p-1 flex items-center mb-3 border border-white/20">
+                    <Search className="text-blue-100 ml-2" size={16} />
+                    <input 
+                        type="text" 
+                        placeholder="请输入设备SN号、MAC地址或者名称" 
+                        className="bg-transparent border-none text-white placeholder-blue-200 text-xs w-full focus:ring-0 px-2"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    <button className="bg-blue-800/50 text-white text-xs px-3 py-1.5 rounded-md hover:bg-blue-800/70 transition-colors font-bold">
+                        搜索
+                    </button>
+                </div>
 
-      {/* Device List */}
-      <div className="px-3 -mt-4 relative z-10">
-          <div className="bg-blue-600/90 text-white text-[10px] font-bold p-2 rounded-t-lg flex items-center shadow-md backdrop-blur-sm">
-              <div className="w-8 flex justify-center"></div>
-              <div className="flex-1 px-1">设备名称</div>
-              <div className="w-24 px-1">门店</div>
-              <div className="w-16 text-center">设备状态</div>
-              <div className="w-20 text-right pr-2">运维状态</div>
-              <div className="w-6"></div>
-          </div>
-          <div className="space-y-1">
-             {filteredDevices.map(device => {
-                 const isSelected = selectedDeviceIds.has(device.id);
-                 const styleClass = getRowStyle(device);
-                 const isExpanded = expandedDeviceId === device.id;
-                 const isPending = hasPendingAudit(device.id);
+                {/* Filters Grid */}
+                <div className="grid grid-cols-3 gap-2">
+                    <div className="relative">
+                        <select 
+                            className="w-full appearance-none bg-white text-blue-900 text-[10px] font-bold py-1.5 px-2 rounded focus:outline-none"
+                            value={selectedRegion}
+                            onChange={(e) => setSelectedRegion(e.target.value)}
+                        >
+                            <option value="">全部大区</option>
+                            {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 text-blue-900 pointer-events-none" size={12} />
+                    </div>
+                    <div className="relative">
+                        <select 
+                            className="w-full appearance-none bg-white text-blue-900 text-[10px] font-bold py-1.5 px-2 rounded focus:outline-none"
+                            value={selectedStore}
+                            onChange={(e) => setSelectedStore(e.target.value)}
+                        >
+                            <option value="">全部门店</option>
+                            {availableStores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 text-blue-900 pointer-events-none" size={12} />
+                    </div>
+                    <div className="relative">
+                        <select 
+                            className="w-full appearance-none bg-white text-blue-900 text-[10px] font-bold py-1.5 px-2 rounded focus:outline-none"
+                            value={selectedType}
+                            onChange={(e) => setSelectedType(e.target.value)}
+                        >
+                            <option value="">所有类型</option>
+                            {deviceTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 text-blue-900 pointer-events-none" size={12} />
+                    </div>
+                    
+                    {/* New Filter Row */}
+                     <div className="relative">
+                        <select 
+                            className="w-full appearance-none bg-blue-800/40 text-white text-[10px] font-bold py-1.5 px-2 rounded focus:outline-none border border-blue-400/30"
+                            value={selectedStatus}
+                            onChange={(e) => setSelectedStatus(e.target.value)}
+                        >
+                            <option value="">全部状态</option>
+                            <option value={DeviceStatus.ONLINE}>运行中</option>
+                            <option value={DeviceStatus.STANDBY}>待机中</option>
+                            <option value={DeviceStatus.OFFLINE}>未联网</option>
+                        </select>
+                        <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 text-blue-200 pointer-events-none" size={12} />
+                    </div>
+                     <div className="relative col-span-2">
+                        <select 
+                            className="w-full appearance-none bg-blue-800/40 text-white text-[10px] font-bold py-1.5 px-2 rounded focus:outline-none border border-blue-400/30"
+                            value={selectedOpsStatus}
+                            onChange={(e) => setSelectedOpsStatus(e.target.value)}
+                        >
+                            <option value="">全部运维状态</option>
+                            <option value={OpsStatus.INSPECTED}>正常</option>
+                            <option value={OpsStatus.HOTEL_COMPLAINT}>酒店客诉</option>
+                            <option value={OpsStatus.REPAIRING}>维修中</option>
+                        </select>
+                        <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 text-blue-200 pointer-events-none" size={12} />
+                    </div>
+                </div>
+            </div>
+        </div>
 
-                 return (
-                     <div key={device.id} className="relative rounded-md overflow-hidden shadow-sm">
-                         <div className={`flex items-center p-2 text-xs cursor-pointer transition-colors border-l-4 ${styleClass}`} onClick={() => toggleExpand(device.id)}>
-                             <div className="w-8 flex justify-center" onClick={(e) => { e.stopPropagation(); toggleSelection(device.id); }}>{isSelected ? <CheckSquare size={16} className="opacity-80" /> : <Square size={16} className="opacity-40" />}</div>
-                             <div className="flex-1 px-1 font-bold truncate">{device.name}</div>
-                             <div className="w-24 px-1 truncate opacity-80 text-[10px]">{getStoreName(device.storeId)}</div>
-                             <div className="w-16 text-center font-medium">{device.status === DeviceStatus.ONLINE ? '运行中' : device.status === DeviceStatus.OFFLINE ? '未联网' : device.status === DeviceStatus.IN_USE ? '使用中' : '待机中'}</div>
-                             <div className="w-20 text-right pr-2 flex flex-col items-end"><div className="flex items-center gap-1"><span className="font-bold">{device.opsStatus}</span></div><span className="opacity-60 ml-1 text-[10px]">({calculateDuration(device.lastTestTime)})</span></div>
-                             <div className="w-6 flex justify-center opacity-50">{isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</div>
+        {/* Device List Header */}
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-3 py-2 flex items-center text-white text-[10px] font-bold rounded-b-xl shadow-md mb-2">
+            <div onClick={toggleSelectAll} className="mr-2 cursor-pointer">
+                {selectedDeviceIds.size > 0 && selectedDeviceIds.size === filteredDevices.length ? <CheckSquare size={14} /> : <Square size={14} />}
+            </div>
+            <div className="w-16">设备名称</div>
+            <div className="flex-1 text-center">门店</div>
+            <div className="w-12 text-center">状态</div>
+            <div className="w-16 text-right">运维状态</div>
+        </div>
+
+        {/* Device List */}
+        <div className="space-y-2">
+          {filteredDevices.map(device => {
+             const rowStyle = getRowStyle(device);
+             const isExpanded = expandedDeviceId === device.id;
+             const isSelected = selectedDeviceIds.has(device.id);
+             const isPending = hasPendingAudit(device.id);
+
+             return (
+                 <div key={device.id} className="rounded-lg overflow-hidden shadow-sm border border-slate-100 relative">
+                     {/* List Row */}
+                     <div className={`flex items-center px-3 py-3 transition-colors ${rowStyle} ${isExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}>
+                         <div onClick={() => toggleSelection(device.id)} className="mr-2 cursor-pointer opacity-60 hover:opacity-100">
+                             {isSelected ? <CheckSquare size={14} /> : <Square size={14} />}
                          </div>
-                         {isPending && (<div className="absolute top-0 right-0 bg-orange-100 text-orange-600 text-[10px] px-2 py-0.5 rounded-bl-lg font-bold border-b border-l border-orange-200 z-10 whitespace-nowrap">待审核</div>)}
-                         {isExpanded && <DeviceDetailCard device={device} />}
+                         <div className="w-16 truncate font-bold text-xs">{device.name}</div>
+                         <div className="flex-1 text-center truncate text-[10px] px-1 opacity-80">{getStoreName(device.storeId)}</div>
+                         <div className="w-12 text-center text-[10px] font-bold opacity-90">{STATUS_MAP[device.status]}</div>
+                         <div className="w-16 text-right text-[10px] font-bold flex items-center justify-end gap-1 cursor-pointer" onClick={() => toggleExpand(device.id)}>
+                            <span className="truncate">{device.opsStatus}</span>
+                            {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                         </div>
                      </div>
-                 );
-             })}
-          </div>
-          <div className="mt-2 flex items-center gap-2 px-2 pb-4"><div className="cursor-pointer text-slate-500 flex items-center gap-1" onClick={toggleSelectAll}>{selectedDeviceIds.size > 0 && selectedDeviceIds.size === filteredDevices.length ? <CheckSquare size={16} className="text-blue-500" /> : <Square size={16} />}<span className="text-xs font-bold">全部选择</span></div></div>
-      </div>
+                     
+                     {isPending && (
+                         <div className="absolute top-0 right-0 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-bl-lg font-bold shadow-sm z-10 pointer-events-none">
+                             待审核
+                         </div>
+                     )}
 
-      <div className="fixed bottom-[5rem] left-0 right-0 flex justify-center z-30 pointer-events-none w-full">
-            <button onClick={() => setIsControlMenuOpen(true)} disabled={selectedDeviceIds.size === 0} className={`bg-slate-800 text-white shadow-xl shadow-slate-900/20 rounded-full px-6 py-3 flex items-center gap-2 font-bold text-sm pointer-events-auto transition-all active:scale-95 ${selectedDeviceIds.size === 0 ? 'opacity-50 cursor-not-allowed scale-90' : 'hover:bg-slate-700 hover:-translate-y-1'}`}><Settings2 size={18} /><span>设备管控 {selectedDeviceIds.size > 0 && `(${selectedDeviceIds.size})`}</span></button>
-      </div>
+                     {/* Expanded Detail */}
+                     {isExpanded && <DeviceDetailCard device={device} />}
+                 </div>
+             );
+          })}
+          {filteredDevices.length === 0 && (
+              <div className="text-center py-10 text-slate-400 text-xs">未找到符合条件的设备</div>
+          )}
+        </div>
 
-        {/* ... (Device Control Menu) ... */}
-        {isControlMenuOpen && (
-            <div className="fixed inset-0 z-50 flex flex-col justify-end">
-                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsControlMenuOpen(false)}></div>
-                <div className="bg-white rounded-t-2xl p-6 relative z-10 animate-slideUp">
-                    <div className="flex justify-between items-center mb-6"><h3 className="font-bold text-slate-800 text-lg">设备批量管控</h3><button onClick={() => setIsControlMenuOpen(false)} className="bg-slate-100 p-1 rounded-full"><X size={20} className="text-slate-500" /></button></div>
-                    <div className="grid grid-cols-4 gap-4">
-                         <button onClick={handleBatchRun} className="flex flex-col items-center gap-2 group"><div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center group-hover:bg-green-200 transition-colors"><Play size={24} fill="currentColor" /></div><span className="text-xs font-bold text-slate-700">运行设备</span></button>
-                         <button onClick={handleBatchSleep} className="flex flex-col items-center gap-2 group"><div className="w-12 h-12 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center group-hover:bg-yellow-200 transition-colors"><Moon size={24} fill="currentColor" /></div><span className="text-xs font-bold text-slate-700">休眠设备</span></button>
-                         <button onClick={handleBatchRestart} className="flex flex-col items-center gap-2 group"><div className="w-12 h-12 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center group-hover:bg-slate-200 transition-colors"><RotateCcw size={24} /></div><span className="text-xs font-bold text-slate-700">重启设备</span></button>
-                         <button onClick={openOpsStatusModal} className="flex flex-col items-center gap-2 group"><div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center group-hover:bg-blue-200 transition-colors"><ClipboardCheck size={24} /></div><span className="text-xs font-bold text-slate-700">运维状态</span></button>
+        {/* Device Control Button (Fixed at bottom) */}
+        <div className="fixed bottom-[80px] left-1/2 transform -translate-x-1/2 z-40">
+             <button 
+                onClick={() => setIsControlMenuOpen(!isControlMenuOpen)}
+                disabled={selectedDeviceIds.size === 0}
+                className={`px-4 py-2 rounded-full shadow-lg flex items-center gap-2 font-bold text-sm transition-all border 
+                    ${selectedDeviceIds.size > 0 
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white active:scale-95 border-blue-400' 
+                        : 'bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed'
+                    }`}
+             >
+                 <Settings2 size={16} />
+                 设备管控 {selectedDeviceIds.size > 0 ? `(${selectedDeviceIds.size})` : ''}
+             </button>
+        </div>
+
+        {/* Control Menu Popup */}
+        {isControlMenuOpen && selectedDeviceIds.size > 0 && (
+            <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsControlMenuOpen(false)}></div>
+                <div className="fixed bottom-[130px] left-1/2 transform -translate-x-1/2 z-50 bg-white rounded-xl shadow-2xl border border-slate-100 p-2 w-64 animate-scaleIn origin-bottom">
+                    <div className="grid grid-cols-4 gap-2">
+                        <button onClick={handleBatchRun} className="flex flex-col items-center gap-1 p-2 hover:bg-green-50 rounded-lg text-green-700 transition-colors">
+                            <Play size={20} />
+                            <span className="text-[10px] font-bold">运行设备</span>
+                        </button>
+                        <button onClick={handleBatchSleep} className="flex flex-col items-center gap-1 p-2 hover:bg-yellow-50 rounded-lg text-yellow-600 transition-colors">
+                            <Moon size={20} />
+                            <span className="text-[10px] font-bold">休眠设备</span>
+                        </button>
+                        <button onClick={handleBatchRestart} className="flex flex-col items-center gap-1 p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors">
+                            <RotateCcw size={20} />
+                            <span className="text-[10px] font-bold">重启设备</span>
+                        </button>
+                         <button onClick={openOpsStatusModal} className="flex flex-col items-center gap-1 p-2 hover:bg-blue-50 rounded-lg text-blue-600 transition-colors">
+                            <Wrench size={20} />
+                            <span className="text-[10px] font-bold">运维状态</span>
+                        </button>
                     </div>
-                    <div className="h-6"></div>
                 </div>
-            </div>
+            </>
         )}
 
-        {/* ... (Ops Status Change Modal) ... */}
-        {isOpsStatusModalOpen && (
-            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden p-6 animate-scaleIn">
-                    <h3 className="font-bold text-lg text-slate-800 mb-4">设备运维状态修改申请</h3>
-                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">新的状态</label>
-                            <select 
-                                value={opsChangeStatus} 
-                                onChange={(e) => setOpsChangeStatus(e.target.value as OpsStatus)} 
-                                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-blue-100"
-                            >
-                                {Object.values(OpsStatus)
-                                    .filter(status => status !== OpsStatus.PENDING && status !== OpsStatus.ABNORMAL)
-                                    .map(status => (<option key={status} value={status}>{status}</option>))
-                                }
-                            </select>
-                        </div>
-                        {opsChangeStatus === OpsStatus.HOTEL_COMPLAINT && (<div className="animate-fadeIn"><label className="block text-xs font-bold text-slate-500 uppercase mb-1">客诉类型 (必选)</label><select value={complaintType} onChange={(e) => setComplaintType(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-blue-100"><option value="">请选择类型</option><option value="设备质量故障">设备质量故障</option><option value="其他客诉情况">其他客诉情况</option></select></div>)}
-                        <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">变更说明 (必填)</label><textarea value={opsChangeReason} onChange={(e) => setOpsChangeReason(e.target.value)} placeholder="请输入状态变更的原因..." className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-blue-100 min-h-[80px]"></textarea></div>
-                        <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">上传凭证 (选填)</label><div className="flex gap-2 flex-wrap">{opsChangeImages.map((url, idx) => (<div key={idx} className="w-16 h-16 relative rounded border border-slate-200 overflow-hidden group"><img src={url} alt="upload" className="w-full h-full object-cover" /><button onClick={() => removeOpsImage(idx)} className="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl"><X size={10} /></button></div>))}<div className="w-16 h-16 border-2 border-dashed border-slate-300 rounded flex flex-col items-center justify-center text-slate-400 hover:border-blue-400 hover:text-blue-500 cursor-pointer relative bg-slate-50"><input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleOpsImageUpload} /><Plus size={20} /></div></div></div>
+        {/* Modals */}
+        {isAddModalOpen && (
+            <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[85vh]">
+                    <div className="bg-blue-600 p-4 pt-8 flex justify-between items-center text-white">
+                        <h3 className="font-bold text-lg">添加新设备</h3>
+                        <button onClick={() => setIsAddModalOpen(false)}><X size={24} /></button>
                     </div>
-                    <div className="flex gap-3 mt-6"><button onClick={() => setIsOpsStatusModalOpen(false)} className="flex-1 py-2 bg-slate-100 text-slate-600 font-bold rounded-lg text-sm hover:bg-slate-200">取消</button><button onClick={handleBatchOpsStatusSubmit} className="flex-1 py-2 bg-blue-600 text-white font-bold rounded-lg text-sm hover:bg-blue-700 shadow-lg shadow-blue-200">提交审核</button></div>
-                </div>
-            </div>
-        )}
-
-        {/* Inspection Report Modal (New) */}
-        {isInspectionModalOpen && (
-            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden p-6 animate-scaleIn">
-                    <h3 className="font-bold text-lg text-slate-800 mb-4">提交巡检报告</h3>
-                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">测试结果</label>
-                            <div className="flex gap-2">
-                                <button 
-                                    onClick={() => setInspResult('Qualified')}
-                                    className={`flex-1 py-2 rounded-lg text-sm font-bold border ${inspResult === 'Qualified' ? 'bg-green-100 border-green-300 text-green-700' : 'bg-slate-50 border-slate-200 text-slate-500'}`}
-                                >
-                                    合格
-                                </button>
-                                <button 
-                                    onClick={() => setInspResult('Unqualified')}
-                                    className={`flex-1 py-2 rounded-lg text-sm font-bold border ${inspResult === 'Unqualified' ? 'bg-red-100 border-red-300 text-red-700' : 'bg-slate-50 border-slate-200 text-slate-500'}`}
-                                >
-                                    不合格
-                                </button>
+                    <form onSubmit={handleAddSubmit} className="p-4 space-y-4 overflow-y-auto flex-1 bg-slate-50">
+                        {/* Image Upload Section at Top */}
+                        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">设备缩略图</label>
+                            <div className="grid grid-cols-3 gap-2">
+                                <div className="aspect-square border-2 border-dashed border-blue-300 bg-blue-50 rounded-lg flex flex-col items-center justify-center relative hover:bg-blue-100 transition-colors cursor-pointer">
+                                    <input type="file" accept="image/*" onChange={handleAddFormImage} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                    <Plus className="text-blue-500 mb-1" size={20} />
+                                    <span className="text-[9px] text-blue-600 font-bold">添加图片</span>
+                                </div>
+                                {deviceForm.images.map((img, index) => (
+                                    <div key={index} className="aspect-square rounded-lg border border-slate-200 relative group overflow-hidden bg-slate-100">
+                                        <img src={img.url} alt={`preview-${index}`} className="w-full h-full object-cover" />
+                                        <button type="button" onClick={() => handleRemoveFormImage(index)} className="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full p-0.5 opacity-80 hover:opacity-100"><X size={10} /></button>
+                                        <div className="absolute bottom-0 left-0 right-0 p-0.5 bg-white/90">
+                                            <select 
+                                                value={img.category} 
+                                                onChange={(e) => handleFormImageCategoryChange(index, e.target.value)}
+                                                className="w-full text-[8px] bg-transparent border-none p-0 focus:ring-0 text-center font-bold text-slate-700"
+                                            >
+                                                {Object.entries(CATEGORY_LIMITS).map(([cat, limit]) => {
+                                                    const count = imageCounts[cat] || 0;
+                                                    const isFull = count >= limit;
+                                                    const isCurrent = img.category === cat;
+                                                    return <option key={cat} value={cat} disabled={isFull && !isCurrent}>{cat} ({count}/{limit})</option>;
+                                                })}
+                                            </select>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
 
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">备注说明 (必填)</label>
-                            <textarea 
-                                value={inspRemark}
-                                onChange={(e) => setInspRemark(e.target.value)}
-                                placeholder="请输入巡检记录或不合格原因..."
-                                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-blue-100 min-h-[80px]"
-                            ></textarea>
+                        <div className="space-y-3">
+                            <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">设备名称 *</label><input required className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" value={deviceForm.name} onChange={e => setDeviceForm({...deviceForm, name: e.target.value})} /></div>
+                            <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">SN号码 *</label><input required className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" value={deviceForm.sn} onChange={e => setDeviceForm({...deviceForm, sn: e.target.value})} /></div>
+                            <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">MAC地址</label><input className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" value={deviceForm.mac} onChange={e => setDeviceForm({...deviceForm, mac: e.target.value})} placeholder="XX:XX:XX:XX:XX:XX" /></div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">所属大区</label><select className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white" value={deviceForm.regionId} onChange={e => setDeviceForm({...deviceForm, regionId: e.target.value})}><option value="">选择大区</option>{regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></div>
+                                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">所属门店</label><select className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white" value={deviceForm.storeId} onChange={e => setDeviceForm({...deviceForm, storeId: e.target.value})}><option value="">选择门店</option>{stores.filter(s => !deviceForm.regionId || s.regionId === deviceForm.regionId).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
+                            </div>
+                             <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">设备类型 *</label><select required className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white" value={deviceForm.typeId} onChange={e => setDeviceForm({...deviceForm, typeId: e.target.value})}><option value="">选择类型</option>{deviceTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
+                             <div className="grid grid-cols-2 gap-3">
+                                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">房间号码</label><input className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" value={deviceForm.roomNumber} onChange={e => setDeviceForm({...deviceForm, roomNumber: e.target.value})} /></div>
+                                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">首次启动</label><input type="datetime-local" className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" value={deviceForm.firstStartTime} onChange={e => setDeviceForm({...deviceForm, firstStartTime: e.target.value})} /></div>
+                             </div>
+                             <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">体验软件</label><input className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" value={deviceForm.softwareName} onChange={e => setDeviceForm({...deviceForm, softwareName: e.target.value})} /></div>
                         </div>
 
-                        <div>
-                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">上传图片 (选填)</label>
-                             <div className="flex gap-2 flex-wrap">
-                                 {inspImages.map((url, idx) => (
-                                     <div key={idx} className="w-16 h-16 relative rounded border border-slate-200 overflow-hidden group">
-                                         <img src={url} alt="upload" className="w-full h-full object-cover" />
-                                         <button onClick={() => removeInspImage(idx)} className="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl">
-                                             <X size={10} />
-                                         </button>
-                                     </div>
-                                 ))}
-                                 <div className="w-16 h-16 border-2 border-dashed border-slate-300 rounded flex flex-col items-center justify-center text-slate-400 hover:border-blue-400 hover:text-blue-500 cursor-pointer relative bg-slate-50">
-                                     <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleInspImageUpload} />
-                                     <Plus size={20} />
-                                 </div>
-                             </div>
-                        </div>
-                    </div>
-                    
-                    <div className="flex gap-3 mt-6">
-                        <button 
-                            onClick={() => setIsInspectionModalOpen(false)}
-                            className="flex-1 py-2 bg-slate-100 text-slate-600 font-bold rounded-lg text-sm hover:bg-slate-200"
-                        >
-                            取消
-                        </button>
-                        <button 
-                            onClick={handleSubmitInspection}
-                            className="flex-1 py-2 bg-blue-600 text-white font-bold rounded-lg text-sm hover:bg-blue-700 shadow-lg shadow-blue-200"
-                        >
-                            提交报告
-                        </button>
-                    </div>
+                        <button type="submit" className="w-full bg-blue-600 text-white p-3 rounded-lg font-bold shadow-md hover:bg-blue-700 transition-colors">确认添加</button>
+                    </form>
                 </div>
             </div>
         )}
 
-       {/* ... (Add Device Modal) ... */}
-       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-white flex flex-col animate-fadeIn">
-            <div className="p-4 md:pt-8 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10"><h2 className="text-lg font-bold text-slate-800">添加新设备</h2><button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-2"><span className="text-2xl">&times;</span></button></div>
-            <div className="flex-1 overflow-y-auto p-4 bg-slate-50">
-                <form onSubmit={handleAddSubmit} className="space-y-4">
-                    <div className="bg-white p-4 rounded-xl shadow-sm space-y-4"><div><div className="flex justify-between items-center mb-2"><label className="block text-xs font-bold text-slate-500 uppercase">设备缩略图</label><span className={`text-[10px] ${isTotalLimitReached ? 'text-red-500 font-bold' : 'text-slate-400'}`}>{deviceForm.images.length}/5 (总限)</span></div><div className="flex gap-2 overflow-x-auto pb-2 mb-2 no-scrollbar">{deviceForm.images.map((img, index) => (<div key={index} className="flex-shrink-0 relative group w-24"><div className="h-24 w-24 rounded-lg overflow-hidden border border-slate-200"><img src={img.url} alt="Preview" className="w-full h-full object-cover" /></div><button type="button" onClick={() => handleRemoveFormImage(index)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 shadow-md"><X size={12} /></button><select value={img.category} onChange={(e) => handleFormImageCategoryChange(index, e.target.value)} className="w-full text-[10px] mt-1 border border-slate-200 rounded px-1 py-0.5 bg-slate-50">{Object.entries(CATEGORY_LIMITS).map(([cat, limit]) => { const count = imageCounts[cat] || 0; const isFull = count >= limit; const isCurrent = img.category === cat; const isDisabled = isFull && !isCurrent; return (<option key={cat} value={cat} disabled={isDisabled}>{cat} ({count}/{limit})</option>); })}</select></div>))}<div className={`flex-shrink-0 h-24 w-24 border-2 border-dashed rounded-xl flex flex-col items-center justify-center transition-colors relative ${isTotalLimitReached ? 'border-slate-200 bg-slate-50 cursor-not-allowed opacity-50' : 'border-slate-300 bg-slate-50 hover:bg-slate-100 cursor-pointer'}`}><input type="file" accept="image/*" onChange={handleAddFormImage} disabled={isTotalLimitReached} className={`absolute inset-0 z-10 w-full h-full ${isTotalLimitReached ? 'cursor-not-allowed' : 'cursor-pointer'} opacity-0`} /><Plus className={isTotalLimitReached ? 'text-slate-300' : 'text-slate-400 mb-1'} size={24} /><span className={`text-[10px] text-center px-1 ${isTotalLimitReached ? 'text-slate-300' : 'text-slate-500'}`}>{isTotalLimitReached ? '已达上限' : '点击上传'}</span></div></div></div></div>
-                    <div className="bg-white p-4 rounded-xl shadow-sm space-y-4"><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">设备名称 *</label><input required type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50" value={deviceForm.name} onChange={e => setDeviceForm({...deviceForm, name: e.target.value})} placeholder="例如: VR-009" /></div><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">SN号 *</label><input required type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50" value={deviceForm.sn} onChange={e => setDeviceForm({...deviceForm, sn: e.target.value})} placeholder="例如: SN-2024-XXXX" /></div><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">MAC地址</label><input type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50" value={deviceForm.mac} onChange={e => setDeviceForm({...deviceForm, mac: e.target.value})} placeholder="例如: 00:1A:2B:..." /></div></div>
-                    <div className="bg-white p-4 rounded-xl shadow-sm space-y-4"><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">所属大区 (选填)</label><select className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50" value={deviceForm.regionId} onChange={e => setDeviceForm({...deviceForm, regionId: e.target.value, storeId: ''})}><option value="">请选择大区</option>{regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></div><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">所属门店 (选填)</label><select className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50" value={deviceForm.storeId} onChange={e => setDeviceForm({...deviceForm, storeId: e.target.value})} disabled={!deviceForm.regionId}><option value="">请选择门店</option>{stores.filter(s => s.regionId === deviceForm.regionId).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div></div>
-                    <div className="bg-white p-4 rounded-xl shadow-sm space-y-4"><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">设备类型 *</label><select required className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50" value={deviceForm.typeId} onChange={e => setDeviceForm({...deviceForm, typeId: e.target.value})}><option value="">请选择类型</option>{deviceTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">房间号码</label><input type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50" value={deviceForm.roomNumber} onChange={e => setDeviceForm({...deviceForm, roomNumber: e.target.value})} /></div><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">体验软件名称</label><input type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50" value={deviceForm.softwareName} onChange={e => setDeviceForm({...deviceForm, softwareName: e.target.value})} /></div><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">首次启动时间</label><input type="datetime-local" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50" value={deviceForm.firstStartTime} onChange={e => setDeviceForm({...deviceForm, firstStartTime: e.target.value})} /></div></div>
-                    <div className="h-10"></div>
-                </form>
-            </div>
-            <div className="p-4 bg-white border-t border-slate-200 sticky bottom-0"><button onClick={handleAddSubmit} className="w-full py-3 bg-primary text-white font-bold rounded-xl shadow-lg shadow-blue-200 active:scale-98 transition-transform">确认添加设备</button></div>
-        </div>
-      )}
+        {editingImageDevice && (
+            <ImageManagerModal device={editingImageDevice} onClose={() => setEditingImageDevice(null)} />
+        )}
 
-      {/* ... (Other Modals) ... */}
-      {editingImageDevice && <ImageManagerModal device={editingImageDevice} onClose={() => setEditingImageDevice(null)} />}
-      {isAuditModalOpen && <AuditManagementModal onClose={() => setIsAuditModalOpen(false)} />}
-      
-      {/* Detail Modals */}
-      {viewingReportDevice && (
-          <ReportDetailModal 
-            device={viewingReportDevice} 
-            record={auditRecords.find(r => r.deviceId === viewingReportDevice.id && r.type === AuditType.INSPECTION && r.auditStatus === AuditStatus.APPROVED) || null} 
-            onClose={() => setViewingReportDevice(null)} 
-          />
-      )}
-      
-      {viewingEvent && <EventDetailModal event={viewingEvent} onClose={() => setViewingEvent(null)} />}
+        {isOpsStatusModalOpen && (
+             <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-5 animate-scaleIn">
+                    <h3 className="font-bold text-lg mb-4 text-slate-800">设备运维状态修改申请</h3>
+                    
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">选择新状态</label>
+                            <select 
+                                className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
+                                value={opsChangeStatus}
+                                onChange={(e) => setOpsChangeStatus(e.target.value as OpsStatus)}
+                            >
+                                <option value={OpsStatus.INSPECTED}>正常</option>
+                                <option value={OpsStatus.HOTEL_COMPLAINT}>酒店客诉</option>
+                                <option value={OpsStatus.REPAIRING}>维修中</option>
+                            </select>
+                        </div>
+
+                        {opsChangeStatus === OpsStatus.HOTEL_COMPLAINT && (
+                            <div className="animate-fadeIn">
+                                <label className="block text-xs font-bold text-pink-500 uppercase mb-1">客诉类型 *</label>
+                                <select 
+                                    className="w-full border border-pink-200 rounded p-2 text-sm focus:ring-2 focus:ring-pink-500 focus:outline-none bg-pink-50 text-pink-700"
+                                    value={complaintType}
+                                    onChange={(e) => setComplaintType(e.target.value)}
+                                >
+                                    <option value="">请选择类型...</option>
+                                    <option value="设备质量故障">设备质量故障</option>
+                                    <option value="其他客诉情况">其他客诉情况</option>
+                                </select>
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">变更说明 *</label>
+                            <textarea 
+                                className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none h-20 resize-none"
+                                placeholder="请输入详细的变更原因或备注..."
+                                value={opsChangeReason}
+                                onChange={e => setOpsChangeReason(e.target.value)}
+                            />
+                        </div>
+
+                         {/* Image Upload for Ops Change */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">上传凭证 (可选)</label>
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+                                <div className="w-16 h-16 border-2 border-dashed border-blue-200 rounded bg-blue-50 flex items-center justify-center flex-shrink-0 cursor-pointer relative hover:bg-blue-100">
+                                    <input type="file" accept="image/*" onChange={handleOpsImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                    <Plus size={20} className="text-blue-400" />
+                                </div>
+                                {opsChangeImages.map((url, idx) => (
+                                    <div key={idx} className="w-16 h-16 rounded border border-slate-200 overflow-hidden flex-shrink-0 relative group">
+                                        <img src={url} className="w-full h-full object-cover" />
+                                        <button onClick={() => removeOpsImage(idx)} className="absolute top-0 right-0 bg-red-500 text-white rounded-bl p-0.5 opacity-80 hover:opacity-100"><X size={12} /></button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2 pt-2">
+                             <button onClick={() => setIsOpsStatusModalOpen(false)} className="flex-1 py-2 border border-slate-200 rounded text-slate-600 font-bold hover:bg-slate-50">取消</button>
+                             <button onClick={handleBatchOpsStatusSubmit} className="flex-1 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 shadow-md">提交审核</button>
+                        </div>
+                    </div>
+                </div>
+             </div>
+        )}
+
+        {isInspectionModalOpen && (
+             <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-5 animate-scaleIn">
+                    <h3 className="font-bold text-lg mb-4 text-slate-800 flex items-center gap-2">
+                        <ClipboardList size={20} className="text-blue-600" />
+                        提交巡检报告
+                    </h3>
+                    
+                    <div className="space-y-4">
+                        <div className="flex gap-4">
+                            <label className={`flex-1 flex flex-col items-center justify-center p-3 rounded-lg border-2 cursor-pointer transition-all ${inspResult === 'Qualified' ? 'border-green-500 bg-green-50 text-green-700' : 'border-slate-200 text-slate-500 hover:border-green-200'}`}>
+                                <input type="radio" name="inspResult" value="Qualified" checked={inspResult === 'Qualified'} onChange={() => setInspResult('Qualified')} className="hidden" />
+                                <Check size={24} className="mb-1" />
+                                <span className="text-xs font-bold">合格</span>
+                            </label>
+                            <label className={`flex-1 flex flex-col items-center justify-center p-3 rounded-lg border-2 cursor-pointer transition-all ${inspResult === 'Unqualified' ? 'border-red-500 bg-red-50 text-red-700' : 'border-slate-200 text-slate-500 hover:border-red-200'}`}>
+                                <input type="radio" name="inspResult" value="Unqualified" checked={inspResult === 'Unqualified'} onChange={() => setInspResult('Unqualified')} className="hidden" />
+                                <XIcon size={24} className="mb-1" />
+                                <span className="text-xs font-bold">不合格</span>
+                            </label>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">备注信息 *</label>
+                            <textarea 
+                                className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none h-20 resize-none"
+                                placeholder="请输入巡检详情或故障描述..."
+                                value={inspRemark}
+                                onChange={e => setInspRemark(e.target.value)}
+                            />
+                        </div>
+
+                         {/* Image Upload for Inspection */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">现场照片</label>
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+                                <div className="w-16 h-16 border-2 border-dashed border-blue-200 rounded bg-blue-50 flex items-center justify-center flex-shrink-0 cursor-pointer relative hover:bg-blue-100">
+                                    <input type="file" accept="image/*" onChange={handleInspImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                    <ImageIcon size={20} className="text-blue-400" />
+                                </div>
+                                {inspImages.map((url, idx) => (
+                                    <div key={idx} className="w-16 h-16 rounded border border-slate-200 overflow-hidden flex-shrink-0 relative group">
+                                        <img src={url} className="w-full h-full object-cover" />
+                                        <button onClick={() => removeInspImage(idx)} className="absolute top-0 right-0 bg-red-500 text-white rounded-bl p-0.5 opacity-80 hover:opacity-100"><X size={12} /></button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2 pt-2">
+                             <button onClick={() => setIsInspectionModalOpen(false)} className="flex-1 py-2 border border-slate-200 rounded text-slate-600 font-bold hover:bg-slate-50">取消</button>
+                             <button onClick={handleSubmitInspection} className="flex-1 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 shadow-md">提交审核</button>
+                        </div>
+                    </div>
+                </div>
+             </div>
+        )}
+
+        {isAuditModalOpen && (
+            <AuditManagementModal onClose={() => setIsAuditModalOpen(false)} />
+        )}
+
+        {viewingReportDevice && (
+            <ReportDetailModal 
+                record={auditRecords.find(r => r.deviceId === viewingReportDevice.id && r.auditStatus === AuditStatus.APPROVED && r.type === AuditType.INSPECTION) || null} 
+                device={viewingReportDevice}
+                onClose={() => setViewingReportDevice(null)} 
+            />
+        )}
+
+        {viewingEventData && (
+            <EventDetailModal 
+                event={viewingEventData.event} 
+                deviceId={viewingEventData.deviceId}
+                onClose={() => setViewingEventData(null)} 
+            />
+        )}
 
     </div>
   );

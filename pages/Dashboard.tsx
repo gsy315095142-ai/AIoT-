@@ -112,11 +112,8 @@ export const Dashboard: React.FC = () => {
     // C. Complaint Devices
     const complaintCount = scopedDevices.filter(d => d.opsStatus === OpsStatus.HOTEL_COMPLAINT).length;
     
-    // D. Abnormal Devices
-    const abnormalCount = scopedDevices.filter(d => d.opsStatus === OpsStatus.ABNORMAL).length;
-    
-    // Total Faults (Abnormal + Complaint)
-    const totalFaults = abnormalCount + complaintCount;
+    // Total Faults (Complaint Only now)
+    const totalFaults = complaintCount;
 
     // E. Total Start Count
     const totalStartCount = scopedDevices.reduce((acc, d) => acc + (d.totalStartCount || 0), 0);

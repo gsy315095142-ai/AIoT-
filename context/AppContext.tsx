@@ -128,6 +128,7 @@ interface AppContextType {
   removeDeviceType: (id: string) => void;
   addDevice: (device: Omit<Device, 'id' | 'events' | 'status' | 'opsStatus' | 'cpuUsage' | 'memoryUsage' | 'signalStrength' | 'firstStartTime' | 'lastTestTime'>) => void;
   updateDevice: (id: string, data: Partial<Device>, customEventMessage?: string, eventMeta?: { remark?: string, images?: string[] }) => void;
+  deleteDeviceEvent: (deviceId: string, eventId: string) => void;
   submitOpsStatusChange: (deviceId: string, targetStatus: OpsStatus, reason: string, images?: string[]) => void;
   submitInspectionReport: (deviceId: string, result: 'Qualified' | 'Unqualified', remark: string, images?: string[]) => void;
   approveAudit: (recordId: string) => void;
@@ -218,7 +219,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (customEventMessage) {
              let type: 'info' | 'warning' | 'error' = 'info';
              // Determine type based on data.opsStatus if available, or just info
-             if (data.opsStatus === OpsStatus.ABNORMAL || data.opsStatus === OpsStatus.HOTEL_COMPLAINT) type = 'error';
+             if (data.opsStatus === OpsStatus.HOTEL_COMPLAINT) type = 'error';
              else if (data.opsStatus === OpsStatus.REPAIRING) type = 'warning';
              
              newEvents.push({
@@ -234,7 +235,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         // 2. Handle Automatic Ops Status Logging (if no custom message)
         else if (data.opsStatus && data.opsStatus !== d.opsStatus) {
             let type: 'info' | 'warning' | 'error' = 'info';
-            if (data.opsStatus === OpsStatus.ABNORMAL || data.opsStatus === OpsStatus.HOTEL_COMPLAINT) type = 'error';
+            if (data.opsStatus === OpsStatus.HOTEL_COMPLAINT) type = 'error';
             if (data.opsStatus === OpsStatus.REPAIRING) type = 'warning';
             newEvents.push({
                 id: `evt-ops-${Date.now()}-${Math.random()}`,
@@ -289,6 +290,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         };
       }
       return d;
+    }));
+  };
+
+  const deleteDeviceEvent = (deviceId: string, eventId: string) => {
+    setDevices(prev => prev.map(d => {
+        if (d.id === deviceId) {
+            return {
+                ...d,
+                events: d.events.filter(e => e.id !== eventId)
+            };
+        }
+        return d;
     }));
   };
 
@@ -429,7 +442,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addRegion, removeRegion, 
       addStore, removeStore, 
       addDeviceType, removeDeviceType,
-      addDevice, updateDevice,
+      addDevice, updateDevice, deleteDeviceEvent,
       submitOpsStatusChange, submitInspectionReport, approveAudit, rejectAudit
     }}>
       {children}
