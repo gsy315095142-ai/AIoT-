@@ -1164,7 +1164,7 @@ export const DeviceManagement: React.FC = () => {
             <div className="w-16">设备名称</div>
             <div className="flex-1 text-center">门店</div>
             <div className="w-12 text-center">状态</div>
-            <div className="w-16 text-right">运维状态</div>
+            <div className="w-20 text-right">运维状态</div>
         </div>
 
         {/* Device List */}
@@ -1178,15 +1178,21 @@ export const DeviceManagement: React.FC = () => {
              return (
                  <div key={device.id} className="rounded-lg overflow-hidden shadow-sm border border-slate-100 relative">
                      {/* List Row */}
-                     <div className={`flex items-center px-3 py-3 transition-colors ${rowStyle} ${isExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}>
-                         <div onClick={() => toggleSelection(device.id)} className="mr-2 cursor-pointer opacity-60 hover:opacity-100">
+                     <div 
+                        className={`flex items-center px-3 py-3 transition-colors cursor-pointer ${rowStyle} ${isExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}
+                        onClick={() => toggleExpand(device.id)}
+                     >
+                         <div onClick={(e) => { e.stopPropagation(); toggleSelection(device.id); }} className="mr-2 cursor-pointer opacity-60 hover:opacity-100">
                              {isSelected ? <CheckSquare size={14} /> : <Square size={14} />}
                          </div>
                          <div className="w-16 truncate font-bold text-xs">{device.name}</div>
                          <div className="flex-1 text-center truncate text-[10px] px-1 opacity-80">{getStoreName(device.storeId)}</div>
                          <div className="w-12 text-center text-[10px] font-bold opacity-90">{STATUS_MAP[device.status]}</div>
-                         <div className="w-16 text-right text-[10px] font-bold flex items-center justify-end gap-1 cursor-pointer" onClick={() => toggleExpand(device.id)}>
+                         <div className="w-20 text-right text-[10px] font-bold flex flex-col items-end justify-center leading-tight">
                             <span className="truncate">{device.opsStatus}</span>
+                            <span className="text-[8px] opacity-70 scale-90 origin-right">({calculateDuration(device.lastTestTime)})</span>
+                         </div>
+                         <div className="ml-1 opacity-50 flex-shrink-0">
                             {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                          </div>
                      </div>
