@@ -1,6 +1,6 @@
 import React, { useState, ChangeEvent } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, ImageIcon, Star } from 'lucide-react';
+import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, ImageIcon, Star, Table } from 'lucide-react';
 import { Store as StoreType, Room } from '../../types';
 
 export const RoomArchive: React.FC = () => {
@@ -9,11 +9,16 @@ export const RoomArchive: React.FC = () => {
   // Store Management Modal State
   const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
   const [editingStoreId, setEditingStoreId] = useState<string | null>(null);
-  const [storeForm, setStoreForm] = useState({
+  const [storeForm, setStoreForm] = useState<{
+      id: string;
+      name: string;
+      regionId: string;
+      rooms: { key: string; number: string }[];
+  }>({
       id: '',
       name: '',
       regionId: '',
-      roomListStr: ''
+      rooms: []
   });
 
   // Room Detail Modal State
@@ -23,30 +28,78 @@ export const RoomArchive: React.FC = () => {
 
   const openAddStoreModal = () => {
       setEditingStoreId(null);
-      setStoreForm({ id: '', name: '', regionId: '', roomListStr: '' });
+      setStoreForm({ id: '', name: '', regionId: '', rooms: [{ key: 'init', number: '' }] });
       setIsStoreModalOpen(true);
   };
 
   const openEditStoreModal = (store: StoreType) => {
       setEditingStoreId(store.id);
-      const roomStr = store.rooms.map(r => r.number).join(', ');
       setStoreForm({
           id: store.id,
           name: store.name,
           regionId: store.regionId,
-          roomListStr: roomStr
+          rooms: store.rooms.length > 0 
+            ? store.rooms.map((r, i) => ({ key: `room-${i}-${Date.now()}`, number: r.number }))
+            : [{ key: 'init', number: '' }]
       });
       setIsStoreModalOpen(true);
+  };
+
+  const addRoomRow = () => {
+      setStoreForm(prev => {
+          const lastRoom = prev.rooms[prev.rooms.length - 1];
+          let nextNumber = '';
+          if (lastRoom && lastRoom.number) {
+              // Strategy 1: Pure Numeric (e.g., "101" -> "102", "001" -> "002")
+              if (/^\d+$/.test(lastRoom.number)) {
+                  const val = parseInt(lastRoom.number, 10);
+                  if (!isNaN(val)) {
+                       const len = lastRoom.number.length;
+                       nextNumber = (val + 1).toString().padStart(len, '0');
+                  }
+              } else {
+                  // Strategy 2: Suffix Numeric (e.g., "A-101" -> "A-102")
+                   const match = lastRoom.number.match(/^(.*?)(\d+)$/);
+                   if (match) {
+                       const prefix = match[1];
+                       const numStr = match[2];
+                       const val = parseInt(numStr, 10);
+                       const nextVal = val + 1;
+                       nextNumber = prefix + nextVal.toString().padStart(numStr.length, '0');
+                   }
+              }
+          }
+          return {
+              ...prev,
+              rooms: [...prev.rooms, { key: `new-${Date.now()}`, number: nextNumber }]
+          };
+      });
+  };
+
+  const removeRoomRow = (index: number) => {
+      setStoreForm(prev => ({
+          ...prev,
+          rooms: prev.rooms.filter((_, i) => i !== index)
+      }));
+  };
+
+  const updateRoomRow = (index: number, value: string) => {
+       setStoreForm(prev => {
+          const newRooms = [...prev.rooms];
+          newRooms[index].number = value;
+          return { ...prev, rooms: newRooms };
+       });
   };
 
   const handleStoreSubmit = (e: React.FormEvent) => {
       e.preventDefault();
       
-      const inputRoomNumbers = storeForm.roomListStr.split(/[,，、\s]+/).map(s => s.trim()).filter(Boolean);
+      const inputRoomNumbers = storeForm.rooms.map(r => r.number.trim()).filter(Boolean);
+      const uniqueNumbers = Array.from(new Set(inputRoomNumbers)); // Remove duplicates
       
       // Helper to merge existing rooms with new list of numbers
       const mergeRooms = (currentRooms: Room[] = []): Room[] => {
-          return inputRoomNumbers.map(num => {
+          return uniqueNumbers.map(num => {
               const existing = currentRooms.find(r => r.number === num);
               if (existing) return existing;
               return { number: num, type: '普通房', images: [] }; // Default new room
@@ -226,15 +279,15 @@ export const RoomArchive: React.FC = () => {
         {/* Store Add/Edit Modal */}
         {isStoreModalOpen && (
             <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
-                <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-scaleIn">
-                    <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-scaleIn max-h-[90vh]">
+                    <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center flex-shrink-0">
                         <h3 className="font-bold text-slate-800 flex items-center gap-2">
                             <Store size={20} className="text-blue-600" />
                             {editingStoreId ? '编辑门店' : '新增门店'}
                         </h3>
                         <button onClick={() => setIsStoreModalOpen(false)}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
                     </div>
-                    <form onSubmit={handleStoreSubmit} className="p-5 space-y-4">
+                    <form onSubmit={handleStoreSubmit} className="p-5 space-y-4 overflow-y-auto flex-1">
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">门店ID *</label>
                             <input 
@@ -271,17 +324,71 @@ export const RoomArchive: React.FC = () => {
                             </select>
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">客房列表 (快速录入)</label>
-                            <textarea 
-                                className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none h-24 resize-none"
-                                value={storeForm.roomListStr}
-                                onChange={e => setStoreForm({...storeForm, roomListStr: e.target.value})}
-                                placeholder="输入客房号，使用逗号、空格或顿号分隔 (例如: 101, 102, 103)"
-                            />
-                            <p className="text-[10px] text-slate-400 mt-1">提示：修改此列表将更新门店客房，已有详细信息（图片/房型）的房间若保留房号则不会丢失数据。</p>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">客房列表 (动态添加)</label>
+                            <div className="border border-slate-200 rounded-lg overflow-hidden flex flex-col">
+                                <div className="bg-slate-50 px-3 py-2 border-b border-slate-200 flex justify-between items-center">
+                                    <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                        <Table size={12} /> 房间号列表
+                                    </span>
+                                    <button 
+                                        type="button" 
+                                        onClick={addRoomRow} 
+                                        className="text-blue-600 bg-blue-50 hover:bg-blue-100 p-1.5 rounded transition-colors flex items-center gap-1 text-[10px] font-bold"
+                                    >
+                                        <Plus size={12} /> 添加行
+                                    </button>
+                                </div>
+                                <div className="max-h-48 overflow-y-auto p-0 bg-white">
+                                    <table className="w-full text-sm">
+                                        <tbody className="divide-y divide-slate-50">
+                                            {storeForm.rooms.map((room, index) => (
+                                                <tr key={room.key} className="group hover:bg-slate-50/80">
+                                                    <td className="p-0">
+                                                        <input 
+                                                            type="text"
+                                                            className="w-full px-3 py-2.5 bg-transparent focus:outline-none focus:bg-blue-50/30 transition-colors text-sm text-slate-700"
+                                                            value={room.number}
+                                                            onChange={(e) => updateRoomRow(index, e.target.value)}
+                                                            placeholder="输入房号 (如: 101)"
+                                                            autoFocus={index === storeForm.rooms.length - 1 && room.key.startsWith('new-')}
+                                                        />
+                                                    </td>
+                                                    <td className="w-10 text-center p-0">
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => removeRoomRow(index)}
+                                                            className="text-slate-300 hover:text-red-500 p-2 transition-colors flex items-center justify-center w-full h-full"
+                                                            title="删除此行"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {storeForm.rooms.length === 0 && (
+                                                <tr>
+                                                    <td colSpan={2} className="p-6 text-center text-xs text-slate-400 cursor-pointer hover:text-blue-500 hover:bg-slate-50 border-b border-transparent transition-all" onClick={addRoomRow}>
+                                                        <div className="flex flex-col items-center gap-1">
+                                                            <Plus size={20} className="opacity-50" />
+                                                            <span>点击此处添加第一个客房</span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {storeForm.rooms.length > 0 && (
+                                    <div className="bg-slate-50 p-2 border-t border-slate-100 text-center">
+                                         <p className="text-[10px] text-slate-400">
+                                            提示: 点击右上角“添加行”，系统将自动递增上一行的房号
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                         
-                        <div className="pt-2">
+                        <div className="pt-2 flex-shrink-0">
                             <button type="submit" className="w-full bg-blue-600 text-white font-bold py-2.5 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
                                 {editingStoreId ? '保存更改' : '确认添加'}
                             </button>
