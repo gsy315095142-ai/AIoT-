@@ -4,8 +4,10 @@ import { AppProvider, useApp } from './context/AppContext';
 import { Dashboard } from './pages/Dashboard';
 import { DeviceManagement } from './pages/DeviceManagement';
 import { Settings } from './pages/Settings';
+import { RoomManagement } from './pages/RoomManagement';
+import { ProcurementManagement } from './pages/ProcurementManagement';
 import { Login } from './pages/Login';
-import { LayoutDashboard, Monitor, Settings as SettingsIcon, LogOut } from 'lucide-react';
+import { LayoutDashboard, Monitor, Settings as SettingsIcon, LogOut, BedDouble, ShoppingCart } from 'lucide-react';
 
 const BottomNavLink = ({ to, icon: Icon, label }: { to: string; icon: any; label: string }) => (
   <NavLink
@@ -31,6 +33,8 @@ const MobileHeader = () => {
     switch (location.pathname) {
       case '/dashboard': return '数据总览';
       case '/devices': return '设备管理';
+      case '/rooms': return '客房管理';
+      case '/procurement': return '采购管理';
       case '/settings': return '后台配置';
       default: return 'DeviceMaster';
     }
@@ -70,6 +74,8 @@ const AuthenticatedApp: React.FC = () => {
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/devices" element={<DeviceManagement />} />
+                <Route path="/rooms" element={<RoomManagement />} />
+                <Route path="/procurement" element={<ProcurementManagement />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
@@ -82,6 +88,8 @@ const AuthenticatedApp: React.FC = () => {
                 <>
                     <BottomNavLink to="/dashboard" icon={LayoutDashboard} label="总览" />
                     <BottomNavLink to="/devices" icon={Monitor} label="设备" />
+                    <BottomNavLink to="/rooms" icon={BedDouble} label="客房" />
+                    <BottomNavLink to="/procurement" icon={ShoppingCart} label="采购" />
                 </>
             )}
         </nav>
