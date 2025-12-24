@@ -33,7 +33,7 @@ export type InstallStatus = 'unstarted' | 'in_progress' | 'pending_review' | 'ap
 export type InstallNode = {
   name: string;
   completed: boolean;
-  data?: string; // Time string for appointment, Image URL for others
+  data?: any; // Changed from string to any to support string (time), string[] (images), or object (complex room images)
 };
 
 export type StoreInstallation = {
