@@ -5,6 +5,12 @@ export type Region = {
   name: string;
 };
 
+// New Type for Dynamic Room Configuration
+export type RoomTypeConfig = {
+  id: string;
+  name: string;
+};
+
 export type RoomImageCategory = '玄关' | '桌面' | '床';
 
 export type RoomImage = {
@@ -22,7 +28,7 @@ export type RoomMeasurement = {
 
 export type Room = {
   number: string;
-  type: '样板房' | '普通房';
+  type: string; // Changed from '样板房' | '普通房' union to string for dynamic types
   images: RoomImage[];
   measurements?: RoomMeasurement[];
 };

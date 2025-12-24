@@ -1,14 +1,15 @@
 import React from 'react';
 import { useSettingsLogic } from '../hooks/useSettingsLogic';
 import { UserProfileCard, ManagementSection, ListItem } from '../components/SettingsComponents';
-import { Map, Settings as SettingsIcon, Plus } from 'lucide-react';
+import { Map, Settings as SettingsIcon, Plus, BedDouble } from 'lucide-react';
 
 export const Settings: React.FC = () => {
   const { 
       currentUser, logout,
-      regions, deviceTypes,
+      regions, deviceTypes, roomTypes,
       newRegion, setNewRegion, handleAddRegion, removeRegion,
-      newType, setNewType, handleAddType, removeDeviceType
+      newType, setNewType, handleAddType, removeDeviceType,
+      newRoomType, setNewRoomType, handleAddRoomType, removeRoomType
   } = useSettingsLogic();
 
   return (
@@ -32,6 +33,27 @@ export const Settings: React.FC = () => {
             <ul className="space-y-2 max-h-40 overflow-y-auto no-scrollbar">
                 {regions.map(r => (
                     <ListItem key={r.id} label={r.name} onDelete={() => removeRegion(r.id)} />
+                ))}
+            </ul>
+        </ManagementSection>
+
+        {/* Room Types */}
+        <ManagementSection title="客房房型" icon={BedDouble} iconColorClass="bg-green-100 text-green-600">
+            <div className="flex gap-2 mb-4">
+                <input 
+                    type="text" 
+                    placeholder="输入房型名称" 
+                    className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    value={newRoomType}
+                    onChange={e => setNewRoomType(e.target.value)}
+                />
+                <button onClick={handleAddRoomType} className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 shadow-sm">
+                    <Plus size={20} />
+                </button>
+            </div>
+            <ul className="space-y-2 max-h-40 overflow-y-auto no-scrollbar">
+                {roomTypes.map(rt => (
+                    <ListItem key={rt.id} label={rt.name} onDelete={() => removeRoomType(rt.id)} />
                 ))}
             </ul>
         </ManagementSection>

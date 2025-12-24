@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent, AuditRecord, AuditStatus, AuditType, StoreInstallation, InstallNode, Product } from '../types';
+import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent, AuditRecord, AuditStatus, AuditType, StoreInstallation, InstallNode, Product, RoomTypeConfig } from '../types';
 
 // Initial Mock Data
 const MOCK_REGIONS: Region[] = [
@@ -162,6 +162,11 @@ const MOCK_DEVICES: Device[] = [
 
 const MOCK_PRODUCTS: Product[] = []; // Default no products as requested
 
+const MOCK_ROOM_TYPES: RoomTypeConfig[] = [
+    { id: 'rt1', name: '普通房' },
+    { id: 'rt2', name: '样板房' },
+];
+
 interface AppContextType {
   currentUser: string | null;
   login: (username: string) => void;
@@ -169,6 +174,7 @@ interface AppContextType {
   regions: Region[];
   stores: Store[];
   deviceTypes: DeviceType[];
+  roomTypes: RoomTypeConfig[]; // New
   devices: Device[];
   auditRecords: AuditRecord[];
   
@@ -186,10 +192,12 @@ interface AppContextType {
   removeRegion: (id: string) => void;
   addStore: (store: Store) => void;
   updateStore: (id: string, data: Partial<Store>) => void;
-  updateStoreInstallation: (storeId: string, data: Partial<StoreInstallation>) => void; // New Method
+  updateStoreInstallation: (storeId: string, data: Partial<StoreInstallation>) => void;
   removeStore: (id: string) => void;
   addDeviceType: (name: string) => void;
   removeDeviceType: (id: string) => void;
+  addRoomType: (name: string) => void; // New
+  removeRoomType: (id: string) => void; // New
   addDevice: (device: Omit<Device, 'id' | 'events' | 'status' | 'opsStatus' | 'cpuUsage' | 'memoryUsage' | 'signalStrength' | 'lastTestTime'>) => void;
   updateDevice: (id: string, data: Partial<Device>, customEventMessage?: string, eventMeta?: { remark?: string, images?: string[] }) => void;
   deleteDeviceEvent: (deviceId: string, eventId: string) => void;
@@ -206,6 +214,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [regions, setRegions] = useState<Region[]>(MOCK_REGIONS);
   const [stores, setStores] = useState<Store[]>(MOCK_STORES);
   const [deviceTypes, setDeviceTypes] = useState<DeviceType[]>(MOCK_DEVICE_TYPES);
+  const [roomTypes, setRoomTypes] = useState<RoomTypeConfig[]>(MOCK_ROOM_TYPES); // New
   const [devices, setDevices] = useState<Device[]>(MOCK_DEVICES);
   const [auditRecords, setAuditRecords] = useState<AuditRecord[]>([]);
   const [procurementProducts, setProcurementProducts] = useState<Product[]>(MOCK_PRODUCTS);
@@ -259,6 +268,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const removeDeviceType = (id: string) => {
     setDeviceTypes(deviceTypes.filter(t => t.id !== id));
+  };
+
+  const addRoomType = (name: string) => {
+    setRoomTypes([...roomTypes, { id: `rt-${Date.now()}`, name }]);
+  };
+
+  const removeRoomType = (id: string) => {
+    setRoomTypes(roomTypes.filter(rt => rt.id !== id));
   };
 
   const addDevice = (deviceData: Omit<Device, 'id' | 'events' | 'status' | 'opsStatus' | 'cpuUsage' | 'memoryUsage' | 'signalStrength' | 'lastTestTime'>) => {
@@ -536,12 +553,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       currentUser,
       login,
       logout,
-      regions, stores, deviceTypes, devices, auditRecords,
+      regions, stores, deviceTypes, roomTypes, devices, auditRecords,
       procurementProducts, addProcurementProduct, updateProcurementProduct, removeProcurementProduct,
       headerRightAction, setHeaderRightAction,
       addRegion, removeRegion, 
       addStore, updateStore, updateStoreInstallation, removeStore, 
-      addDeviceType, removeDeviceType,
+      addDeviceType, removeDeviceType, addRoomType, removeRoomType,
       addDevice, updateDevice, deleteDeviceEvent,
       submitOpsStatusChange, submitInspectionReport, approveAudit, rejectAudit
     }}>

@@ -1,16 +1,17 @@
 import React, { useState, ChangeEvent } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Star, Table, Ruler, ArrowLeft, Search, ChevronDown, ChevronRight } from 'lucide-react';
+import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Star, Table, Ruler, ArrowLeft, Search, ChevronDown, ChevronRight, Filter } from 'lucide-react';
 import { Store as StoreType, Room, RoomImageCategory, RoomImage } from '../../types';
 
 const ROOM_MODULES: RoomImageCategory[] = ['玄关', '桌面', '床'];
 
 export const RoomArchive: React.FC = () => {
-  const { regions, stores, addStore, updateStore, removeStore } = useApp();
+  const { regions, stores, roomTypes, addStore, updateStore, removeStore } = useApp();
 
   // Navigation & Filter State
   const [viewingStoreId, setViewingStoreId] = useState<string | null>(null);
   const [regionFilter, setRegionFilter] = useState('');
+  const [roomTypeFilter, setRoomTypeFilter] = useState(''); // New filter for room detail view
 
   // Store Management Modal State
   const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
@@ -109,11 +110,13 @@ export const RoomArchive: React.FC = () => {
       const inputRoomNumbers = storeForm.rooms.map(r => r.number.trim()).filter(Boolean);
       const uniqueNumbers = Array.from(new Set(inputRoomNumbers)); 
       
+      const defaultRoomType = roomTypes.length > 0 ? roomTypes[0].name : '普通房';
+
       const mergeRooms = (currentRooms: Room[] = []): Room[] => {
           return uniqueNumbers.map(num => {
               const existing = currentRooms.find(r => r.number === num);
               if (existing) return existing;
-              return { number: num, type: '普通房', images: [] }; 
+              return { number: num, type: defaultRoomType, images: [] }; 
           });
       };
 
@@ -197,48 +200,82 @@ export const RoomArchive: React.FC = () => {
   if (viewingStoreId && activeStore) {
       // --- Detail View: Store Rooms ---
       const roomCount = activeStore.rooms.length;
+      
+      // Filter Logic
+      const filteredRooms = activeStore.rooms.filter(room => {
+          if (roomTypeFilter && room.type !== roomTypeFilter) return false;
+          return true;
+      });
+
       return (
           <div className="h-full flex flex-col bg-white">
-              <div className="flex items-center gap-3 p-4 border-b border-slate-100 sticky top-0 bg-white z-10">
-                  <button 
-                      onClick={() => setViewingStoreId(null)}
-                      className="p-2 -ml-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"
-                  >
-                      <ArrowLeft size={20} />
-                  </button>
-                  <div>
-                      <h2 className="text-base font-bold text-slate-800">{activeStore.name}</h2>
-                      <p className="text-xs text-slate-500">共 {roomCount} 间客房</p>
+              {/* Sticky Header with Title and Filter */}
+              <div className="sticky top-0 bg-white z-10 shadow-sm">
+                  <div className="flex items-center gap-3 p-4 pb-2">
+                      <button 
+                          onClick={() => setViewingStoreId(null)}
+                          className="p-2 -ml-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"
+                      >
+                          <ArrowLeft size={20} />
+                      </button>
+                      <div>
+                          <h2 className="text-base font-bold text-slate-800">{activeStore.name}</h2>
+                          <p className="text-xs text-slate-500">共 {filteredRooms.length}/{roomCount} 间客房</p>
+                      </div>
+                  </div>
+
+                  {/* Room Filter Bar */}
+                  <div className="px-4 pb-3">
+                      <div className="relative">
+                          <select 
+                              className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 pl-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              value={roomTypeFilter}
+                              onChange={(e) => setRoomTypeFilter(e.target.value)}
+                          >
+                              <option value="">全部房型</option>
+                              {roomTypes.map(rt => <option key={rt.id} value={rt.name}>{rt.name}</option>)}
+                          </select>
+                          <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                      </div>
                   </div>
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 bg-slate-50">
-                  {roomCount > 0 ? (
-                      <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
-                          {activeStore.rooms.map(room => (
+                  {filteredRooms.length > 0 ? (
+                      // Grid layout: Larger tiles
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                          {filteredRooms.map(room => (
                               <button 
                                   key={room.number}
                                   onClick={() => openRoomDetail(activeStore.id, room)}
-                                  className={`flex flex-col items-center justify-center p-3 rounded-xl border shadow-sm transition-all hover:shadow-md active:scale-95 group relative
-                                      ${room.type === '样板房' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-300 hover:text-blue-600'}
+                                  className={`aspect-square flex flex-col items-center justify-center p-2 rounded-xl border-2 shadow-sm transition-all hover:shadow-md active:scale-95 group relative overflow-hidden
+                                      ${room.type === '样板房' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-400 hover:text-blue-600'}
                                   `}
                               >
-                                  <div className="relative mb-1">
-                                      <BedDouble size={24} className="opacity-80 group-hover:opacity-100" />
-                                      {room.type === '样板房' && (
-                                          <Star size={10} className="absolute -top-1 -right-2 text-amber-500 fill-amber-500" />
-                                      )}
+                                  {/* Background decoration for Sample Room */}
+                                  {room.type === '样板房' && (
+                                      <div className="absolute top-0 right-0 p-1">
+                                           <Star size={16} className="text-amber-400 fill-amber-400" />
+                                      </div>
+                                  )}
+
+                                  <div className="flex-1 flex flex-col items-center justify-center w-full pt-4">
+                                      <div className="text-4xl font-bold leading-none tracking-tight">{room.number}</div>
                                   </div>
-                                  <span className="text-xs font-bold">{room.number}</span>
-                                  <span className="text-[9px] opacity-60 scale-90">{room.type}</span>
+                                  
+                                  <div className={`text-xs font-bold px-3 py-1.5 rounded-full mb-2 ${
+                                      room.type === '样板房' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-500 group-hover:bg-blue-50 group-hover:text-blue-600'
+                                  }`}>
+                                      {room.type}
+                                  </div>
                               </button>
                           ))}
                       </div>
                   ) : (
                       <div className="flex flex-col items-center justify-center h-60 text-slate-400">
                           <BedDouble size={40} className="mb-2 opacity-20" />
-                          <p className="text-sm">暂无客房</p>
-                          <p className="text-xs opacity-60">请返回列表编辑门店添加客房</p>
+                          <p className="text-sm">没有找到相关客房</p>
                       </div>
                   )}
               </div>
@@ -260,31 +297,27 @@ export const RoomArchive: React.FC = () => {
                               <div>
                                   <label className="block text-xs font-bold text-slate-500 uppercase mb-2">房型选择</label>
                                   <div className="grid grid-cols-2 gap-3">
-                                      <label className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                                          editingRoom.room.type === '普通房' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-500 hover:border-blue-200'
-                                      }`}>
-                                          <input 
-                                              type="radio" 
-                                              className="hidden" 
-                                              checked={editingRoom.room.type === '普通房'} 
-                                              onChange={() => setEditingRoom({...editingRoom, room: {...editingRoom.room, type: '普通房'}})} 
-                                          />
-                                          <BedDouble size={24} className="mb-1" />
-                                          <span className="text-xs font-bold">普通房</span>
-                                      </label>
-
-                                      <label className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                                          editingRoom.room.type === '样板房' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-slate-200 bg-white text-slate-500 hover:border-amber-200'
-                                      }`}>
-                                          <input 
-                                              type="radio" 
-                                              className="hidden" 
-                                              checked={editingRoom.room.type === '样板房'} 
-                                              onChange={() => setEditingRoom({...editingRoom, room: {...editingRoom.room, type: '样板房'}})} 
-                                          />
-                                          <Star size={24} className="mb-1 fill-current" />
-                                          <span className="text-xs font-bold">样板房</span>
-                                      </label>
+                                      {roomTypes.map(rt => {
+                                          const isSelected = editingRoom.room.type === rt.name;
+                                          const isSample = rt.name === '样板房'; // Keep legacy visual check if name matches
+                                          
+                                          return (
+                                            <label key={rt.id} className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                                                isSelected 
+                                                    ? (isSample ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-blue-500 bg-blue-50 text-blue-700')
+                                                    : 'border-slate-200 bg-white text-slate-500 hover:border-blue-200'
+                                            }`}>
+                                                <input 
+                                                    type="radio" 
+                                                    className="hidden" 
+                                                    checked={isSelected} 
+                                                    onChange={() => setEditingRoom({...editingRoom, room: {...editingRoom.room, type: rt.name}})} 
+                                                />
+                                                {isSample ? <Star size={24} className="mb-1 fill-current" /> : <BedDouble size={24} className="mb-1" />}
+                                                <span className="text-xs font-bold">{rt.name}</span>
+                                            </label>
+                                          )
+                                      })}
                                   </div>
                               </div>
                               {/* ... Room Images Logic (Same as before) ... */}
@@ -383,7 +416,7 @@ export const RoomArchive: React.FC = () => {
                     // 1.4 Store Item Layout (Click to Open Detail)
                     <div 
                         key={s.id} 
-                        onClick={() => setViewingStoreId(s.id)}
+                        onClick={() => { setViewingStoreId(s.id); setRoomTypeFilter(''); }}
                         className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between cursor-pointer group hover:shadow-md transition-all active:scale-[0.99]"
                     >
                         <div className="flex-1">
