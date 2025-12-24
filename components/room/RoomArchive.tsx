@@ -1,7 +1,9 @@
 import React, { useState, ChangeEvent } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, ImageIcon, Star, Table } from 'lucide-react';
-import { Store as StoreType, Room } from '../../types';
+import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Star, Table } from 'lucide-react';
+import { Store as StoreType, Room, RoomImageCategory, RoomImage } from '../../types';
+
+const ROOM_MODULES: RoomImageCategory[] = ['玄关', '桌面', '床'];
 
 export const RoomArchive: React.FC = () => {
   const { regions, stores, addStore, updateStore, removeStore } = useApp();
@@ -50,7 +52,7 @@ export const RoomArchive: React.FC = () => {
           const lastRoom = prev.rooms[prev.rooms.length - 1];
           let nextNumber = '';
           if (lastRoom && lastRoom.number) {
-              // Strategy 1: Pure Numeric (e.g., "101" -> "102", "001" -> "002")
+              // Strategy 1: Pure Numeric
               if (/^\d+$/.test(lastRoom.number)) {
                   const val = parseInt(lastRoom.number, 10);
                   if (!isNaN(val)) {
@@ -58,7 +60,7 @@ export const RoomArchive: React.FC = () => {
                        nextNumber = (val + 1).toString().padStart(len, '0');
                   }
               } else {
-                  // Strategy 2: Suffix Numeric (e.g., "A-101" -> "A-102")
+                  // Strategy 2: Suffix Numeric
                    const match = lastRoom.number.match(/^(.*?)(\d+)$/);
                    if (match) {
                        const prefix = match[1];
@@ -156,28 +158,29 @@ export const RoomArchive: React.FC = () => {
       setEditingRoom(null);
   };
 
-  const handleRoomImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleRoomImageUpload = (e: ChangeEvent<HTMLInputElement>, category: RoomImageCategory) => {
       if (!editingRoom) return;
       if (e.target.files && e.target.files[0]) {
           const url = URL.createObjectURL(e.target.files[0]);
+          const newImage: RoomImage = { url, category };
           setEditingRoom({
               ...editingRoom,
               room: {
                   ...editingRoom.room,
-                  images: [...(editingRoom.room.images || []), url]
+                  images: [...(editingRoom.room.images || []), newImage]
               }
           });
           e.target.value = '';
       }
   };
 
-  const removeRoomImage = (index: number) => {
+  const removeRoomImage = (imageToRemove: RoomImage) => {
       if (!editingRoom) return;
       setEditingRoom({
           ...editingRoom,
           room: {
               ...editingRoom.room,
-              images: editingRoom.room.images?.filter((_, i) => i !== index) || []
+              images: editingRoom.room.images?.filter(img => img !== imageToRemove) || []
           }
       });
   };
@@ -401,8 +404,8 @@ export const RoomArchive: React.FC = () => {
         {/* Room Detail/Edit Modal */}
         {editingRoom && (
             <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
-                <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-scaleIn">
-                    <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-scaleIn max-h-[85vh]">
+                    <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center flex-shrink-0">
                         <h3 className="font-bold text-slate-800 flex items-center gap-2">
                             <BedDouble size={20} className="text-blue-600" />
                             客房详情 - {editingRoom.room.number}
@@ -410,7 +413,7 @@ export const RoomArchive: React.FC = () => {
                         <button onClick={() => setEditingRoom(null)}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
                     </div>
                     
-                    <div className="p-5 space-y-4 overflow-y-auto max-h-[70vh]">
+                    <div className="p-5 space-y-4 overflow-y-auto flex-1">
                         {/* Room Number (Read-only for safety/consistency with store list) */}
                         <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex justify-between items-center">
                             <span className="text-xs font-bold text-slate-500">房间号码</span>
@@ -449,31 +452,49 @@ export const RoomArchive: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Images */}
+                        {/* Images Categorized */}
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-2">客房照片</label>
-                            <div className="grid grid-cols-3 gap-2">
-                                <div className="aspect-square border-2 border-dashed border-blue-300 bg-blue-50 rounded-lg flex flex-col items-center justify-center relative hover:bg-blue-100 transition-colors cursor-pointer group">
-                                    <input type="file" accept="image/*" onChange={handleRoomImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
-                                    <Plus className="text-blue-500 mb-1 group-hover:scale-110 transition-transform" size={20} />
-                                    <span className="text-[9px] text-blue-600 font-bold">添加图片</span>
-                                </div>
-                                {editingRoom.room.images?.map((url, idx) => (
-                                    <div key={idx} className="aspect-square rounded-lg border border-slate-200 relative group overflow-hidden bg-slate-100">
-                                        <img src={url} alt={`room-${idx}`} className="w-full h-full object-cover" />
-                                        <button 
-                                            onClick={() => removeRoomImage(idx)} 
-                                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                        >
-                                            <X size={10} />
-                                        </button>
-                                    </div>
-                                ))}
+                            <div className="space-y-4">
+                                {ROOM_MODULES.map(category => {
+                                    const catImages = editingRoom.room.images?.filter(img => img.category === category) || [];
+                                    return (
+                                        <div key={category} className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <div className="w-1.5 h-3 bg-blue-500 rounded-full"></div>
+                                                <span className="text-xs font-bold text-slate-700">{category}</span>
+                                            </div>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                <div className="aspect-square border-2 border-dashed border-blue-200 bg-white rounded-lg flex flex-col items-center justify-center relative hover:bg-blue-50 transition-colors cursor-pointer group">
+                                                    <input type="file" accept="image/*" onChange={(e) => handleRoomImageUpload(e, category)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                                    <Plus className="text-blue-400 mb-1 group-hover:scale-110 transition-transform" size={16} />
+                                                    <span className="text-[8px] text-blue-500 font-bold">上传</span>
+                                                </div>
+                                                {catImages.map((img, idx) => (
+                                                    <div key={idx} className="aspect-square rounded-lg border border-slate-200 relative group overflow-hidden bg-white">
+                                                        <img src={img.url} alt={`room-${category}-${idx}`} className="w-full h-full object-cover" />
+                                                        <button 
+                                                            onClick={() => removeRoomImage(img)} 
+                                                            className="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        >
+                                                            <X size={10} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                                {catImages.length === 0 && (
+                                                    <div className="col-span-2 flex items-center text-[10px] text-slate-300 italic pl-1">
+                                                        暂无图片
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>
                     
-                    <div className="p-4 border-t border-slate-100 bg-slate-50">
+                    <div className="p-4 border-t border-slate-100 bg-slate-50 flex-shrink-0">
                         <button 
                             onClick={handleRoomSave}
                             className="w-full py-2.5 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition-colors"

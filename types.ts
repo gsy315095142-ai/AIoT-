@@ -5,10 +5,26 @@ export type Region = {
   name: string;
 };
 
+export type RoomImageCategory = '玄关' | '桌面' | '床';
+
+export type RoomImage = {
+  url: string;
+  category: RoomImageCategory;
+};
+
+export type MeasurementType = '正常安装' | '特殊安装';
+
+export type RoomMeasurement = {
+  category: RoomImageCategory;
+  type: MeasurementType;
+  remark: string;
+};
+
 export type Room = {
   number: string;
   type: '样板房' | '普通房';
-  images: string[];
+  images: RoomImage[];
+  measurements?: RoomMeasurement[];
 };
 
 export type Store = {
