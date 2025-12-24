@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent } from 'react';
-import { Ruler, Store, ChevronDown, Plus, X, Upload, ClipboardList, Edit3, Check, Save, Filter } from 'lucide-react';
+import { Ruler, Store, ChevronDown, Plus, X, Upload, ClipboardList, Edit3, Check, Save, Filter, BedDouble } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { RoomImageCategory, RoomImage, RoomMeasurement, MeasurementType } from '../../types';
 
@@ -124,54 +124,63 @@ export const RoomMeasure: React.FC = () => {
             <h3 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-1">
                 <Store size={12} /> 门店与状态筛选
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="relative">
-                    <select 
-                        className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={selectedRegion}
-                        onChange={(e) => { setSelectedRegion(e.target.value); setSelectedStoreId(''); setSelectedRoomNumber(''); }}
-                    >
-                        <option value="">全部大区</option>
-                        {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+            
+            <div className="flex flex-col gap-3">
+                {/* Row 1: Region & Store */}
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="relative">
+                        <select 
+                            className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            value={selectedRegion}
+                            onChange={(e) => { setSelectedRegion(e.target.value); setSelectedStoreId(''); setSelectedRoomNumber(''); }}
+                        >
+                            <option value="">全部大区</option>
+                            {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                    </div>
+                    <div className="relative">
+                        <select 
+                            className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            value={selectedStoreId}
+                            onChange={(e) => { setSelectedStoreId(e.target.value); setSelectedRoomNumber(''); }}
+                        >
+                            <option value="">请选择门店</option>
+                            {filteredStores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                    </div>
                 </div>
-                <div className="relative">
-                    <select 
-                        className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={selectedStoreId}
-                        onChange={(e) => { setSelectedStoreId(e.target.value); setSelectedRoomNumber(''); }}
-                    >
-                        <option value="">请选择门店</option>
-                        {filteredStores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
-                </div>
-                <div className="relative">
-                     <select 
-                        className="w-full appearance-none bg-blue-50/50 border border-blue-200 text-blue-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                        value={statusFilter}
-                        onChange={(e) => { setStatusFilter(e.target.value as RoomStatusFilter); setSelectedRoomNumber(''); }}
-                        disabled={!selectedStoreId}
-                    >
-                        <option value="all">全部状态</option>
-                        <option value="no_image">未上传图片</option>
-                        <option value="pending">待复尺评估</option>
-                        <option value="completed">评估完成</option>
-                    </select>
-                     <Filter className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none" size={12} />
-                </div>
-                <div className="relative">
-                    <select 
-                        className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                        value={selectedRoomNumber}
-                        onChange={(e) => setSelectedRoomNumber(e.target.value)}
-                        disabled={!selectedStoreId}
-                    >
-                        <option value="">请选择客房</option>
-                        {filteredRooms.map(r => <option key={r.number} value={r.number}>{r.number} ({r.type})</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+
+                {/* Row 2: Room & Status */}
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="relative">
+                        <select 
+                            className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 pl-8"
+                            value={selectedRoomNumber}
+                            onChange={(e) => setSelectedRoomNumber(e.target.value)}
+                            disabled={!selectedStoreId}
+                        >
+                            <option value="">请选择客房</option>
+                            {filteredRooms.map(r => <option key={r.number} value={r.number}>{r.number} ({r.type})</option>)}
+                        </select>
+                        <BedDouble className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                    </div>
+                    <div className="relative">
+                         <select 
+                            className="w-full appearance-none bg-blue-50/50 border border-blue-200 text-blue-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                            value={statusFilter}
+                            onChange={(e) => { setStatusFilter(e.target.value as RoomStatusFilter); setSelectedRoomNumber(''); }}
+                            disabled={!selectedStoreId}
+                        >
+                            <option value="all">全部状态</option>
+                            <option value="no_image">未上传图片</option>
+                            <option value="pending">待复尺评估</option>
+                            <option value="completed">评估完成</option>
+                        </select>
+                         <Filter className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none" size={12} />
+                    </div>
                 </div>
             </div>
         </div>
