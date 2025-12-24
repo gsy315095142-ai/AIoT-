@@ -5,7 +5,7 @@ import { Dashboard } from './pages/Dashboard';
 import { DeviceManagement } from './pages/DeviceManagement';
 import { Settings } from './pages/Settings';
 import { Login } from './pages/Login';
-import { LayoutDashboard, Monitor, Settings as SettingsIcon } from 'lucide-react';
+import { LayoutDashboard, Monitor, Settings as SettingsIcon, LogOut } from 'lucide-react';
 
 const BottomNavLink = ({ to, icon: Icon, label }: { to: string; icon: any; label: string }) => (
   <NavLink
@@ -25,7 +25,7 @@ const BottomNavLink = ({ to, icon: Icon, label }: { to: string; icon: any; label
 
 const MobileHeader = () => {
   const location = useLocation();
-  const { headerRightAction } = useApp();
+  const { headerRightAction, logout } = useApp();
   
   const getTitle = () => {
     switch (location.pathname) {
@@ -38,6 +38,16 @@ const MobileHeader = () => {
 
   return (
     <div className="bg-white border-b border-slate-100 p-4 sticky top-0 z-20 flex items-center justify-center shadow-sm h-14 relative">
+      {location.pathname === '/dashboard' && (
+          <button 
+            onClick={logout}
+            className="absolute left-4 top-0 bottom-0 flex items-center gap-1 text-slate-500 hover:text-red-500 transition-colors"
+          >
+              <LogOut size={16} />
+              <span className="text-xs font-bold">退出</span>
+          </button>
+      )}
+
       <h1 className="text-lg font-bold text-slate-800">{getTitle()}</h1>
       <div className="absolute right-4 top-0 bottom-0 flex items-center">
           {headerRightAction}
@@ -47,13 +57,11 @@ const MobileHeader = () => {
 };
 
 const AuthenticatedApp: React.FC = () => {
+  const location = useLocation();
+
   return (
     <>
-        <div className="hidden md:block absolute top-0 left-0 right-0 h-6 bg-slate-800 z-[100] rounded-t-[30px] flex justify-center pointer-events-none">
-            <div className="w-32 h-4 bg-slate-900 rounded-b-xl"></div>
-        </div>
-
-        <div className="mt-0 md:mt-2">
+        <div className="mt-0">
             <MobileHeader />
         </div>
 
@@ -68,8 +76,14 @@ const AuthenticatedApp: React.FC = () => {
         </main>
 
         <nav className="bg-white border-t border-slate-200 h-16 absolute bottom-0 left-0 right-0 flex justify-around items-center z-20 pb-safe md:pb-2">
-            <BottomNavLink to="/dashboard" icon={LayoutDashboard} label="总览" />
-            <BottomNavLink to="/devices" icon={Monitor} label="设备" />
+            {location.pathname === '/settings' ? (
+                <BottomNavLink to="/settings" icon={SettingsIcon} label="配置" />
+            ) : (
+                <>
+                    <BottomNavLink to="/dashboard" icon={LayoutDashboard} label="总览" />
+                    <BottomNavLink to="/devices" icon={Monitor} label="设备" />
+                </>
+            )}
         </nav>
         
         <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-32 h-1 bg-slate-300 rounded-full md:hidden"></div>
