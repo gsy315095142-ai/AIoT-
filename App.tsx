@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -86,7 +84,7 @@ const AppContent: React.FC = () => {
     return (
         <div className="min-h-screen bg-slate-900 flex justify-center items-center md:py-8 font-sans">
             {/* Phone Frame - Added transform scale-100 to create a new stacking context for fixed children */}
-            <div className="bg-slate-50 w-full h-[100vh] md:h-[800px] md:max-w-[400px] md:rounded-[40px] md:border-[10px] md:border-slate-800 shadow-2xl overflow-hidden flex flex-col relative transition-all duration-500 transform scale-100">
+            <div className="bg-slate-50 w-full h-[100vh] md:h-[700px] md:max-w-[400px] md:rounded-[40px] md:border-[10px] md:border-slate-800 shadow-2xl overflow-hidden flex flex-col relative transition-all duration-500 transform scale-100">
                 {currentUser ? <AuthenticatedApp /> : <Login />}
             </div>
         </div>
