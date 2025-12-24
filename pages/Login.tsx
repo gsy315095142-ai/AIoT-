@@ -1,17 +1,27 @@
-
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { Cpu } from 'lucide-react';
+import { Cpu, Settings } from 'lucide-react';
 
 export const Login: React.FC = () => {
   const { login } = useApp();
+  const navigate = useNavigate();
   const [showInput, setShowInput] = useState(false);
   const [username, setUsername] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleSystemLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (username.trim()) {
       login(username);
+      navigate('/dashboard');
+    }
+  };
+
+  const handleSettingsLogin = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (username.trim()) {
+      login(username);
+      navigate('/settings');
     }
   };
 
@@ -68,7 +78,7 @@ export const Login: React.FC = () => {
             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
           </button>
         ) : (
-          <form onSubmit={handleLogin} className="animate-fadeIn">
+          <form onSubmit={handleSystemLogin} className="animate-fadeIn">
             <div className="bg-slate-900/80 backdrop-blur-md p-6 rounded-xl border border-blue-500/30 shadow-2xl relative">
               {/* Corner Decorations */}
               <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-blue-400"></div>
@@ -87,13 +97,25 @@ export const Login: React.FC = () => {
                 placeholder="请输入用户名称"
               />
               
-              <button 
-                type="submit"
-                disabled={!username.trim()}
-                className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mb-3 border border-cyan-400/30"
-              >
-                进入系统
-              </button>
+              <div className="space-y-2 mb-3">
+                  <button 
+                    type="submit"
+                    disabled={!username.trim()}
+                    className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed border border-cyan-400/30 active:scale-95 transition-transform"
+                  >
+                    进入系统
+                  </button>
+
+                  <button 
+                    type="button"
+                    onClick={handleSettingsLogin}
+                    disabled={!username.trim()}
+                    className="w-full py-3 bg-slate-700/80 hover:bg-slate-700 text-blue-200 font-bold rounded-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed border border-slate-500/30 flex items-center justify-center gap-2 active:scale-95 transition-transform"
+                  >
+                    <Settings size={16} />
+                    进入配置
+                  </button>
+              </div>
               
               <button 
                 type="button"

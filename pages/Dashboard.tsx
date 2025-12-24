@@ -7,15 +7,22 @@ import { DeviceStatus } from '../types';
 import { Calendar, Play, Download, Settings2, Zap, Clock, AlertTriangle, Activity, AlertOctagon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
+// Date Helper
+const formatDate = (date: Date) => {
+  const offset = date.getTimezoneOffset();
+  const local = new Date(date.getTime() - (offset * 60 * 1000));
+  return local.toISOString().split('T')[0];
+};
+
 export const Dashboard: React.FC = () => {
   const { devices, regions, stores, deviceTypes, setHeaderRightAction } = useApp();
   const [selectedRegion, setSelectedRegion] = useState('');
   const [selectedStore, setSelectedStore] = useState('');
   const [selectedType, setSelectedType] = useState('');
   
-  // Date Range State
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  // Date Range State (Default to Today)
+  const [startDate, setStartDate] = useState(formatDate(new Date()));
+  const [endDate, setEndDate] = useState(formatDate(new Date()));
 
   // Chart Navigation State
   const [currentChartIndex, setCurrentChartIndex] = useState(0);
@@ -30,14 +37,13 @@ export const Dashboard: React.FC = () => {
     endDate
   );
 
-  // Date Helper
-  const formatDate = (date: Date) => {
-    const offset = date.getTimezoneOffset();
-    const local = new Date(date.getTime() - (offset * 60 * 1000));
-    return local.toISOString().split('T')[0];
-  };
-
   const setQuickDate = (type: 'today' | 'yesterday' | 'week' | 'lastWeek' | 'all') => {
+    if (type === 'all') {
+        setStartDate('');
+        setEndDate('');
+        return;
+    }
+
     const today = new Date();
     let start = new Date();
     let end = new Date();
@@ -56,8 +62,6 @@ export const Dashboard: React.FC = () => {
         const day = today.getDay() || 7;
         start.setDate(today.getDate() - day - 6); // Last Monday
         end.setDate(today.getDate() - day); // Last Sunday
-    } else if (type === 'all') {
-        start = new Date('2020-01-01'); // Arbitrary start of "all time"
     }
 
     setStartDate(formatDate(start));
@@ -215,13 +219,7 @@ export const Dashboard: React.FC = () => {
             <label className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
                 <Calendar size={10} /> 时间段筛选 (用于安装数量统计)
             </label>
-            <div className="flex flex-wrap gap-1.5 mb-1">
-                <button onClick={() => setQuickDate('today')} className="px-2 py-1 text-[10px] bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-blue-600 rounded transition-colors border border-slate-200">今日</button>
-                <button onClick={() => setQuickDate('yesterday')} className="px-2 py-1 text-[10px] bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-blue-600 rounded transition-colors border border-slate-200">昨日</button>
-                <button onClick={() => setQuickDate('week')} className="px-2 py-1 text-[10px] bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-blue-600 rounded transition-colors border border-slate-200">本周</button>
-                <button onClick={() => setQuickDate('lastWeek')} className="px-2 py-1 text-[10px] bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-blue-600 rounded transition-colors border border-slate-200">上周</button>
-                <button onClick={() => setQuickDate('all')} className="px-2 py-1 text-[10px] bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-blue-600 rounded transition-colors border border-slate-200">全周期</button>
-            </div>
+            
             <div className="flex items-center gap-2">
                 <input 
                   type="date" 
@@ -236,6 +234,14 @@ export const Dashboard: React.FC = () => {
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                 />
+            </div>
+
+            <div className="flex flex-wrap gap-1.5 mt-1">
+                <button onClick={() => setQuickDate('today')} className="px-2 py-1 text-[10px] bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-blue-600 rounded transition-colors border border-slate-200">今日</button>
+                <button onClick={() => setQuickDate('yesterday')} className="px-2 py-1 text-[10px] bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-blue-600 rounded transition-colors border border-slate-200">昨日</button>
+                <button onClick={() => setQuickDate('week')} className="px-2 py-1 text-[10px] bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-blue-600 rounded transition-colors border border-slate-200">本周</button>
+                <button onClick={() => setQuickDate('lastWeek')} className="px-2 py-1 text-[10px] bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-blue-600 rounded transition-colors border border-slate-200">上周</button>
+                <button onClick={() => setQuickDate('all')} className="px-2 py-1 text-[10px] bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-blue-600 rounded transition-colors border border-slate-200">全周期</button>
             </div>
           </div>
         }

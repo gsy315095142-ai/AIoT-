@@ -70,7 +70,6 @@ const AuthenticatedApp: React.FC = () => {
         <nav className="bg-white border-t border-slate-200 h-16 absolute bottom-0 left-0 right-0 flex justify-around items-center z-20 pb-safe md:pb-2">
             <BottomNavLink to="/dashboard" icon={LayoutDashboard} label="总览" />
             <BottomNavLink to="/devices" icon={Monitor} label="设备" />
-            <BottomNavLink to="/settings" icon={SettingsIcon} label="配置" />
         </nav>
         
         <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-32 h-1 bg-slate-300 rounded-full md:hidden"></div>
