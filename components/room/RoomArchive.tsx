@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, ChangeEvent } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store } from 'lucide-react';
-import { Store as StoreType } from '../../types';
+import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, ImageIcon, Star } from 'lucide-react';
+import { Store as StoreType, Room } from '../../types';
 
 export const RoomArchive: React.FC = () => {
   const { regions, stores, addStore, updateStore, removeStore } = useApp();
@@ -16,6 +16,11 @@ export const RoomArchive: React.FC = () => {
       roomListStr: ''
   });
 
+  // Room Detail Modal State
+  const [editingRoom, setEditingRoom] = useState<{ storeId: string; room: Room } | null>(null);
+
+  // --- Store Management Logic ---
+
   const openAddStoreModal = () => {
       setEditingStoreId(null);
       setStoreForm({ id: '', name: '', regionId: '', roomListStr: '' });
@@ -24,11 +29,12 @@ export const RoomArchive: React.FC = () => {
 
   const openEditStoreModal = (store: StoreType) => {
       setEditingStoreId(store.id);
+      const roomStr = store.rooms.map(r => r.number).join(', ');
       setStoreForm({
           id: store.id,
           name: store.name,
           regionId: store.regionId,
-          roomListStr: (store.roomList || []).join(', ')
+          roomListStr: roomStr
       });
       setIsStoreModalOpen(true);
   };
@@ -36,14 +42,26 @@ export const RoomArchive: React.FC = () => {
   const handleStoreSubmit = (e: React.FormEvent) => {
       e.preventDefault();
       
-      const rooms = storeForm.roomListStr.split(/[,，、\s]+/).map(s => s.trim()).filter(Boolean);
+      const inputRoomNumbers = storeForm.roomListStr.split(/[,，、\s]+/).map(s => s.trim()).filter(Boolean);
+      
+      // Helper to merge existing rooms with new list of numbers
+      const mergeRooms = (currentRooms: Room[] = []): Room[] => {
+          return inputRoomNumbers.map(num => {
+              const existing = currentRooms.find(r => r.number === num);
+              if (existing) return existing;
+              return { number: num, type: '普通房', images: [] }; // Default new room
+          });
+      };
 
       if (editingStoreId) {
           // Update
+          const existingStore = stores.find(s => s.id === editingStoreId);
+          if (!existingStore) return;
+          
           updateStore(editingStoreId, {
               name: storeForm.name,
               regionId: storeForm.regionId,
-              roomList: rooms
+              rooms: mergeRooms(existingStore.rooms)
           });
       } else {
           // Add - Check for duplicate ID
@@ -55,7 +73,7 @@ export const RoomArchive: React.FC = () => {
               id: storeForm.id,
               name: storeForm.name,
               regionId: storeForm.regionId,
-              roomList: rooms
+              rooms: mergeRooms([])
           });
       }
       setIsStoreModalOpen(false);
@@ -67,76 +85,145 @@ export const RoomArchive: React.FC = () => {
       }
   };
 
+  // --- Room Detail Logic ---
+
+  const openRoomDetail = (storeId: string, room: Room) => {
+      setEditingRoom({ storeId, room });
+  };
+
+  const handleRoomSave = () => {
+      if (!editingRoom) return;
+      
+      const { storeId, room } = editingRoom;
+      const store = stores.find(s => s.id === storeId);
+      if (!store) return;
+
+      const updatedRooms = store.rooms.map(r => r.number === room.number ? room : r);
+      updateStore(storeId, { rooms: updatedRooms });
+      setEditingRoom(null);
+  };
+
+  const handleRoomImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
+      if (!editingRoom) return;
+      if (e.target.files && e.target.files[0]) {
+          const url = URL.createObjectURL(e.target.files[0]);
+          setEditingRoom({
+              ...editingRoom,
+              room: {
+                  ...editingRoom.room,
+                  images: [...(editingRoom.room.images || []), url]
+              }
+          });
+          e.target.value = '';
+      }
+  };
+
+  const removeRoomImage = (index: number) => {
+      if (!editingRoom) return;
+      setEditingRoom({
+          ...editingRoom,
+          room: {
+              ...editingRoom.room,
+              images: editingRoom.room.images?.filter((_, i) => i !== index) || []
+          }
+      });
+  };
+
   return (
     <div className="space-y-4">
         <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-4">
-        <h3 className="text-sm font-bold text-blue-800 mb-1">客房数据归档</h3>
-        <p className="text-xs text-blue-600 opacity-80">在此处管理门店及其下属客房的基础信息。</p>
+            <h3 className="text-sm font-bold text-blue-800 mb-1">客房数据归档</h3>
+            <p className="text-xs text-blue-600 opacity-80">管理门店及其下属客房的基础信息，点击客房图标可编辑详细信息。</p>
         </div>
 
         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-        <div className="flex items-center justify-between mb-4 border-b border-slate-50 pb-2">
-            <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-indigo-100 text-indigo-600">
-                    <StoreIcon size={18} />
-                </div>
-                <h2 className="text-sm font-bold text-slate-800">门店列表</h2>
-            </div>
-            <button 
-                onClick={openAddStoreModal}
-                className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-blue-700 transition-colors shadow-sm"
-            >
-                <Plus size={14} /> 新增门店
-            </button>
-        </div>
-
-        <div className="space-y-3">
-            {stores.length === 0 && (
-                <div className="text-center py-8 text-slate-400 text-xs">暂无门店数据，请点击上方按钮添加</div>
-            )}
-            {stores.map(s => {
-                const regionName = regions.find(r => r.id === s.regionId)?.name || '未知大区';
-                const roomCount = s.roomList?.length || 0;
-                return (
-                    <div key={s.id} className="p-3 bg-slate-50 rounded-lg border border-slate-100 flex flex-col gap-2">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <h4 className="text-sm font-bold text-slate-800">{s.name}</h4>
-                                    <span className="text-[10px] bg-slate-200 text-slate-500 px-1.5 rounded font-mono">{s.id}</span>
-                                </div>
-                                <p className="text-[10px] text-slate-500 mt-0.5">{regionName}</p>
-                            </div>
-                            <div className="flex gap-2">
-                                <button 
-                                    onClick={() => openEditStoreModal(s)}
-                                    className="p-1.5 text-blue-500 hover:bg-blue-100 rounded transition-colors"
-                                >
-                                    <Edit2 size={16} />
-                                </button>
-                                <button 
-                                    onClick={() => handleDeleteStore(s.id, s.name)}
-                                    className="p-1.5 text-slate-400 hover:bg-red-100 hover:text-red-500 rounded transition-colors"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-                            </div>
-                        </div>
-                        <div className="border-t border-slate-200 pt-2">
-                            <div className="flex justify-between items-center mb-1">
-                                <span className="text-[10px] font-bold text-slate-500 uppercase">客房列表 ({roomCount})</span>
-                            </div>
-                            <p className="text-xs text-slate-600 leading-relaxed break-words">
-                                {roomCount > 0 ? (s.roomList || []).join(', ') : <span className="opacity-50 italic">暂无客房信息</span>}
-                            </p>
-                        </div>
+            <div className="flex items-center justify-between mb-4 border-b border-slate-50 pb-2">
+                <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-indigo-100 text-indigo-600">
+                        <StoreIcon size={18} />
                     </div>
-                );
-            })}
-        </div>
+                    <h2 className="text-sm font-bold text-slate-800">门店列表</h2>
+                </div>
+                <button 
+                    onClick={openAddStoreModal}
+                    className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-blue-700 transition-colors shadow-sm"
+                >
+                    <Plus size={14} /> 新增门店
+                </button>
+            </div>
+
+            <div className="space-y-4">
+                {stores.length === 0 && (
+                    <div className="text-center py-8 text-slate-400 text-xs">暂无门店数据，请点击上方按钮添加</div>
+                )}
+                {stores.map(s => {
+                    const regionName = regions.find(r => r.id === s.regionId)?.name || '未知大区';
+                    const roomCount = s.rooms?.length || 0;
+                    return (
+                        <div key={s.id} className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex flex-col gap-3 transition-shadow hover:shadow-md">
+                            {/* Store Header */}
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h4 className="text-sm font-bold text-slate-800">{s.name}</h4>
+                                        <span className="text-[10px] bg-slate-200 text-slate-500 px-1.5 rounded font-mono">{s.id}</span>
+                                    </div>
+                                    <p className="text-[10px] text-slate-500 mt-0.5">{regionName}</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button 
+                                        onClick={() => openEditStoreModal(s)}
+                                        className="p-1.5 text-blue-500 hover:bg-blue-100 rounded transition-colors"
+                                    >
+                                        <Edit2 size={16} />
+                                    </button>
+                                    <button 
+                                        onClick={() => handleDeleteStore(s.id, s.name)}
+                                        className="p-1.5 text-slate-400 hover:bg-red-100 hover:text-red-500 rounded transition-colors"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Room Grid */}
+                            <div className="border-t border-slate-200 pt-3">
+                                <div className="flex justify-between items-center mb-3">
+                                    <span className="text-[10px] font-bold text-slate-500 uppercase">客房列表 ({roomCount})</span>
+                                </div>
+                                {roomCount > 0 ? (
+                                    <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+                                        {s.rooms.map(room => (
+                                            <button 
+                                                key={room.number}
+                                                onClick={() => openRoomDetail(s.id, room)}
+                                                className={`flex flex-col items-center justify-center p-2 rounded-lg border transition-all hover:shadow-sm active:scale-95 group
+                                                    ${room.type === '样板房' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-300 hover:text-blue-600'}
+                                                `}
+                                            >
+                                                <div className="relative">
+                                                    <BedDouble size={20} className="mb-1 opacity-80 group-hover:opacity-100" />
+                                                    {room.type === '样板房' && (
+                                                        <Star size={8} className="absolute -top-1 -right-1 text-amber-500 fill-amber-500" />
+                                                    )}
+                                                </div>
+                                                <span className="text-[10px] font-bold">{room.number}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-4 text-xs text-slate-400 italic bg-slate-100/50 rounded-lg border border-dashed border-slate-200">
+                                        暂无客房信息，请编辑门店添加房号
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
         </div>
 
-        {/* Store Modal */}
+        {/* Store Add/Edit Modal */}
         {isStoreModalOpen && (
             <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
                 <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-scaleIn">
@@ -151,47 +238,47 @@ export const RoomArchive: React.FC = () => {
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">门店ID *</label>
                             <input 
-                            required
-                            type="text" 
-                            className={`w-full border rounded p-2 text-sm focus:outline-none ${editingStoreId ? 'bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed' : 'bg-white border-slate-200 focus:ring-2 focus:ring-blue-500'}`}
-                            value={storeForm.id}
-                            onChange={e => setStoreForm({...storeForm, id: e.target.value})}
-                            disabled={!!editingStoreId}
-                            placeholder="输入唯一ID (例如: S001)"
+                                required
+                                type="text" 
+                                className={`w-full border rounded p-2 text-sm focus:outline-none ${editingStoreId ? 'bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed' : 'bg-white border-slate-200 focus:ring-2 focus:ring-blue-500'}`}
+                                value={storeForm.id}
+                                onChange={e => setStoreForm({...storeForm, id: e.target.value})}
+                                disabled={!!editingStoreId}
+                                placeholder="输入唯一ID (例如: S001)"
                             />
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">门店名称 *</label>
                             <input 
-                            required
-                            type="text" 
-                            className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                            value={storeForm.name}
-                            onChange={e => setStoreForm({...storeForm, name: e.target.value})}
-                            placeholder="输入门店名称"
+                                required
+                                type="text" 
+                                className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                value={storeForm.name}
+                                onChange={e => setStoreForm({...storeForm, name: e.target.value})}
+                                placeholder="输入门店名称"
                             />
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">所属大区 *</label>
                             <select 
-                            required
-                            className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
-                            value={storeForm.regionId}
-                            onChange={e => setStoreForm({...storeForm, regionId: e.target.value})}
+                                required
+                                className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
+                                value={storeForm.regionId}
+                                onChange={e => setStoreForm({...storeForm, regionId: e.target.value})}
                             >
                                 <option value="">请选择大区</option>
                                 {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                             </select>
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">客房列表</label>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">客房列表 (快速录入)</label>
                             <textarea 
-                            className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none h-24 resize-none"
-                            value={storeForm.roomListStr}
-                            onChange={e => setStoreForm({...storeForm, roomListStr: e.target.value})}
-                            placeholder="输入客房号，使用逗号、空格或顿号分隔 (例如: 101, 102, 103)"
+                                className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none h-24 resize-none"
+                                value={storeForm.roomListStr}
+                                onChange={e => setStoreForm({...storeForm, roomListStr: e.target.value})}
+                                placeholder="输入客房号，使用逗号、空格或顿号分隔 (例如: 101, 102, 103)"
                             />
-                            <p className="text-[10px] text-slate-400 mt-1">提示：多个房号请用逗号隔开</p>
+                            <p className="text-[10px] text-slate-400 mt-1">提示：修改此列表将更新门店客房，已有详细信息（图片/房型）的房间若保留房号则不会丢失数据。</p>
                         </div>
                         
                         <div className="pt-2">
@@ -200,6 +287,93 @@ export const RoomArchive: React.FC = () => {
                             </button>
                         </div>
                     </form>
+                </div>
+            </div>
+        )}
+
+        {/* Room Detail/Edit Modal */}
+        {editingRoom && (
+            <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-scaleIn">
+                    <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
+                        <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                            <BedDouble size={20} className="text-blue-600" />
+                            客房详情 - {editingRoom.room.number}
+                        </h3>
+                        <button onClick={() => setEditingRoom(null)}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
+                    </div>
+                    
+                    <div className="p-5 space-y-4 overflow-y-auto max-h-[70vh]">
+                        {/* Room Number (Read-only for safety/consistency with store list) */}
+                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex justify-between items-center">
+                            <span className="text-xs font-bold text-slate-500">房间号码</span>
+                            <span className="text-sm font-bold text-slate-800">{editingRoom.room.number}</span>
+                        </div>
+
+                        {/* Room Type */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">房型选择</label>
+                            <div className="grid grid-cols-2 gap-3">
+                                <label className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                                    editingRoom.room.type === '普通房' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-500 hover:border-blue-200'
+                                }`}>
+                                    <input 
+                                        type="radio" 
+                                        className="hidden" 
+                                        checked={editingRoom.room.type === '普通房'} 
+                                        onChange={() => setEditingRoom({...editingRoom, room: {...editingRoom.room, type: '普通房'}})} 
+                                    />
+                                    <BedDouble size={24} className="mb-1" />
+                                    <span className="text-xs font-bold">普通房</span>
+                                </label>
+
+                                <label className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                                    editingRoom.room.type === '样板房' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-slate-200 bg-white text-slate-500 hover:border-amber-200'
+                                }`}>
+                                    <input 
+                                        type="radio" 
+                                        className="hidden" 
+                                        checked={editingRoom.room.type === '样板房'} 
+                                        onChange={() => setEditingRoom({...editingRoom, room: {...editingRoom.room, type: '样板房'}})} 
+                                    />
+                                    <Star size={24} className="mb-1 fill-current" />
+                                    <span className="text-xs font-bold">样板房</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        {/* Images */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">客房照片</label>
+                            <div className="grid grid-cols-3 gap-2">
+                                <div className="aspect-square border-2 border-dashed border-blue-300 bg-blue-50 rounded-lg flex flex-col items-center justify-center relative hover:bg-blue-100 transition-colors cursor-pointer group">
+                                    <input type="file" accept="image/*" onChange={handleRoomImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                    <Plus className="text-blue-500 mb-1 group-hover:scale-110 transition-transform" size={20} />
+                                    <span className="text-[9px] text-blue-600 font-bold">添加图片</span>
+                                </div>
+                                {editingRoom.room.images?.map((url, idx) => (
+                                    <div key={idx} className="aspect-square rounded-lg border border-slate-200 relative group overflow-hidden bg-slate-100">
+                                        <img src={url} alt={`room-${idx}`} className="w-full h-full object-cover" />
+                                        <button 
+                                            onClick={() => removeRoomImage(idx)} 
+                                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <X size={10} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div className="p-4 border-t border-slate-100 bg-slate-50">
+                        <button 
+                            onClick={handleRoomSave}
+                            className="w-full py-2.5 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition-colors"
+                        >
+                            保存客房信息
+                        </button>
+                    </div>
                 </div>
             </div>
         )}

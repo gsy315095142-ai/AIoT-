@@ -5,11 +5,17 @@ export type Region = {
   name: string;
 };
 
+export type Room = {
+  number: string;
+  type: '样板房' | '普通房';
+  images: string[];
+};
+
 export type Store = {
   id: string;
   regionId: string;
   name: string;
-  roomList?: string[]; // Optional list of room numbers
+  rooms: Room[];
 };
 
 export type DeviceType = {

@@ -9,10 +9,44 @@ const MOCK_REGIONS: Region[] = [
 ];
 
 const MOCK_STORES: Store[] = [
-  { id: 's1', regionId: 'r1', name: '上海南京路店', roomList: ['2101', '2102', '2103'] },
-  { id: 's2', regionId: 'r1', name: '杭州西湖店', roomList: ['101', '102'] },
-  { id: 's3', regionId: 'r2', name: '北京三里屯店', roomList: ['Lobby', '301', '302'] },
-  { id: 's4', regionId: 'r3', name: '广州天河城店', roomList: ['501', '505'] },
+  { 
+    id: 's1', 
+    regionId: 'r1', 
+    name: '上海南京路店', 
+    rooms: [
+        { number: '2101', type: '普通房', images: [] },
+        { number: '2102', type: '普通房', images: [] },
+        { number: '2103', type: '样板房', images: [] }
+    ]
+  },
+  { 
+    id: 's2', 
+    regionId: 'r1', 
+    name: '杭州西湖店', 
+    rooms: [
+        { number: '101', type: '普通房', images: [] },
+        { number: '102', type: '样板房', images: [] }
+    ]
+  },
+  { 
+    id: 's3', 
+    regionId: 'r2', 
+    name: '北京三里屯店', 
+    rooms: [
+        { number: 'Lobby', type: '普通房', images: [] },
+        { number: '301', type: '普通房', images: [] },
+        { number: '302', type: '普通房', images: [] }
+    ] 
+  },
+  { 
+    id: 's4', 
+    regionId: 'r3', 
+    name: '广州天河城店', 
+    rooms: [
+        { number: '501', type: '普通房', images: [] },
+        { number: '505', type: '普通房', images: [] }
+    ]
+  },
 ];
 
 const MOCK_DEVICE_TYPES: DeviceType[] = [
