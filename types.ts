@@ -165,3 +165,16 @@ export type AuditRecord = {
   auditUser?: string;
   rejectReason?: string;
 };
+
+// --- Procurement Types ---
+export type ProductType = '物料' | '硬件';
+export type ProductSubType = '桌显' | '地投' | '头显' | '床帏巾' | '帐篷';
+
+export type Product = {
+  id: string;
+  name: string;
+  type: ProductType;
+  subType: ProductSubType;
+  price: number;
+  imageUrl?: string;
+};
