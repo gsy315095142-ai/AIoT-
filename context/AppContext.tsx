@@ -160,12 +160,7 @@ const MOCK_DEVICES: Device[] = [
   }
 ];
 
-const MOCK_PRODUCTS: Product[] = [
-    { id: 'p1', name: '桌面互动投影仪 V2', type: '硬件', subType: '桌显', price: 2500, imageUrl: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca4?q=80&w=300&auto=format&fit=crop' },
-    { id: 'p2', name: '全息地面投影机', type: '硬件', subType: '地投', price: 4800, imageUrl: 'https://images.unsplash.com/photo-1593640408182-31c70c8268f5?q=80&w=300&auto=format&fit=crop' },
-    { id: 'p3', name: '梦幻森林主题床帏', type: '物料', subType: '床帏巾', price: 350, imageUrl: 'https://images.unsplash.com/photo-1522771753035-4a5042305a63?q=80&w=300&auto=format&fit=crop' },
-    { id: 'p4', name: '星空儿童帐篷', type: '物料', subType: '帐篷', price: 280, imageUrl: 'https://images.unsplash.com/photo-1504280501179-fac52ddca064?q=80&w=300&auto=format&fit=crop' },
-];
+const MOCK_PRODUCTS: Product[] = []; // Default no products as requested
 
 interface AppContextType {
   currentUser: string | null;

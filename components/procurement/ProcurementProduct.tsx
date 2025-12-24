@@ -1,5 +1,5 @@
 import React, { useState, useMemo, ChangeEvent } from 'react';
-import { Package, Search, Plus, Filter, Edit2, Trash2, X, Upload, ChevronDown, Image as ImageIcon } from 'lucide-react';
+import { Package, Search, Plus, Edit2, Trash2, X, ChevronDown, Image as ImageIcon } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Product, ProductType, ProductSubType } from '../../types';
 
@@ -109,56 +109,59 @@ export const ProcurementProduct: React.FC = () => {
   }, [procurementProducts, filterType, filterSubType, searchQuery]);
 
   return (
-    <div className="h-full flex flex-col">
-        {/* Header - Action Bar */}
-        <div className="flex justify-between items-center mb-4">
-            <button 
-                onClick={handleOpenAdd}
-                className="bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-blue-700 transition-colors shadow-md"
-            >
-                <Plus size={16} /> 新增货物
-            </button>
-        </div>
+    <div className="h-full flex flex-col relative">
+        {/* Sticky Header Section */}
+        <div className="sticky top-0 z-10 bg-slate-50 pb-2 -mt-4 pt-4">
+            {/* Header - Action Bar */}
+            <div className="flex justify-between items-center mb-4">
+                <button 
+                    onClick={handleOpenAdd}
+                    className="bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-blue-700 transition-colors shadow-md"
+                >
+                    <Plus size={16} /> 新增货物
+                </button>
+            </div>
 
-        {/* Filter Bar */}
-        <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-            <div className="relative">
-                <select 
-                    className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={filterType}
-                    onChange={(e) => { setFilterType(e.target.value); setFilterSubType(''); }}
-                >
-                    <option value="">全部类型</option>
-                    {PRODUCT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
-            </div>
-            <div className="relative">
-                <select 
-                    className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                    value={filterSubType}
-                    onChange={(e) => setFilterSubType(e.target.value)}
-                    disabled={!filterType && false} // Optional: disable if no type selected, but prompt implies flexible filtering
-                >
-                    <option value="">全部子类</option>
-                    {getSubTypes(filterType).map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
-            </div>
-            <div className="relative col-span-2 md:col-span-2">
-                <input 
-                    type="text" 
-                    placeholder="搜索货物名称..."
-                    className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs py-2 pl-8 pr-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+            {/* Filter Bar */}
+            <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 mb-2 grid grid-cols-2 gap-3 md:grid-cols-4">
+                <div className="relative">
+                    <select 
+                        className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={filterType}
+                        onChange={(e) => { setFilterType(e.target.value); setFilterSubType(''); }}
+                    >
+                        <option value="">全部类型</option>
+                        {PRODUCT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                </div>
+                <div className="relative">
+                    <select 
+                        className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                        value={filterSubType}
+                        onChange={(e) => setFilterSubType(e.target.value)}
+                        disabled={!filterType && false}
+                    >
+                        <option value="">全部子类</option>
+                        {getSubTypes(filterType).map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                </div>
+                <div className="relative col-span-2 md:col-span-2">
+                    <input 
+                        type="text" 
+                        placeholder="搜索货物名称..."
+                        className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs py-2 pl-8 pr-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                </div>
             </div>
         </div>
 
         {/* Product List */}
-        <div className="flex-1 overflow-y-auto space-y-3">
+        <div className="flex-1 overflow-y-auto space-y-3 pb-4">
             {filteredProducts.length === 0 && (
                 <div className="text-center py-10 text-slate-400 text-xs">没有找到符合条件的货物</div>
             )}
