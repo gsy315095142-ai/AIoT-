@@ -8,9 +8,9 @@ export const RoomManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'archive' | 'measure' | 'install'>('archive');
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Tab Navigation */}
-      <div className="flex bg-white border-b border-slate-200 sticky top-0 z-10">
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Tab Navigation - Fixed/Non-scrolling part */}
+      <div className="flex bg-white border-b border-slate-200 shrink-0 z-10 shadow-sm">
         <button
           onClick={() => setActiveTab('archive')}
           className={`flex-1 py-3 text-xs font-bold flex flex-col items-center gap-1 transition-colors relative ${activeTab === 'archive' ? 'text-blue-600' : 'text-slate-500'}`}
@@ -37,8 +37,8 @@ export const RoomManagement: React.FC = () => {
         </button>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 p-4 bg-slate-50 pb-20">
+      {/* Content - Scrollable area */}
+      <div className="flex-1 p-4 bg-slate-50 overflow-y-auto pb-20 no-scrollbar">
          {activeTab === 'archive' && <RoomArchive />}
          {activeTab === 'measure' && <RoomMeasure />}
          {activeTab === 'install' && <RoomInstall />}

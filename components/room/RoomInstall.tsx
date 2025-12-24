@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent } from 'react';
-import { Hammer, Store, ChevronDown, Clock, CheckCircle, Upload, X, Calendar, ClipboardList, AlertCircle, ArrowRight, Gavel, BedDouble } from 'lucide-react';
+import { Hammer, Store, ChevronDown, Clock, CheckCircle, Upload, X, Calendar, ClipboardList, AlertCircle, ArrowRight, Gavel, BedDouble, Info } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Store as StoreType, InstallNode, InstallStatus, RoomImageCategory } from '../../types';
 
@@ -14,6 +14,9 @@ export const RoomInstall: React.FC = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [rejectMode, setRejectMode] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+  
+  // Rejection Reason Popup State
+  const [viewingRejectReason, setViewingRejectReason] = useState<string | null>(null);
 
   // Filter Logic
   const filteredStores = stores.filter(s => {
@@ -33,9 +36,14 @@ export const RoomInstall: React.FC = () => {
           case 'approved': return { label: '安装完成', color: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle };
           case 'pending_review': return { label: '待审核', color: 'bg-orange-100 text-orange-700 border-orange-200', icon: ClipboardList };
           case 'in_progress': return { label: '进行中', color: 'bg-blue-100 text-blue-700 border-blue-200', icon: Hammer };
-          case 'rejected': return { label: '未提交', color: 'bg-red-100 text-red-700 border-red-200', icon: AlertCircle };
+          case 'rejected': return { label: '已驳回', color: 'bg-red-100 text-red-700 border-red-200', icon: AlertCircle };
           default: return { label: '未开始', color: 'bg-slate-100 text-slate-500 border-slate-200', icon: Clock };
       }
+  };
+
+  const getCurrentNodeName = (nodes: InstallNode[]) => {
+      const node = nodes.find(n => !n.completed);
+      return node ? node.name : '等待交付';
   };
 
   // Actions
@@ -52,6 +60,11 @@ export const RoomInstall: React.FC = () => {
       setIsDetailModalOpen(true); // Open the same modal
       setRejectMode(false);
       setRejectReason('');
+  };
+
+  const handleViewRejectReason = (e: React.MouseEvent, reason: string) => {
+      e.stopPropagation();
+      setViewingRejectReason(reason || '暂无驳回原因');
   };
 
   // Node Updates (Inside Detail Modal)
@@ -116,6 +129,7 @@ export const RoomInstall: React.FC = () => {
               ...activeStore.installation, 
               nodes: newNodes, 
               ...extraUpdates, 
+              // Status logic: Keep pending if pending, otherwise set in_progress if started
               status: activeStore.installation.status === 'unstarted' ? 'in_progress' : activeStore.installation.status 
           }
       };
@@ -218,7 +232,13 @@ export const RoomInstall: React.FC = () => {
 
   const isAuditMode = activeStore?.installation?.status === 'pending_review';
   const isApproved = activeStore?.installation?.status === 'approved';
-  const isLocked = isAuditMode || isApproved;
+  // Rule 1.2: Edit allowed in pending review. Lock only if approved.
+  const isLocked = isApproved; 
+
+  const isRoomCompleted = (roomData: any) => {
+      const categories: RoomImageCategory[] = ['玄关', '桌面', '床'];
+      return categories.every(cat => Array.isArray(roomData[cat]) && roomData[cat].length > 0);
+  };
 
   return (
     <div className="space-y-4">
@@ -260,24 +280,40 @@ export const RoomInstall: React.FC = () => {
                 const progress = getProgress(install.nodes);
                 const statusConfig = getStatusConfig(install.status);
                 const isCompleted = install.status === 'approved';
+                const isRejected = install.status === 'rejected';
 
                 return (
                     <div 
                         key={store.id} 
                         onClick={() => handleOpenDetail(store)}
                         className={`bg-white rounded-xl shadow-sm border p-4 cursor-pointer transition-all hover:shadow-md relative overflow-hidden group
-                            ${isCompleted ? 'border-green-200' : 'border-slate-100'}
+                            ${isCompleted ? 'border-green-200' : isRejected ? 'border-red-200' : 'border-slate-100'}
                         `}
                     >
                         {/* Header */}
                         <div className="flex justify-between items-start mb-3">
                             <div>
-                                <h4 className="font-bold text-slate-800 text-sm">{store.name}</h4>
-                                <div className="flex items-center gap-2 mt-1">
+                                <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1">
+                                    {store.name}
+                                    {isRejected && (
+                                        <button 
+                                            onClick={(e) => handleViewRejectReason(e, install.rejectReason || '')}
+                                            className="text-red-500 hover:text-red-600 hover:scale-110 transition-transform"
+                                        >
+                                            <AlertCircle size={14} fill="#fee2e2" />
+                                        </button>
+                                    )}
+                                </h4>
+                                <div className="flex items-center gap-2 mt-1 flex-wrap">
                                     <span className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-bold border ${statusConfig.color}`}>
                                         <statusConfig.icon size={10} />
                                         {statusConfig.label}
                                     </span>
+                                    {install.status === 'in_progress' && (
+                                        <span className="text-[10px] text-blue-500 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 font-medium">
+                                            当前: {getCurrentNodeName(install.nodes)}
+                                        </span>
+                                    )}
                                     {install.appointmentTime && (
                                         <span className="text-[10px] text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-100 flex items-center gap-1">
                                             <Calendar size={10} />
@@ -306,7 +342,7 @@ export const RoomInstall: React.FC = () => {
                             </div>
                             <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
                                 <div 
-                                    className={`h-full rounded-full transition-all duration-500 ${isCompleted ? 'bg-green-500' : 'bg-blue-500'}`} 
+                                    className={`h-full rounded-full transition-all duration-500 ${isCompleted ? 'bg-green-500' : isRejected ? 'bg-red-500' : 'bg-blue-500'}`} 
                                     style={{ width: `${progress}%` }}
                                 ></div>
                             </div>
@@ -323,6 +359,27 @@ export const RoomInstall: React.FC = () => {
                 <div className="text-center py-10 text-slate-400 text-xs">没有找到门店数据</div>
             )}
         </div>
+
+        {/* Reject Reason Modal */}
+        {viewingRejectReason && (
+            <div className="fixed inset-0 z-[70] bg-black/20 flex items-center justify-center p-6 animate-fadeIn" onClick={() => setViewingRejectReason(null)}>
+                <div className="bg-white rounded-xl shadow-lg p-5 max-w-xs w-full animate-scaleIn" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center gap-2 mb-3 text-red-600 font-bold">
+                        <AlertCircle size={20} />
+                        驳回原因
+                    </div>
+                    <p className="text-sm text-slate-700 bg-red-50 p-3 rounded-lg border border-red-100">
+                        {viewingRejectReason}
+                    </p>
+                    <button 
+                        onClick={() => setViewingRejectReason(null)}
+                        className="w-full mt-4 py-2 bg-slate-100 text-slate-600 font-bold rounded-lg hover:bg-slate-200 text-xs"
+                    >
+                        关闭
+                    </button>
+                </div>
+            </div>
+        )}
 
         {/* Detail Modal (Shared for Editing and Auditing) */}
         {isDetailModalOpen && activeStore && activeStore.installation && (
@@ -377,12 +434,20 @@ export const RoomInstall: React.FC = () => {
                                                 {activeStore.rooms.map((room) => {
                                                     const roomData = (node.data && typeof node.data === 'object') ? node.data[room.number] || {} : {};
                                                     const categories: RoomImageCategory[] = ['玄关', '桌面', '床'];
+                                                    const roomCompleted = isRoomCompleted(roomData);
                                                     
                                                     return (
                                                         <div key={room.number} className="bg-slate-50 border border-slate-200 rounded-lg overflow-hidden">
-                                                            <div className="bg-slate-100 px-3 py-2 border-b border-slate-200 flex items-center gap-2">
-                                                                <BedDouble size={14} className="text-slate-500" />
-                                                                <span className="text-xs font-bold text-slate-700">{room.number} ({room.type})</span>
+                                                            <div className="bg-slate-100 px-3 py-2 border-b border-slate-200 flex items-center gap-2 justify-between">
+                                                                <div className="flex items-center gap-2">
+                                                                    <BedDouble size={14} className="text-slate-500" />
+                                                                    <span className="text-xs font-bold text-slate-700">{room.number} ({room.type})</span>
+                                                                </div>
+                                                                {roomCompleted && (
+                                                                    <div className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
+                                                                        <CheckCircle size={10} /> 已完成
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                             <div className="p-3 grid grid-cols-1 gap-3">
                                                                 {categories.map(cat => {
@@ -528,8 +593,9 @@ export const RoomInstall: React.FC = () => {
                             </div>
                         ) : activeStore.installation.status === 'rejected' ? (
                             <div className="space-y-2">
-                                <div className="text-xs text-red-600 bg-red-50 p-2 rounded border border-red-100">
-                                    <span className="font-bold">驳回原因:</span> {activeStore.installation.rejectReason || '无详细原因'}
+                                <div className="text-xs text-red-600 bg-red-50 p-2 rounded border border-red-100 flex items-center gap-2">
+                                    <AlertCircle size={14} className="flex-shrink-0" />
+                                    <span><span className="font-bold">驳回原因:</span> {activeStore.installation.rejectReason || '无详细原因'}</span>
                                 </div>
                                 <button 
                                     onClick={handleSubmit}
