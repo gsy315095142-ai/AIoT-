@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent, AuditRecord, AuditStatus, AuditType } from '../types';
+import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent, AuditRecord, AuditStatus, AuditType, StoreInstallation, InstallNode } from '../types';
 
 // Initial Mock Data
 const MOCK_REGIONS: Region[] = [
@@ -7,6 +7,21 @@ const MOCK_REGIONS: Region[] = [
   { id: 'r2', name: '华北大区' },
   { id: 'r3', name: '华南大区' },
 ];
+
+const DEFAULT_NODES: InstallNode[] = [
+    { name: '预约安装时间', completed: false },
+    { name: '打卡', completed: false },
+    { name: '清点货物', completed: false },
+    { name: '安装完成', completed: false },
+    { name: '调试完成', completed: false },
+    { name: '交付完成', completed: false },
+];
+
+const createMockInstallation = (status: any = 'unstarted'): StoreInstallation => ({
+    status,
+    nodes: JSON.parse(JSON.stringify(DEFAULT_NODES)), // Deep copy
+    appointmentTime: undefined
+});
 
 const MOCK_STORES: Store[] = [
   { 
@@ -17,7 +32,8 @@ const MOCK_STORES: Store[] = [
         { number: '2101', type: '普通房', images: [] },
         { number: '2102', type: '普通房', images: [] },
         { number: '2103', type: '样板房', images: [] }
-    ]
+    ],
+    installation: createMockInstallation()
   },
   { 
     id: 's2', 
@@ -26,7 +42,8 @@ const MOCK_STORES: Store[] = [
     rooms: [
         { number: '101', type: '普通房', images: [] },
         { number: '102', type: '样板房', images: [] }
-    ]
+    ],
+    installation: createMockInstallation('in_progress')
   },
   { 
     id: 's3', 
@@ -36,7 +53,8 @@ const MOCK_STORES: Store[] = [
         { number: 'Lobby', type: '普通房', images: [] },
         { number: '301', type: '普通房', images: [] },
         { number: '302', type: '普通房', images: [] }
-    ] 
+    ],
+    installation: createMockInstallation()
   },
   { 
     id: 's4', 
@@ -45,7 +63,8 @@ const MOCK_STORES: Store[] = [
     rooms: [
         { number: '501', type: '普通房', images: [] },
         { number: '505', type: '普通房', images: [] }
-    ]
+    ],
+    installation: createMockInstallation()
   },
 ];
 
@@ -159,6 +178,7 @@ interface AppContextType {
   removeRegion: (id: string) => void;
   addStore: (store: Store) => void;
   updateStore: (id: string, data: Partial<Store>) => void;
+  updateStoreInstallation: (storeId: string, data: Partial<StoreInstallation>) => void; // New Method
   removeStore: (id: string) => void;
   addDeviceType: (name: string) => void;
   removeDeviceType: (id: string) => void;
@@ -199,11 +219,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const addStore = (store: Store) => {
-    setStores([...stores, store]);
+    // Ensure new stores have default installation data
+    const newStore = { ...store, installation: createMockInstallation() };
+    setStores([...stores, newStore]);
   };
 
   const updateStore = (id: string, data: Partial<Store>) => {
     setStores(prev => prev.map(s => s.id === id ? { ...s, ...data } : s));
+  };
+
+  const updateStoreInstallation = (storeId: string, data: Partial<StoreInstallation>) => {
+    setStores(prev => prev.map(s => {
+        if (s.id === storeId) {
+            return {
+                ...s,
+                installation: { ...s.installation!, ...data }
+            };
+        }
+        return s;
+    }));
   };
 
   const removeStore = (id: string) => {
@@ -480,7 +514,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       regions, stores, deviceTypes, devices, auditRecords,
       headerRightAction, setHeaderRightAction,
       addRegion, removeRegion, 
-      addStore, updateStore, removeStore, 
+      addStore, updateStore, updateStoreInstallation, removeStore, 
       addDeviceType, removeDeviceType,
       addDevice, updateDevice, deleteDeviceEvent,
       submitOpsStatusChange, submitInspectionReport, approveAudit, rejectAudit

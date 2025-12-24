@@ -27,11 +27,29 @@ export type Room = {
   measurements?: RoomMeasurement[];
 };
 
+// --- Installation Types ---
+export type InstallStatus = 'unstarted' | 'in_progress' | 'pending_review' | 'approved' | 'rejected';
+
+export type InstallNode = {
+  name: string;
+  completed: boolean;
+  data?: string; // Time string for appointment, Image URL for others
+};
+
+export type StoreInstallation = {
+  status: InstallStatus;
+  nodes: InstallNode[];
+  rejectReason?: string;
+  appointmentTime?: string; // Shortcut for display
+};
+// --------------------------
+
 export type Store = {
   id: string;
   regionId: string;
   name: string;
   rooms: Room[];
+  installation?: StoreInstallation; // New Field
 };
 
 export type DeviceType = {
