@@ -1,5 +1,3 @@
-
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent, AuditRecord, AuditStatus, AuditType } from '../types';
 
@@ -129,7 +127,7 @@ interface AppContextType {
   removeStore: (id: string) => void;
   addDeviceType: (name: string) => void;
   removeDeviceType: (id: string) => void;
-  addDevice: (device: Omit<Device, 'id' | 'events' | 'status' | 'opsStatus' | 'cpuUsage' | 'memoryUsage' | 'signalStrength' | 'firstStartTime' | 'lastTestTime'>) => void;
+  addDevice: (device: Omit<Device, 'id' | 'events' | 'status' | 'opsStatus' | 'cpuUsage' | 'memoryUsage' | 'signalStrength' | 'lastTestTime'>) => void;
   updateDevice: (id: string, data: Partial<Device>, customEventMessage?: string, eventMeta?: { remark?: string, images?: string[] }) => void;
   deleteDeviceEvent: (deviceId: string, eventId: string) => void;
   submitOpsStatusChange: (deviceId: string, targetStatus: OpsStatus, reason: string, images?: string[]) => void;
@@ -181,7 +179,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setDeviceTypes(deviceTypes.filter(t => t.id !== id));
   };
 
-  const addDevice = (deviceData: Omit<Device, 'id' | 'events' | 'status' | 'opsStatus' | 'cpuUsage' | 'memoryUsage' | 'signalStrength' | 'firstStartTime' | 'lastTestTime'>) => {
+  const addDevice = (deviceData: Omit<Device, 'id' | 'events' | 'status' | 'opsStatus' | 'cpuUsage' | 'memoryUsage' | 'signalStrength' | 'lastTestTime'>) => {
     const timestamp = new Date().toLocaleString(); // Simple format for demo
     const newDevice: Device = {
       ...deviceData,
@@ -204,7 +202,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       currentRunDuration: 0,
       totalStartCount: 0,
       totalRunDuration: 0,
-      firstStartTime: timestamp,
+      // firstStartTime is now in deviceData
       lastTestTime: timestamp,
       lastTestResult: 'Qualified',
     };
