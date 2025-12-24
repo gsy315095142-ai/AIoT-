@@ -186,7 +186,7 @@ export const RoomArchive: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="h-full overflow-y-auto p-4 space-y-4">
         <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-4">
             <h3 className="text-sm font-bold text-blue-800 mb-1">客房数据归档</h3>
             <p className="text-xs text-blue-600 opacity-80">管理门店及其下属客房的基础信息，点击客房图标可编辑详细信息。</p>

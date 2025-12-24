@@ -77,7 +77,6 @@ export const RoomInstall: React.FC = () => {
       newNodes[targetIndex] = { ...newNodes[targetIndex], data: newData };
 
       // 2. Recalculate completion status for ALL nodes sequentially
-      // This ensures Requirement 1.2: If prev node is incomplete, current node is incomplete.
       for (let i = 0; i < newNodes.length; i++) {
           let isComplete = false;
           const currentNode = newNodes[i];
@@ -87,8 +86,7 @@ export const RoomInstall: React.FC = () => {
               // Node 0: Appointment Time
               isComplete = !!currentNode.data;
           } else if (i === 3) {
-              // Node 3: Install Complete (Complex Check - Requirement 1.1)
-              // Must have data for ALL rooms and ALL categories
+              // Node 3: Install Complete (Complex Check)
               const roomData = currentNode.data || {};
               const rooms = activeStore.rooms;
               const categories: RoomImageCategory[] = ['玄关', '桌面', '床'];
@@ -96,7 +94,6 @@ export const RoomInstall: React.FC = () => {
               if (rooms.length > 0) {
                   const allRoomsComplete = rooms.every(room => {
                       const rData = roomData[room.number] || {};
-                      // Check if every category has at least one image
                       return categories.every(cat => 
                           Array.isArray(rData[cat]) && rData[cat].length > 0
                       );
@@ -110,8 +107,7 @@ export const RoomInstall: React.FC = () => {
               isComplete = Array.isArray(currentNode.data) && currentNode.data.length > 0;
           }
 
-          // --- Sequential Dependency Check (Requirement 1.2) ---
-          // If previous node is not complete, this node cannot be complete
+          // --- Sequential Dependency Check ---
           if (i > 0 && !newNodes[i - 1].completed) {
               isComplete = false;
           }
@@ -129,7 +125,6 @@ export const RoomInstall: React.FC = () => {
               ...activeStore.installation, 
               nodes: newNodes, 
               ...extraUpdates, 
-              // Status logic: Keep pending if pending, otherwise set in_progress if started
               status: activeStore.installation.status === 'unstarted' ? 'in_progress' : activeStore.installation.status 
           }
       };
@@ -241,9 +236,9 @@ export const RoomInstall: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4">
-        {/* Filters */}
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 sticky top-0 z-10">
+    <div className="h-full flex flex-col">
+        {/* Filters - Fixed at Top */}
+        <div className="bg-white p-4 shrink-0 shadow-sm border-b border-slate-100">
             <h3 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-1">
                 <Store size={12} /> 安装筛选
             </h3>
@@ -273,8 +268,8 @@ export const RoomInstall: React.FC = () => {
             </div>
         </div>
 
-        {/* Store List */}
-        <div className="space-y-3">
+        {/* Store List - Scrollable */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {filteredStores.map(store => {
                 const install = store.installation!;
                 const progress = getProgress(install.nodes);

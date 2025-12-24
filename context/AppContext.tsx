@@ -43,7 +43,7 @@ const MOCK_STORES: Store[] = [
         { number: '101', type: '普通房', images: [] },
         { number: '102', type: '样板房', images: [] }
     ],
-    installation: createMockInstallation('in_progress')
+    installation: createMockInstallation() // Changed from 'in_progress' to default
   },
   { 
     id: 's3', 

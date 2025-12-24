@@ -100,7 +100,7 @@ export const RoomMeasure: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="h-full overflow-y-auto p-4 space-y-4">
         {/* Filters */}
         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 sticky top-0 z-10">
             <h3 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-1">

@@ -37,8 +37,8 @@ export const RoomManagement: React.FC = () => {
         </button>
       </div>
 
-      {/* Content - Scrollable area */}
-      <div className="flex-1 p-4 bg-slate-50 overflow-y-auto pb-20 no-scrollbar">
+      {/* Content - No padding, no scroll here. Children handle it. */}
+      <div className="flex-1 bg-slate-50 overflow-hidden relative">
          {activeTab === 'archive' && <RoomArchive />}
          {activeTab === 'measure' && <RoomMeasure />}
          {activeTab === 'install' && <RoomInstall />}
