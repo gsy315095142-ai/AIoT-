@@ -9,6 +9,7 @@ export type Store = {
   id: string;
   regionId: string;
   name: string;
+  roomList?: string[]; // Optional list of room numbers
 };
 
 export type DeviceType = {

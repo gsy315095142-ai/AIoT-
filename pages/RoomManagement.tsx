@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { FileText, Ruler, Hammer } from 'lucide-react';
+import { RoomArchive } from '../components/room/RoomArchive';
+import { RoomMeasure } from '../components/room/RoomMeasure';
+import { RoomInstall } from '../components/room/RoomInstall';
 
 export const RoomManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'archive' | 'measure' | 'install'>('archive');
@@ -36,27 +39,9 @@ export const RoomManagement: React.FC = () => {
 
       {/* Content */}
       <div className="flex-1 p-4 bg-slate-50 pb-20">
-         {activeTab === 'archive' && (
-             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col items-center justify-center min-h-[300px] text-slate-400">
-                 <FileText size={48} className="mb-4 opacity-20" />
-                 <p className="text-sm font-medium">客房建档功能模块</p>
-                 <p className="text-xs opacity-60 mt-2">在此处管理房间基础信息</p>
-             </div>
-         )}
-         {activeTab === 'measure' && (
-             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col items-center justify-center min-h-[300px] text-slate-400">
-                 <Ruler size={48} className="mb-4 opacity-20" />
-                 <p className="text-sm font-medium">客房复尺功能模块</p>
-                 <p className="text-xs opacity-60 mt-2">在此处记录现场测量数据</p>
-             </div>
-         )}
-         {activeTab === 'install' && (
-             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col items-center justify-center min-h-[300px] text-slate-400">
-                 <Hammer size={48} className="mb-4 opacity-20" />
-                 <p className="text-sm font-medium">客房安装功能模块</p>
-                 <p className="text-xs opacity-60 mt-2">在此处跟进安装施工进度</p>
-             </div>
-         )}
+         {activeTab === 'archive' && <RoomArchive />}
+         {activeTab === 'measure' && <RoomMeasure />}
+         {activeTab === 'install' && <RoomInstall />}
       </div>
     </div>
   );

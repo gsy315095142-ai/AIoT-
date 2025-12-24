@@ -9,10 +9,10 @@ const MOCK_REGIONS: Region[] = [
 ];
 
 const MOCK_STORES: Store[] = [
-  { id: 's1', regionId: 'r1', name: '上海南京路店' },
-  { id: 's2', regionId: 'r1', name: '杭州西湖店' },
-  { id: 's3', regionId: 'r2', name: '北京三里屯店' },
-  { id: 's4', regionId: 'r3', name: '广州天河城店' },
+  { id: 's1', regionId: 'r1', name: '上海南京路店', roomList: ['2101', '2102', '2103'] },
+  { id: 's2', regionId: 'r1', name: '杭州西湖店', roomList: ['101', '102'] },
+  { id: 's3', regionId: 'r2', name: '北京三里屯店', roomList: ['Lobby', '301', '302'] },
+  { id: 's4', regionId: 'r3', name: '广州天河城店', roomList: ['501', '505'] },
 ];
 
 const MOCK_DEVICE_TYPES: DeviceType[] = [
@@ -123,7 +123,8 @@ interface AppContextType {
 
   addRegion: (name: string) => void;
   removeRegion: (id: string) => void;
-  addStore: (name: string, regionId: string) => void;
+  addStore: (store: Store) => void;
+  updateStore: (id: string, data: Partial<Store>) => void;
   removeStore: (id: string) => void;
   addDeviceType: (name: string) => void;
   removeDeviceType: (id: string) => void;
@@ -163,8 +164,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setRegions(regions.filter(r => r.id !== id));
   };
 
-  const addStore = (name: string, regionId: string) => {
-    setStores([...stores, { id: `s${Date.now()}`, regionId, name }]);
+  const addStore = (store: Store) => {
+    setStores([...stores, store]);
+  };
+
+  const updateStore = (id: string, data: Partial<Store>) => {
+    setStores(prev => prev.map(s => s.id === id ? { ...s, ...data } : s));
   };
 
   const removeStore = (id: string) => {
@@ -441,7 +446,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       regions, stores, deviceTypes, devices, auditRecords,
       headerRightAction, setHeaderRightAction,
       addRegion, removeRegion, 
-      addStore, removeStore, 
+      addStore, updateStore, removeStore, 
       addDeviceType, removeDeviceType,
       addDevice, updateDevice, deleteDeviceEvent,
       submitOpsStatusChange, submitInspectionReport, approveAudit, rejectAudit
