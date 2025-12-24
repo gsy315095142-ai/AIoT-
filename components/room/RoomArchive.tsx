@@ -1,6 +1,6 @@
 import React, { useState, ChangeEvent } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Star, Table } from 'lucide-react';
+import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Star, Table, Ruler } from 'lucide-react';
 import { Store as StoreType, Room, RoomImageCategory, RoomImage } from '../../types';
 
 const ROOM_MODULES: RoomImageCategory[] = ['玄关', '桌面', '床'];
@@ -454,17 +454,19 @@ export const RoomArchive: React.FC = () => {
 
                         {/* Images Categorized */}
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">客房照片</label>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">客房照片与复尺评估</label>
                             <div className="space-y-4">
                                 {ROOM_MODULES.map(category => {
                                     const catImages = editingRoom.room.images?.filter(img => img.category === category) || [];
+                                    const measurement = editingRoom.room.measurements?.find(m => m.category === category);
+                                    
                                     return (
                                         <div key={category} className="bg-slate-50 p-3 rounded-lg border border-slate-100">
                                             <div className="flex items-center gap-2 mb-2">
                                                 <div className="w-1.5 h-3 bg-blue-500 rounded-full"></div>
                                                 <span className="text-xs font-bold text-slate-700">{category}</span>
                                             </div>
-                                            <div className="grid grid-cols-3 gap-2">
+                                            <div className="grid grid-cols-3 gap-2 mb-3">
                                                 <div className="aspect-square border-2 border-dashed border-blue-200 bg-white rounded-lg flex flex-col items-center justify-center relative hover:bg-blue-50 transition-colors cursor-pointer group">
                                                     <input type="file" accept="image/*" onChange={(e) => handleRoomImageUpload(e, category)} className="absolute inset-0 opacity-0 cursor-pointer" />
                                                     <Plus className="text-blue-400 mb-1 group-hover:scale-110 transition-transform" size={16} />
@@ -484,6 +486,31 @@ export const RoomArchive: React.FC = () => {
                                                 {catImages.length === 0 && (
                                                     <div className="col-span-2 flex items-center text-[10px] text-slate-300 italic pl-1">
                                                         暂无图片
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Measurement Info */}
+                                            <div className="bg-white rounded border border-slate-100 p-2">
+                                                <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold uppercase mb-1">
+                                                    <Ruler size={10} /> 复尺评估
+                                                </div>
+                                                {measurement ? (
+                                                    <div>
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                                                measurement.type === '特殊安装' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'
+                                                            }`}>
+                                                                {measurement.type}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-[10px] text-slate-600 leading-snug">
+                                                            {measurement.remark || '无备注'}
+                                                        </p>
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-[10px] text-slate-400 italic">
+                                                        暂无评估数据
                                                     </div>
                                                 )}
                                             </div>

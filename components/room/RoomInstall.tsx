@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent } from 'react';
-import { Hammer, Store, ChevronDown, Clock, CheckCircle, Upload, X, Calendar, ClipboardList, AlertCircle, ArrowRight, Gavel, BedDouble, Info } from 'lucide-react';
+import { Hammer, Store, ChevronDown, Clock, CheckCircle, Upload, X, Calendar, ClipboardList, AlertCircle, ArrowRight, Gavel, BedDouble, Info, Image as ImageIcon } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Store as StoreType, InstallNode, InstallStatus, RoomImageCategory } from '../../types';
 
@@ -17,6 +17,9 @@ export const RoomInstall: React.FC = () => {
   
   // Rejection Reason Popup State
   const [viewingRejectReason, setViewingRejectReason] = useState<string | null>(null);
+
+  // Example Image State
+  const [exampleImage, setExampleImage] = useState<{ title: string; url: string } | null>(null);
 
   // Filter Logic
   const filteredStores = stores.filter(s => {
@@ -44,6 +47,22 @@ export const RoomInstall: React.FC = () => {
   const getCurrentNodeName = (nodes: InstallNode[]) => {
       const node = nodes.find(n => !n.completed);
       return node ? node.name : '等待交付';
+  };
+
+  // Example Images Map
+  const EXAMPLE_IMAGES: Record<string, string> = {
+      '打卡': 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=600&auto=format&fit=crop', // Meeting/People
+      '清点货物': 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?q=80&w=600&auto=format&fit=crop', // Boxes
+      '安装完成': 'https://images.unsplash.com/photo-1540518614846-7eded433c457?q=80&w=600&auto=format&fit=crop', // Bedroom
+      '调试完成': 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?q=80&w=600&auto=format&fit=crop', // Electronics/Screen
+      '交付完成': 'https://images.unsplash.com/photo-1556155092-490a1ba16284?q=80&w=600&auto=format&fit=crop', // Handshake/Signature
+  };
+
+  const openExample = (nodeName: string) => {
+      const url = EXAMPLE_IMAGES[nodeName];
+      if (url) {
+          setExampleImage({ title: `${nodeName} - 示例图`, url });
+      }
   };
 
   // Actions
@@ -376,6 +395,25 @@ export const RoomInstall: React.FC = () => {
             </div>
         )}
 
+        {/* Example Image Modal */}
+        {exampleImage && (
+            <div className="fixed inset-0 z-[70] bg-black/80 flex items-center justify-center p-4 animate-fadeIn" onClick={() => setExampleImage(null)}>
+                <div className="bg-transparent w-full max-w-lg flex flex-col items-center animate-scaleIn" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white rounded-t-lg px-4 py-2 w-full flex justify-between items-center">
+                        <span className="font-bold text-sm text-slate-800 flex items-center gap-2">
+                            <ImageIcon size={16} className="text-blue-500"/> {exampleImage.title}
+                        </span>
+                        <button onClick={() => setExampleImage(null)} className="p-1 hover:bg-slate-100 rounded-full">
+                            <X size={16} className="text-slate-500"/>
+                        </button>
+                    </div>
+                    <div className="bg-black rounded-b-lg overflow-hidden w-full border-t border-slate-100">
+                         <img src={exampleImage.url} alt="Example" className="w-full max-h-[70vh] object-contain" />
+                    </div>
+                </div>
+            </div>
+        )}
+
         {/* Detail Modal (Shared for Editing and Auditing) */}
         {isDetailModalOpen && activeStore && activeStore.installation && (
             <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
@@ -405,10 +443,22 @@ export const RoomInstall: React.FC = () => {
 
                                     {/* Content */}
                                     <div className="w-full">
-                                        <h4 className={`text-sm font-bold mb-2 flex items-center gap-2 ${node.completed ? 'text-green-700' : 'text-slate-600'}`}>
-                                            {node.name}
-                                            {node.completed && <CheckCircle size={14} />}
-                                        </h4>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <h4 className={`text-sm font-bold flex items-center gap-2 ${node.completed ? 'text-green-700' : 'text-slate-600'}`}>
+                                                {node.name}
+                                                {node.completed && <CheckCircle size={14} />}
+                                            </h4>
+                                            {/* Example Image Icon for relevant nodes (Index 1 to 5) */}
+                                            {index > 0 && index <= 5 && (
+                                                <button 
+                                                    onClick={() => openExample(node.name)}
+                                                    className="flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-500 px-1.5 py-0.5 rounded text-[9px] font-bold border border-blue-100 transition-colors"
+                                                    title="查看图片示例"
+                                                >
+                                                    <ImageIcon size={10} /> 示例
+                                                </button>
+                                            )}
+                                        </div>
 
                                         {/* Node 1: Time Input (Index 0) */}
                                         {index === 0 && (
