@@ -1,9 +1,15 @@
 import React, { useState, ChangeEvent, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Star, Table, Ruler, ArrowLeft, Search, ChevronDown, ChevronRight, Filter, Settings, Check } from 'lucide-react';
+import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Star, Table, Ruler, ArrowLeft, Search, ChevronDown, ChevronRight, Filter, Settings, Check, HelpCircle, Image as ImageIcon } from 'lucide-react';
 import { Store as StoreType, Room, RoomImageCategory, RoomImage, RoomTypeConfig } from '../../types';
 
 const ROOM_MODULES: RoomImageCategory[] = ['玄关', '桌面', '床'];
+
+const EXAMPLE_IMAGES: Record<string, string> = {
+    '玄关': 'https://images.unsplash.com/photo-1554995207-c18c203602cb?q=80&w=600&auto=format&fit=crop',
+    '桌面': 'https://images.unsplash.com/photo-1593640408182-31c70c8268f5?q=80&w=600&auto=format&fit=crop',
+    '床': 'https://images.unsplash.com/photo-1505693416388-b0346ef4174d?q=80&w=600&auto=format&fit=crop'
+};
 
 export const RoomArchive: React.FC = () => {
   const { regions, stores, addStore, updateStore, removeStore } = useApp();
@@ -16,6 +22,9 @@ export const RoomArchive: React.FC = () => {
   // Detail View State
   const [activeRoomTypeName, setActiveRoomTypeName] = useState('');
   const [isAssignOpen, setIsAssignOpen] = useState(false);
+  
+  // Example Image Modal State
+  const [viewingExample, setViewingExample] = useState<{ title: string; url: string } | null>(null);
 
   // Store Management Modal State
   const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
@@ -286,6 +295,12 @@ export const RoomArchive: React.FC = () => {
       setIsAssignOpen(false);
   };
 
+  const openExample = (moduleName: string) => {
+      if (EXAMPLE_IMAGES[moduleName]) {
+          setViewingExample({ title: `${moduleName}示例`, url: EXAMPLE_IMAGES[moduleName] });
+      }
+  };
+
   // --- View Switching ---
 
   if (viewingStoreId && activeStore) {
@@ -473,9 +488,17 @@ export const RoomArchive: React.FC = () => {
                                           const catImages = editingRoom.room.images?.filter(img => img.category === category) || [];
                                           return (
                                               <div key={category} className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                                                  <div className="flex items-center gap-2 mb-2">
-                                                      <div className="w-1.5 h-3 bg-blue-500 rounded-full"></div>
-                                                      <span className="text-xs font-bold text-slate-700">{category}</span>
+                                                  <div className="flex items-center justify-between mb-2">
+                                                      <div className="flex items-center gap-2">
+                                                          <div className="w-1.5 h-3 bg-blue-500 rounded-full"></div>
+                                                          <span className="text-xs font-bold text-slate-700">{category}</span>
+                                                      </div>
+                                                      <button 
+                                                        onClick={() => openExample(category)}
+                                                        className="flex items-center gap-1 text-[10px] text-blue-500 bg-blue-50 px-2 py-0.5 rounded hover:bg-blue-100 font-bold"
+                                                      >
+                                                          <HelpCircle size={10} /> 示例
+                                                      </button>
                                                   </div>
                                                   <div className="grid grid-cols-3 gap-2">
                                                       <div className="aspect-square border-2 border-dashed border-blue-200 bg-white rounded-lg flex flex-col items-center justify-center relative hover:bg-blue-50 transition-colors cursor-pointer group">
@@ -558,6 +581,25 @@ export const RoomArchive: React.FC = () => {
                         </div>
                     </div>
                  </div>
+              )}
+
+              {/* Example Image Modal */}
+              {viewingExample && (
+                  <div className="fixed inset-0 z-[70] bg-black/80 flex items-center justify-center p-4 animate-fadeIn" onClick={() => setViewingExample(null)}>
+                      <div className="bg-transparent w-full max-w-lg flex flex-col items-center animate-scaleIn" onClick={e => e.stopPropagation()}>
+                          <div className="bg-white rounded-t-lg px-4 py-2 w-full flex justify-between items-center">
+                              <span className="font-bold text-sm text-slate-800 flex items-center gap-2">
+                                  <ImageIcon size={16} className="text-blue-500"/> {viewingExample.title}
+                              </span>
+                              <button onClick={() => setViewingExample(null)} className="p-1 hover:bg-slate-100 rounded-full">
+                                  <X size={16} className="text-slate-500"/>
+                              </button>
+                          </div>
+                          <div className="bg-black rounded-b-lg overflow-hidden w-full border-t border-slate-100">
+                              <img src={viewingExample.url} alt="Example" className="w-full max-h-[70vh] object-contain" />
+                          </div>
+                      </div>
+                  </div>
               )}
           </div>
       );

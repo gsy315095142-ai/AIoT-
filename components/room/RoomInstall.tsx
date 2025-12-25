@@ -1,5 +1,5 @@
-import React, { useState, ChangeEvent } from 'react';
-import { Hammer, Store, ChevronDown, Clock, CheckCircle, Upload, X, Calendar, ClipboardList, AlertCircle, ArrowRight, Gavel, BedDouble, Info, Image as ImageIcon } from 'lucide-react';
+import React, { useState, ChangeEvent, useMemo } from 'react';
+import { Hammer, Store, ChevronDown, Clock, CheckCircle, Upload, X, Calendar, ClipboardList, AlertCircle, ArrowRight, Gavel, BedDouble, Info, Image as ImageIcon, MapPin, ChevronLeft, ChevronRight, Navigation, Plus } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Store as StoreType, InstallNode, InstallStatus, RoomImageCategory } from '../../types';
 
@@ -15,6 +15,9 @@ export const RoomInstall: React.FC = () => {
   const [rejectMode, setRejectMode] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   
+  // Progress Navigation State
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+
   // Rejection Reason Popup State
   const [viewingRejectReason, setViewingRejectReason] = useState<string | null>(null);
 
@@ -71,14 +74,19 @@ export const RoomInstall: React.FC = () => {
       setIsDetailModalOpen(true);
       setRejectMode(false);
       setRejectReason('');
+      
+      // Default to the first incomplete step, or the last step if all complete
+      if (store.installation?.nodes) {
+          const firstIncomplete = store.installation.nodes.findIndex(n => !n.completed);
+          setCurrentStepIndex(firstIncomplete !== -1 ? firstIncomplete : store.installation.nodes.length - 1);
+      } else {
+          setCurrentStepIndex(0);
+      }
   };
 
   const handleOpenAudit = (e: React.MouseEvent, store: StoreType) => {
       e.stopPropagation();
-      setActiveStore(store);
-      setIsDetailModalOpen(true); // Open the same modal
-      setRejectMode(false);
-      setRejectReason('');
+      handleOpenDetail(store);
   };
 
   const handleViewRejectReason = (e: React.MouseEvent, reason: string) => {
@@ -86,55 +94,28 @@ export const RoomInstall: React.FC = () => {
       setViewingRejectReason(reason || '暂无驳回原因');
   };
 
-  // Node Updates (Inside Detail Modal)
-  const updateNode = (targetIndex: number, newData: any) => {
+  // Navigation Handlers
+  const goNextStep = () => {
+      if (activeStore?.installation && currentStepIndex < activeStore.installation.nodes.length - 1) {
+          setCurrentStepIndex(prev => prev + 1);
+      }
+  };
+
+  const goPrevStep = () => {
+      if (currentStepIndex > 0) {
+          setCurrentStepIndex(prev => prev - 1);
+      }
+  };
+
+  // Node Updates
+  const updateNodeData = (targetIndex: number, newData: any) => {
       if (!activeStore || !activeStore.installation) return;
-      
       const newNodes = [...activeStore.installation.nodes];
       
-      // 1. Update the data for the target node
+      // Only update data, DO NOT auto-complete. Completion is now explicit.
       newNodes[targetIndex] = { ...newNodes[targetIndex], data: newData };
 
-      // 2. Recalculate completion status for ALL nodes sequentially
-      for (let i = 0; i < newNodes.length; i++) {
-          let isComplete = false;
-          const currentNode = newNodes[i];
-
-          // --- Data Sufficiency Check ---
-          if (i === 0) {
-              // Node 0: Appointment Time
-              isComplete = !!currentNode.data;
-          } else if (i === 3) {
-              // Node 3: Install Complete (Complex Check)
-              const roomData = currentNode.data || {};
-              const rooms = activeStore.rooms;
-              const categories: RoomImageCategory[] = ['玄关', '桌面', '床'];
-
-              if (rooms.length > 0) {
-                  const allRoomsComplete = rooms.every(room => {
-                      const rData = roomData[room.number] || {};
-                      return categories.every(cat => 
-                          Array.isArray(rData[cat]) && rData[cat].length > 0
-                      );
-                  });
-                  isComplete = allRoomsComplete;
-              } else {
-                  isComplete = false; // No rooms means cannot be complete
-              }
-          } else {
-              // Other Nodes: Simple Image List
-              isComplete = Array.isArray(currentNode.data) && currentNode.data.length > 0;
-          }
-
-          // --- Sequential Dependency Check ---
-          if (i > 0 && !newNodes[i - 1].completed) {
-              isComplete = false;
-          }
-
-          newNodes[i].completed = isComplete;
-      }
-
-      // Also update Appointment Time shortcut if it's the first node
+      // Update local state and global state
       const extraUpdates: any = {};
       if (targetIndex === 0) extraUpdates.appointmentTime = newData;
 
@@ -143,49 +124,88 @@ export const RoomInstall: React.FC = () => {
           installation: { 
               ...activeStore.installation, 
               nodes: newNodes, 
-              ...extraUpdates, 
-              status: activeStore.installation.status === 'unstarted' ? 'in_progress' : activeStore.installation.status 
+              ...extraUpdates
           }
       };
       
       setActiveStore(updatedStore);
-      updateStoreInstallation(activeStore.id, { 
-          nodes: newNodes, 
-          ...extraUpdates,
-          status: activeStore.installation.status === 'unstarted' ? 'in_progress' : activeStore.installation.status
-      });
+      updateStoreInstallation(activeStore.id, { nodes: newNodes, ...extraUpdates });
   };
 
   // --- Input Handlers ---
 
-  const handleTimeChange = (index: number, e: ChangeEvent<HTMLInputElement>) => {
-      const val = e.target.value;
-      updateNode(index, val);
+  const handleTimeChange = (e: ChangeEvent<HTMLInputElement>) => {
+      updateNodeData(currentStepIndex, e.target.value);
   };
 
-  const handleSimpleImageUpload = (index: number, e: ChangeEvent<HTMLInputElement>) => {
+  // Check-in (Node 1) specific: Data structure { images: [], address: string }
+  const handleCheckInImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files[0]) {
           const url = URL.createObjectURL(e.target.files[0]);
-          const currentNode = activeStore?.installation?.nodes[index];
-          const currentImages: string[] = Array.isArray(currentNode?.data) ? currentNode.data : [];
-          const newImages = [...currentImages, url];
-          updateNode(index, newImages);
+          const currentNode = activeStore?.installation?.nodes[1];
+          // Ensure data structure
+          const currentData = (currentNode?.data && typeof currentNode.data === 'object' && !Array.isArray(currentNode.data)) 
+              ? currentNode.data 
+              : { images: [], address: '' };
+          
+          const newData = {
+              ...currentData,
+              images: [...(currentData.images || []), url]
+          };
+          updateNodeData(1, newData);
           e.target.value = '';
       }
   };
 
-  const removeSimpleImage = (index: number, imgIndex: number) => {
-      const currentNode = activeStore?.installation?.nodes[index];
+  const removeCheckInImage = (imgIndex: number) => {
+      const currentNode = activeStore?.installation?.nodes[1];
+      const currentData = currentNode?.data || { images: [], address: '' };
+      const newData = {
+          ...currentData,
+          images: (currentData.images || []).filter((_: any, i: number) => i !== imgIndex)
+      };
+      updateNodeData(1, newData);
+  };
+
+  const handleLocationConfirm = () => {
+      // Mock Location
+      const mockAddress = "上海市南京东路888号 (31.2304° N, 121.4737° E)";
+      const currentNode = activeStore?.installation?.nodes[1];
+      const currentData = (currentNode?.data && typeof currentNode.data === 'object' && !Array.isArray(currentNode.data)) 
+          ? currentNode.data 
+          : { images: [], address: '' };
+      
+      const newData = {
+          ...currentData,
+          address: mockAddress
+      };
+      updateNodeData(1, newData);
+  };
+
+  // Generic Image Upload (Nodes 2, 4, 5)
+  const handleSimpleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          const url = URL.createObjectURL(e.target.files[0]);
+          const currentNode = activeStore?.installation?.nodes[currentStepIndex];
+          const currentImages: string[] = Array.isArray(currentNode?.data) ? currentNode.data : [];
+          const newImages = [...currentImages, url];
+          updateNodeData(currentStepIndex, newImages);
+          e.target.value = '';
+      }
+  };
+
+  const removeSimpleImage = (imgIndex: number) => {
+      const currentNode = activeStore?.installation?.nodes[currentStepIndex];
       const currentImages: string[] = Array.isArray(currentNode?.data) ? currentNode.data : [];
       const newImages = currentImages.filter((_, i) => i !== imgIndex);
-      updateNode(index, newImages);
+      updateNodeData(currentStepIndex, newImages);
   };
 
   // Complex Node: Install Complete (Room -> Module -> Images)
-  const handleRoomImageUpload = (index: number, roomNumber: string, category: RoomImageCategory, e: ChangeEvent<HTMLInputElement>) => {
+  const handleRoomImageUpload = (roomNumber: string, category: RoomImageCategory, e: ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files[0]) {
           const url = URL.createObjectURL(e.target.files[0]);
-          const currentNode = activeStore?.installation?.nodes[index];
+          const currentNode = activeStore?.installation?.nodes[currentStepIndex];
           const currentData = (currentNode?.data && typeof currentNode.data === 'object' && !Array.isArray(currentNode.data)) ? currentNode.data : {};
           
           const roomData = currentData[roomNumber] || {};
@@ -199,13 +219,13 @@ export const RoomInstall: React.FC = () => {
               }
           };
           
-          updateNode(index, newData);
+          updateNodeData(currentStepIndex, newData);
           e.target.value = '';
       }
   };
 
-  const removeRoomImage = (index: number, roomNumber: string, category: RoomImageCategory, imgIndex: number) => {
-      const currentNode = activeStore?.installation?.nodes[index];
+  const removeRoomImage = (roomNumber: string, category: RoomImageCategory, imgIndex: number) => {
+      const currentNode = activeStore?.installation?.nodes[currentStepIndex];
       const currentData = currentNode?.data || {};
       const roomData = currentData[roomNumber] || {};
       const categoryImages = roomData[category] || [];
@@ -218,7 +238,74 @@ export const RoomInstall: React.FC = () => {
           }
       };
       
-      updateNode(index, newData);
+      updateNodeData(currentStepIndex, newData);
+  };
+
+  // Logic: Mark Step as Complete
+  const handleConfirmStep = () => {
+      if (!activeStore || !activeStore.installation) return;
+      
+      // 1. Check Previous Step
+      if (currentStepIndex > 0) {
+          const prevNode = activeStore.installation.nodes[currentStepIndex - 1];
+          if (!prevNode.completed) {
+              alert('请先完成上一个环节');
+              return;
+          }
+      }
+
+      // 2. Validate Requirements
+      const currentNode = activeStore.installation.nodes[currentStepIndex];
+      let isValid = false;
+
+      if (currentStepIndex === 0) { // Appointment
+          isValid = !!currentNode.data;
+          if (!isValid) alert('请选择预约时间');
+      } else if (currentStepIndex === 1) { // Check-in
+          const data = currentNode.data as { images: string[], address: string };
+          const hasImages = data?.images?.length > 0;
+          const hasAddress = !!data?.address;
+          isValid = hasImages && hasAddress;
+          if (!hasImages) alert('请上传打卡照片');
+          else if (!hasAddress) alert('请确认位置');
+      } else if (currentStepIndex === 3) { // Installation
+          const roomData = currentNode.data || {};
+          const rooms = activeStore.rooms;
+          const categories: RoomImageCategory[] = ['玄关', '桌面', '床'];
+          if (rooms.length > 0) {
+              isValid = rooms.every(room => {
+                  const rData = roomData[room.number] || {};
+                  return categories.every(cat => Array.isArray(rData[cat]) && rData[cat].length > 0);
+              });
+          } else {
+              isValid = true; // No rooms needed
+          }
+          if (!isValid) alert('请完成所有客房的所有模块安装照片上传');
+      } else { // Generic Image Upload
+          isValid = Array.isArray(currentNode.data) && currentNode.data.length > 0;
+          if (!isValid) alert('请至少上传一张照片');
+      }
+
+      if (isValid) {
+          const newNodes = [...activeStore.installation.nodes];
+          newNodes[currentStepIndex] = { ...currentNode, completed: true };
+          
+          const newStatus = activeStore.installation.status === 'unstarted' ? 'in_progress' : activeStore.installation.status;
+
+          const updatedStore = {
+              ...activeStore,
+              installation: { 
+                  ...activeStore.installation, 
+                  nodes: newNodes, 
+                  status: newStatus 
+              }
+          };
+          setActiveStore(updatedStore);
+          updateStoreInstallation(activeStore.id, { nodes: newNodes, status: newStatus });
+          
+          // Auto advance if valid
+          goNextStep();
+      }
   };
 
   const handleSubmit = () => {
@@ -240,19 +327,22 @@ export const RoomInstall: React.FC = () => {
           alert('请输入驳回原因');
           return;
       }
-      updateStoreInstallation(activeStore.id, { status: 'rejected', rejectReason }); // Assuming rejected status goes back to 'in_progress' visually but red
+      updateStoreInstallation(activeStore.id, { status: 'rejected', rejectReason }); 
       setIsDetailModalOpen(false);
   };
 
   const isAuditMode = activeStore?.installation?.status === 'pending_review';
   const isApproved = activeStore?.installation?.status === 'approved';
-  // Rule 1.2: Edit allowed in pending review. Lock only if approved.
-  const isLocked = isApproved; 
+  // Allow edit if not approved and not pending review (or if we want to allow edits during rejection)
+  // Logic: Locked if Approved or Pending Review. Open if Unstarted, In Progress, Rejected.
+  const isLocked = isApproved || isAuditMode; 
 
   const isRoomCompleted = (roomData: any) => {
       const categories: RoomImageCategory[] = ['玄关', '桌面', '床'];
       return categories.every(cat => Array.isArray(roomData[cat]) && roomData[cat].length > 0);
   };
+
+  const currentNode = activeStore?.installation?.nodes[currentStepIndex];
 
   return (
     <div className="h-full flex flex-col">
@@ -414,252 +504,318 @@ export const RoomInstall: React.FC = () => {
             </div>
         )}
 
-        {/* Detail Modal (Shared for Editing and Auditing) */}
-        {isDetailModalOpen && activeStore && activeStore.installation && (
-            <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
-                <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] animate-scaleIn">
-                    <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
-                        <div>
-                            <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                                <Hammer size={18} className="text-blue-600" />
-                                {isAuditMode ? '安装进度审核' : '安装进度详情'}
-                            </h3>
-                            <p className="text-[10px] text-slate-500 mt-0.5">{activeStore.name}</p>
-                        </div>
-                        <button onClick={() => setIsDetailModalOpen(false)}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
+        {/* FULL SCREEN PROGRESS PAGE OVERLAY */}
+        {isDetailModalOpen && activeStore && activeStore.installation && currentNode && (
+            <div className="fixed inset-0 z-[60] bg-white flex flex-col animate-slideInRight">
+                {/* Header */}
+                <div className="bg-white p-4 border-b border-slate-100 flex justify-between items-center shadow-sm flex-shrink-0">
+                    <div>
+                        <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                            <Hammer size={18} className="text-blue-600" />
+                            {isAuditMode ? '安装审核' : '安装进度'}
+                        </h3>
+                        <p className="text-[10px] text-slate-500 mt-0.5">{activeStore.name}</p>
                     </div>
+                    <button onClick={() => setIsDetailModalOpen(false)} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors">
+                        <X size={20} className="text-slate-500" />
+                    </button>
+                </div>
 
-                    <div className="p-4 overflow-y-auto flex-1 space-y-6">
-                        {/* Timeline */}
-                        <div className="relative pl-4 border-l-2 border-slate-100 space-y-8">
-                            {activeStore.installation.nodes.map((node, index) => (
-                                <div key={index} className="relative">
-                                    {/* Node Dot */}
-                                    <div className={`absolute -left-[21px] top-0 w-4 h-4 rounded-full border-2 flex items-center justify-center bg-white transition-colors z-10
-                                        ${node.completed ? 'border-green-500 text-green-500' : 'border-slate-300 text-slate-300'}
-                                    `}>
-                                        <div className={`w-2 h-2 rounded-full ${node.completed ? 'bg-green-500' : 'bg-slate-200'}`}></div>
+                {/* Progress Indicator */}
+                <div className="px-6 py-4 bg-slate-50 flex-shrink-0">
+                    <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold text-slate-600">
+                            步骤 {currentStepIndex + 1}/{activeStore.installation.nodes.length}
+                        </span>
+                        <span className="text-xs font-bold text-blue-600">
+                            {currentNode.name}
+                        </span>
+                    </div>
+                    <div className="w-full bg-slate-200 rounded-full h-2">
+                        <div 
+                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${((currentStepIndex + 1) / activeStore.installation.nodes.length) * 100}%` }}
+                        ></div>
+                    </div>
+                </div>
+
+                {/* Main Content Area - Swipeable Look */}
+                <div className="flex-1 overflow-y-auto p-4 bg-white relative">
+                    <div className="max-w-md mx-auto h-full flex flex-col">
+                        
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-xl font-bold text-slate-800">{currentNode.name}</h2>
+                            {currentStepIndex > 0 && currentStepIndex <= 5 && (
+                                <button 
+                                    onClick={() => openExample(currentNode.name)}
+                                    className="flex items-center gap-1 bg-blue-50 text-blue-600 px-2 py-1 rounded text-xs font-bold hover:bg-blue-100 transition-colors"
+                                >
+                                    <ImageIcon size={12} /> 查看示例
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Step Content based on Index */}
+                        <div className="flex-1 space-y-6">
+                            
+                            {/* Node 0: Appointment */}
+                            {currentStepIndex === 0 && (
+                                <div className="space-y-4">
+                                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                                        <label className="block text-xs font-bold text-blue-800 uppercase mb-2">预约安装时间</label>
+                                        <input 
+                                            type="datetime-local" 
+                                            value={currentNode.data || ''}
+                                            onChange={handleTimeChange}
+                                            disabled={isLocked || currentNode.completed}
+                                            className="w-full text-sm border border-blue-200 rounded-lg p-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                                        />
+                                    </div>
+                                    <p className="text-xs text-slate-400 text-center">请与客户沟通确认上门安装的具体时间。</p>
+                                </div>
+                            )}
+
+                            {/* Node 1: Check-in (Location + Photos) */}
+                            {currentStepIndex === 1 && (
+                                <div className="space-y-4">
+                                    {/* Location Section */}
+                                    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                                        <h4 className="font-bold text-sm text-slate-700 mb-3 flex items-center gap-2">
+                                            <MapPin size={16} className="text-blue-500" /> 位置确认
+                                        </h4>
+                                        
+                                        {(() => {
+                                            const data = (currentNode.data && typeof currentNode.data === 'object' && !Array.isArray(currentNode.data)) 
+                                                ? currentNode.data as { address: string }
+                                                : { address: '' };
+                                            
+                                            return data.address ? (
+                                                <div className="bg-green-50 text-green-700 p-3 rounded-lg text-xs font-medium border border-green-100 flex items-start gap-2">
+                                                    <CheckCircle size={14} className="mt-0.5 shrink-0" />
+                                                    {data.address}
+                                                </div>
+                                            ) : (
+                                                <button 
+                                                    onClick={handleLocationConfirm}
+                                                    disabled={isLocked || currentNode.completed}
+                                                    className="w-full py-3 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors flex items-center justify-center gap-2"
+                                                >
+                                                    <Navigation size={14} /> 点击获取当前位置
+                                                </button>
+                                            );
+                                        })()}
                                     </div>
 
-                                    {/* Content */}
-                                    <div className="w-full">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <h4 className={`text-sm font-bold flex items-center gap-2 ${node.completed ? 'text-green-700' : 'text-slate-600'}`}>
-                                                {node.name}
-                                                {node.completed && <CheckCircle size={14} />}
-                                            </h4>
-                                            {/* Example Image Icon for relevant nodes (Index 1 to 5) */}
-                                            {index > 0 && index <= 5 && (
-                                                <button 
-                                                    onClick={() => openExample(node.name)}
-                                                    className="flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-500 px-1.5 py-0.5 rounded text-[9px] font-bold border border-blue-100 transition-colors"
-                                                    title="查看图片示例"
-                                                >
-                                                    <ImageIcon size={10} /> 示例
-                                                </button>
+                                    {/* Photo Upload Section */}
+                                    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                                        <h4 className="font-bold text-sm text-slate-700 mb-3 flex items-center gap-2">
+                                            <ImageIcon size={16} className="text-blue-500" /> 现场照片
+                                        </h4>
+                                        <div className="grid grid-cols-3 gap-3">
+                                            {!isLocked && !currentNode.completed && (
+                                                <div className="aspect-square border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 hover:border-blue-300 relative group transition-all">
+                                                    <input 
+                                                        type="file" 
+                                                        accept="image/*" 
+                                                        onChange={handleCheckInImageUpload}
+                                                        className="absolute inset-0 opacity-0 cursor-pointer"
+                                                    />
+                                                    <Upload size={20} className="text-slate-300 group-hover:text-blue-400 mb-1" />
+                                                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 font-bold">上传</span>
+                                                </div>
                                             )}
+                                            {(() => {
+                                                const data = (currentNode.data && typeof currentNode.data === 'object' && !Array.isArray(currentNode.data)) 
+                                                    ? currentNode.data as { images: string[] }
+                                                    : { images: [] };
+                                                
+                                                return data.images?.map((url: string, imgIdx: number) => (
+                                                    <div key={imgIdx} className="aspect-square rounded-xl border border-slate-200 overflow-hidden relative group">
+                                                        <img src={url} alt={`checkin-${imgIdx}`} className="w-full h-full object-cover" />
+                                                        {!isLocked && !currentNode.completed && (
+                                                            <button 
+                                                                onClick={() => removeCheckInImage(imgIdx)}
+                                                                className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            >
+                                                                <X size={12} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ));
+                                            })()}
                                         </div>
+                                    </div>
+                                </div>
+                            )}
 
-                                        {/* Node 1: Time Input (Index 0) */}
-                                        {index === 0 && (
-                                            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                                                <input 
-                                                    type="datetime-local" 
-                                                    value={node.data || ''}
-                                                    onChange={(e) => handleTimeChange(index, e)}
-                                                    disabled={isLocked}
-                                                    className="w-full text-xs border border-slate-200 rounded p-2 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 disabled:bg-slate-100"
-                                                />
-                                            </div>
-                                        )}
-
-                                        {/* Node 4: Installation Complete (Index 3) - Complex Structure */}
-                                        {index === 3 && (
-                                            <div className="space-y-3">
-                                                {activeStore.rooms.map((room) => {
-                                                    const roomData = (node.data && typeof node.data === 'object') ? node.data[room.number] || {} : {};
-                                                    const categories: RoomImageCategory[] = ['玄关', '桌面', '床'];
-                                                    const roomCompleted = isRoomCompleted(roomData);
-                                                    
-                                                    return (
-                                                        <div key={room.number} className="bg-slate-50 border border-slate-200 rounded-lg overflow-hidden">
-                                                            <div className="bg-slate-100 px-3 py-2 border-b border-slate-200 flex items-center gap-2 justify-between">
-                                                                <div className="flex items-center gap-2">
-                                                                    <BedDouble size={14} className="text-slate-500" />
-                                                                    <span className="text-xs font-bold text-slate-700">{room.number} ({room.type})</span>
-                                                                </div>
-                                                                {roomCompleted && (
-                                                                    <div className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
-                                                                        <CheckCircle size={10} /> 已完成
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                            <div className="p-3 grid grid-cols-1 gap-3">
-                                                                {categories.map(cat => {
-                                                                    const images = roomData[cat] || [];
-                                                                    return (
-                                                                        <div key={cat} className="bg-white border border-slate-100 rounded p-2">
-                                                                            <div className="text-[10px] font-bold text-slate-500 mb-2 flex items-center gap-1">
-                                                                                <div className="w-1 h-2 bg-blue-400 rounded-full"></div> {cat}
-                                                                            </div>
-                                                                            <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                                                                                 {/* Upload Button */}
-                                                                                {!isLocked && (
-                                                                                    <div className="w-14 h-14 border border-dashed border-blue-200 rounded bg-blue-50 flex-shrink-0 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-100 relative">
-                                                                                        <input 
-                                                                                            type="file" 
-                                                                                            accept="image/*" 
-                                                                                            onChange={(e) => handleRoomImageUpload(index, room.number, cat, e)}
-                                                                                            className="absolute inset-0 opacity-0 cursor-pointer"
-                                                                                        />
-                                                                                        <Upload size={14} className="text-blue-400 mb-0.5" />
-                                                                                        <span className="text-[8px] text-blue-500">上传</span>
-                                                                                    </div>
-                                                                                )}
-                                                                                {/* Image List */}
-                                                                                {images.map((url: string, imgIdx: number) => (
-                                                                                    <div key={imgIdx} className="w-14 h-14 rounded border border-slate-200 overflow-hidden relative group flex-shrink-0">
-                                                                                        <img src={url} alt={`${room.number}-${cat}`} className="w-full h-full object-cover" />
-                                                                                        {!isLocked && (
-                                                                                            <button 
-                                                                                                onClick={() => removeRoomImage(index, room.number, cat, imgIdx)}
-                                                                                                className="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl opacity-0 group-hover:opacity-100"
-                                                                                            >
-                                                                                                <X size={10} />
-                                                                                            </button>
-                                                                                        )}
-                                                                                    </div>
-                                                                                ))}
-                                                                                {images.length === 0 && isLocked && (
-                                                                                    <span className="text-[10px] text-slate-300 italic self-center">无图片</span>
-                                                                                )}
-                                                                            </div>
+                            {/* Node 3: Room Installation (Complex) */}
+                            {currentStepIndex === 3 && (
+                                <div className="space-y-4">
+                                    {activeStore.rooms.map((room) => {
+                                        const roomData = (currentNode.data && typeof currentNode.data === 'object') ? currentNode.data[room.number] || {} : {};
+                                        const categories: RoomImageCategory[] = ['玄关', '桌面', '床'];
+                                        const roomCompleted = isRoomCompleted(roomData);
+                                        
+                                        return (
+                                            <div key={room.number} className={`bg-white border rounded-xl overflow-hidden shadow-sm transition-all ${roomCompleted ? 'border-green-200' : 'border-slate-200'}`}>
+                                                <div className="bg-slate-50 px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                                                    <div className="flex items-center gap-2">
+                                                        <BedDouble size={16} className="text-slate-500" />
+                                                        <span className="text-sm font-bold text-slate-700">{room.number} ({room.type})</span>
+                                                    </div>
+                                                    {roomCompleted && <CheckCircle size={16} className="text-green-500" />}
+                                                </div>
+                                                <div className="p-4 space-y-4">
+                                                    {categories.map(cat => {
+                                                        const images = roomData[cat] || [];
+                                                        return (
+                                                            <div key={cat}>
+                                                                <p className="text-xs font-bold text-slate-500 mb-2 flex items-center gap-1">
+                                                                    <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div> {cat}
+                                                                </p>
+                                                                <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                                                                    {!isLocked && !currentNode.completed && (
+                                                                        <div className="w-16 h-16 border border-dashed border-blue-200 rounded-lg bg-blue-50 flex-shrink-0 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-100 relative">
+                                                                            <input 
+                                                                                type="file" 
+                                                                                accept="image/*" 
+                                                                                onChange={(e) => handleRoomImageUpload(room.number, cat, e)}
+                                                                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                                                            />
+                                                                            <Plus size={16} className="text-blue-400" />
                                                                         </div>
-                                                                    );
-                                                                })}
+                                                                    )}
+                                                                    {images.map((url: string, imgIdx: number) => (
+                                                                        <div key={imgIdx} className="w-16 h-16 rounded-lg border border-slate-200 overflow-hidden relative group flex-shrink-0">
+                                                                            <img src={url} alt={`${room.number}-${cat}`} className="w-full h-full object-cover" />
+                                                                            {!isLocked && !currentNode.completed && (
+                                                                                <button 
+                                                                                    onClick={() => removeRoomImage(room.number, cat, imgIdx)}
+                                                                                    className="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl opacity-0 group-hover:opacity-100"
+                                                                                >
+                                                                                    <X size={10} />
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
+                                                                    ))}
+                                                                    {images.length === 0 && (isLocked || currentNode.completed) && <span className="text-[10px] text-slate-300 self-center">无图片</span>}
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                                {activeStore.rooms.length === 0 && (
-                                                    <div className="text-[10px] text-slate-400 text-center py-2 bg-slate-50 rounded border border-dashed">该门店暂无客房数据</div>
-                                                )}
-                                            </div>
-                                        )}
-
-                                        {/* Other Nodes: Simple Multi-Image Upload (Index 1, 2, 4, 5) */}
-                                        {index > 0 && index !== 3 && (
-                                            <div>
-                                                <div className="flex gap-2 flex-wrap">
-                                                    {!isLocked && (
-                                                        <div className="w-16 h-16 border-2 border-dashed border-slate-200 rounded-lg bg-slate-50 flex flex-col items-center justify-center relative hover:bg-slate-100 hover:border-blue-300 transition-all cursor-pointer group">
-                                                            <input 
-                                                                type="file" 
-                                                                accept="image/*" 
-                                                                onChange={(e) => handleSimpleImageUpload(index, e)}
-                                                                className="absolute inset-0 opacity-0 cursor-pointer"
-                                                            />
-                                                            <Upload size={16} className="text-slate-300 group-hover:text-blue-400 mb-1" />
-                                                            <span className="text-[9px] text-slate-400 group-hover:text-blue-500 font-bold">上传</span>
-                                                        </div>
-                                                    )}
-                                                    
-                                                    {Array.isArray(node.data) && node.data.map((url, imgIdx) => (
-                                                        <div key={imgIdx} className="w-16 h-16 rounded-lg border border-slate-200 overflow-hidden relative group bg-white">
-                                                            <img src={url} alt={`${node.name}-${imgIdx}`} className="w-full h-full object-cover" />
-                                                            {!isLocked && (
-                                                                <button 
-                                                                    onClick={() => removeSimpleImage(index, imgIdx)}
-                                                                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                                >
-                                                                    <X size={12} />
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    ))}
-                                                    {Array.isArray(node.data) && node.data.length === 0 && isLocked && (
-                                                        <div className="text-[10px] text-slate-300 italic py-2">无上传凭证</div>
-                                                    )}
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
-                                        )}
-                                    </div>
+                                        );
+                                    })}
+                                    {activeStore.rooms.length === 0 && (
+                                        <div className="p-6 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed">无客房需安装</div>
+                                    )}
                                 </div>
-                            ))}
+                            )}
+
+                            {/* Generic Image Steps (2, 4, 5) */}
+                            {(currentStepIndex === 2 || currentStepIndex === 4 || currentStepIndex === 5) && (
+                                <div className="space-y-4">
+                                    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                                        <div className="grid grid-cols-3 gap-3">
+                                            {!isLocked && !currentNode.completed && (
+                                                <div className="aspect-square border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 hover:border-blue-300 relative group transition-all">
+                                                    <input 
+                                                        type="file" 
+                                                        accept="image/*" 
+                                                        onChange={handleSimpleImageUpload}
+                                                        className="absolute inset-0 opacity-0 cursor-pointer"
+                                                    />
+                                                    <Upload size={20} className="text-slate-300 group-hover:text-blue-400 mb-1" />
+                                                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 font-bold">上传</span>
+                                                </div>
+                                            )}
+                                            {Array.isArray(currentNode.data) && currentNode.data.map((url, imgIdx) => (
+                                                <div key={imgIdx} className="aspect-square rounded-xl border border-slate-200 overflow-hidden relative group bg-white">
+                                                    <img src={url} alt={`${currentNode.name}-${imgIdx}`} className="w-full h-full object-cover" />
+                                                    {!isLocked && !currentNode.completed && (
+                                                        <button 
+                                                            onClick={() => removeSimpleImage(imgIdx)}
+                                                            className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        >
+                                                            <X size={12} />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-slate-400 text-center">请上传{currentNode.name}的相关照片凭证。</p>
+                                </div>
+                            )}
+
                         </div>
                     </div>
+                </div>
 
-                    {/* Footer Actions */}
-                    <div className="p-4 border-t border-slate-100 bg-slate-50">
-                        {isAuditMode ? (
-                            rejectMode ? (
-                                <div className="space-y-3 animate-fadeIn">
-                                    <textarea 
-                                        autoFocus
-                                        placeholder="请输入驳回原因..."
-                                        className="w-full p-2 text-xs border border-red-200 rounded bg-red-50 focus:outline-none focus:ring-1 focus:ring-red-300 min-h-[60px]"
-                                        value={rejectReason}
-                                        onChange={(e) => setRejectReason(e.target.value)}
-                                    />
-                                    <div className="flex gap-2">
-                                        <button 
-                                            onClick={() => setRejectMode(false)}
-                                            className="flex-1 py-2 bg-white border border-slate-200 text-slate-600 font-bold rounded hover:bg-slate-50 text-xs"
-                                        >
-                                            取消
-                                        </button>
-                                        <button 
-                                            onClick={handleAuditReject}
-                                            className="flex-1 py-2 bg-red-600 text-white font-bold rounded hover:bg-red-700 text-xs shadow-sm"
-                                        >
-                                            确认驳回
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="flex gap-3">
-                                    <button 
-                                        onClick={() => setRejectMode(true)}
-                                        className="flex-1 py-3 border border-red-200 bg-red-50 text-red-600 font-bold rounded-lg hover:bg-red-100 transition-colors"
-                                    >
-                                        驳回
-                                    </button>
-                                    <button 
-                                        onClick={handleAuditApprove}
-                                        className="flex-1 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 shadow-md transition-colors"
-                                    >
-                                        审核通过
-                                    </button>
-                                </div>
-                            )
-                        ) : isApproved ? (
-                             <div className="w-full py-2.5 bg-green-100 text-green-700 text-center text-sm font-bold rounded-lg border border-green-200 flex items-center justify-center gap-2">
-                                <CheckCircle size={16} /> 审核通过 - 已完成
+                {/* Footer Navigation */}
+                <div className="p-4 bg-white border-t border-slate-100 flex-shrink-0">
+                    
+                    {isAuditMode && rejectMode ? (
+                         <div className="space-y-3 animate-fadeIn">
+                            <textarea 
+                                autoFocus
+                                placeholder="请输入驳回原因..."
+                                className="w-full p-2 text-xs border border-red-200 rounded bg-red-50 focus:outline-none focus:ring-1 focus:ring-red-300 min-h-[60px]"
+                                value={rejectReason}
+                                onChange={(e) => setRejectReason(e.target.value)}
+                            />
+                            <div className="flex gap-2">
+                                <button onClick={() => setRejectMode(false)} className="flex-1 py-3 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl text-sm">取消</button>
+                                <button onClick={handleAuditReject} className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl text-sm shadow-md">确认驳回</button>
                             </div>
-                        ) : activeStore.installation.status === 'rejected' ? (
-                            <div className="space-y-2">
-                                <div className="text-xs text-red-600 bg-red-50 p-2 rounded border border-red-100 flex items-center gap-2">
-                                    <AlertCircle size={14} className="flex-shrink-0" />
-                                    <span><span className="font-bold">驳回原因:</span> {activeStore.installation.rejectReason || '无详细原因'}</span>
-                                </div>
+                        </div>
+                    ) : isAuditMode ? (
+                        <div className="flex gap-3">
+                            <button onClick={() => setRejectMode(true)} className="flex-1 py-3 border border-red-200 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition-colors">驳回</button>
+                            <button onClick={handleAuditApprove} className="flex-1 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-md transition-colors">审核通过</button>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col gap-3">
+                            {/* Confirmation Action for Current Step */}
+                            {!isLocked && !currentNode.completed && (
                                 <button 
-                                    onClick={handleSubmit}
-                                    disabled={!activeStore.installation.nodes.every(n => n.completed)}
-                                    className="w-full py-2.5 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    onClick={handleConfirmStep}
+                                    className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-2"
                                 >
-                                    重新提交审核
+                                    <CheckCircle size={18} /> 确认完成此环节
                                 </button>
+                            )}
+                            
+                            {/* Just Next/Prev or Submit Final */}
+                            <div className="flex gap-3">
+                                <button 
+                                    onClick={goPrevStep} 
+                                    disabled={currentStepIndex === 0}
+                                    className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl disabled:opacity-50 flex items-center justify-center gap-1 hover:bg-slate-200 transition-colors"
+                                >
+                                    <ChevronLeft size={16} /> 上一步
+                                </button>
+                                
+                                {currentStepIndex === activeStore.installation.nodes.length - 1 ? (
+                                    <button 
+                                        onClick={handleSubmit}
+                                        disabled={!activeStore.installation.nodes.every(n => n.completed)}
+                                        className="flex-1 py-3 bg-green-600 text-white font-bold rounded-xl shadow-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-700 transition-colors"
+                                    >
+                                        提交审核
+                                    </button>
+                                ) : (
+                                    <button 
+                                        onClick={goNextStep}
+                                        className="flex-1 py-3 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-700 flex items-center justify-center gap-1 transition-colors"
+                                    >
+                                        下一步 <ChevronRight size={16} />
+                                    </button>
+                                )}
                             </div>
-                        ) : (
-                            <button 
-                                onClick={handleSubmit}
-                                disabled={!activeStore.installation.nodes.every(n => n.completed)}
-                                className="w-full py-2.5 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                提交审核
-                            </button>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </div>
             </div>
         )}
