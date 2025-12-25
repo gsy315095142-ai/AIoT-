@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent, AuditRecord, AuditStatus, AuditType, StoreInstallation, InstallNode, Product, RoomTypeConfig, ProcurementOrder } from '../types';
+import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent, AuditRecord, AuditStatus, AuditType, StoreInstallation, InstallNode, Product, RoomTypeConfig, ProcurementOrder, ProductSubType } from '../types';
 
 // Initial Mock Data
 const MOCK_REGIONS: Region[] = [
@@ -12,9 +12,9 @@ const DEFAULT_NODES: InstallNode[] = [
     { name: '预约安装时间', completed: false, data: '' },
     { name: '打卡', completed: false, data: [] },
     { name: '清点货物', completed: false, data: [] },
-    { name: '安装完成', completed: false, data: {} }, // Object for rooms
-    { name: '调试完成', completed: false, data: [] },
-    { name: '交付完成', completed: false, data: [] },
+    { name: '安装', completed: false, data: {} }, // Renamed from 安装完成
+    { name: '调试', completed: false, data: [] }, // Renamed from 调试完成
+    { name: '交付', completed: false, data: [] }, // Renamed from 交付完成
 ];
 
 const createMockInstallation = (status: any = 'unstarted'): StoreInstallation => ({
@@ -169,7 +169,17 @@ const MOCK_DEVICES: Device[] = [
   }
 ];
 
-const MOCK_PRODUCTS: Product[] = []; // Default no products as requested
+// Initialize default products from device types
+const INITIAL_PRODUCTS: Product[] = MOCK_DEVICE_TYPES.map(dt => ({
+    id: `prod-auto-${dt.id}`,
+    name: `${dt.name}`, // Standardized name
+    type: '硬件',
+    subType: dt.name as ProductSubType, // Assuming device type names align with product sub types
+    price: 0,
+    imageUrl: ''
+}));
+
+const MOCK_PRODUCTS: Product[] = [...INITIAL_PRODUCTS];
 
 interface AppContextType {
   currentUser: string | null;

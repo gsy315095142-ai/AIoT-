@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TrendingUp, Package, ChevronRight, CheckCircle, Truck, ClipboardList, Box, MapPin, X } from 'lucide-react';
+import { TrendingUp, Package, ChevronRight, CheckCircle, Truck, ClipboardList, Box, MapPin, X, ChevronLeft } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ProcurementOrder } from '../../types';
 
@@ -8,30 +8,11 @@ export const ProcurementProgress: React.FC = () => {
   
   // State for Detail Modal
   const [selectedOrder, setSelectedOrder] = useState<ProcurementOrder | null>(null);
+  
+  // Internal step view for detail page navigation (to review previous steps)
+  const [viewingStep, setViewingStep] = useState<number>(1);
 
-  // Handlers
-  const handleConfirmReceive = (e: React.MouseEvent, orderId: string) => {
-      e.stopPropagation();
-      if (window.confirm('确认接收此订单？订单将进入采购流程。')) {
-          // Status becomes purchasing, Step 1 (Confirmed) is done
-          updateProcurementOrder(orderId, { status: 'purchasing', currentStep: 1 });
-      }
-  };
-
-  const handleStepAdvance = (orderId: string, currentStep: number) => {
-      // Logic for demonstration to move through steps
-      if (currentStep < 5) {
-          const nextStep = currentStep + 1;
-          const status = nextStep === 5 ? 'completed' : 'purchasing';
-          updateProcurementOrder(orderId, { currentStep: nextStep, status });
-          
-          // Update local state if modal is open
-          if (selectedOrder && selectedOrder.id === orderId) {
-             setSelectedOrder(prev => prev ? ({ ...prev, currentStep: nextStep, status }) : null);
-          }
-      }
-  };
-
+  // Constants
   const STEPS = [
       { id: 1, label: '确认订单', icon: ClipboardList },
       { id: 2, label: '备货', icon: Box },
@@ -39,6 +20,46 @@ export const ProcurementProgress: React.FC = () => {
       { id: 4, label: '物流', icon: Truck },
       { id: 5, label: '签收', icon: CheckCircle },
   ];
+
+  // Helpers
+  const openDetail = (order: ProcurementOrder) => {
+      setSelectedOrder(order);
+      // If pending, default to step 1 (Confirm Receive view). If active, go to current step.
+      setViewingStep(order.status === 'pending_receive' ? 1 : Math.max(1, order.currentStep));
+  };
+
+  const handleConfirmReceive = (e: React.MouseEvent, orderId: string) => {
+      e.stopPropagation();
+      // Logic for list item button: Open modal and initiate receive flow
+      const order = procurementOrders.find(o => o.id === orderId);
+      if (order) openDetail(order);
+  };
+
+  // Detail Page Actions
+  const handleConfirmOrderStart = () => {
+      if (!selectedOrder) return;
+      // Change status to purchasing, set step to 1 (Confirmed)
+      updateProcurementOrder(selectedOrder.id, { status: 'purchasing', currentStep: 1 });
+      setSelectedOrder(prev => prev ? ({ ...prev, status: 'purchasing', currentStep: 1 }) : null);
+      setViewingStep(1);
+  };
+
+  const handleCompleteCurrentStep = () => {
+      if (!selectedOrder) return;
+      if (selectedOrder.currentStep < 5) {
+          const nextStep = selectedOrder.currentStep + 1;
+          const status = nextStep === 5 ? 'completed' : 'purchasing';
+          
+          updateProcurementOrder(selectedOrder.id, { currentStep: nextStep, status });
+          setSelectedOrder(prev => prev ? ({ ...prev, currentStep: nextStep, status }) : null);
+          setViewingStep(nextStep);
+      }
+  };
+
+  const navigateStep = (direction: 'prev' | 'next') => {
+      if (direction === 'prev' && viewingStep > 1) setViewingStep(viewingStep - 1);
+      if (direction === 'next' && viewingStep < STEPS.length) setViewingStep(viewingStep + 1);
+  };
 
   return (
     <div className="h-full flex flex-col p-4 space-y-3">
@@ -57,7 +78,7 @@ export const ProcurementProgress: React.FC = () => {
             return (
                 <div 
                     key={order.id} 
-                    onClick={() => setSelectedOrder(order)}
+                    onClick={() => openDetail(order)}
                     className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 cursor-pointer hover:shadow-md transition-all relative overflow-hidden group"
                 >
                     <div className="flex justify-between items-start mb-2">
@@ -97,7 +118,7 @@ export const ProcurementProgress: React.FC = () => {
                             {/* Simple Progress Bar for List View */}
                             <div className="flex items-center gap-1">
                                 {STEPS.map((step) => (
-                                    <div key={step.id} className={`h-1 flex-1 rounded-full ${
+                                    <div key={step.id} className={`h-1.5 flex-1 rounded-full ${
                                         order.currentStep >= step.id ? 'bg-blue-500' : 'bg-slate-100'
                                     }`}></div>
                                 ))}
@@ -112,108 +133,176 @@ export const ProcurementProgress: React.FC = () => {
             );
         })}
 
-        {/* Detail Modal */}
+        {/* Full Page Detail Modal */}
         {selectedOrder && (
-             <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
-                 <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] animate-scaleIn">
-                     <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
-                        <div>
-                            <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                                <TrendingUp size={20} className="text-blue-600" />
-                                采购进度详情
-                            </h3>
-                            <p className="text-[10px] text-slate-500 mt-0.5">订单号: {selectedOrder.id}</p>
-                        </div>
-                        <button onClick={() => setSelectedOrder(null)}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
+             <div className="fixed inset-0 z-[60] bg-white flex flex-col animate-slideInRight">
+                 {/* Header */}
+                 <div className="bg-white p-4 border-b border-slate-100 flex justify-between items-center shadow-sm flex-shrink-0">
+                    <div>
+                        <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                            <TrendingUp size={20} className="text-blue-600" />
+                            采购进度详情
+                        </h3>
+                        <p className="text-[10px] text-slate-500 mt-0.5">订单号: {selectedOrder.id}</p>
+                    </div>
+                    <button onClick={() => setSelectedOrder(null)} className="p-2 bg-slate-50 rounded-full hover:bg-slate-100"><X size={20} className="text-slate-500" /></button>
+                 </div>
+                 
+                 {/* Progress Bar Area */}
+                 <div className="bg-slate-50 px-6 py-6 pb-12 flex-shrink-0">
+                     <div className="relative flex items-center justify-between mb-2 px-1">
+                        {/* Background Track */}
+                        <div className="absolute top-1/2 left-0 right-0 h-3 bg-slate-200 -z-10 rounded-full" />
+                        
+                        {/* Active Progress */}
+                        {(() => {
+                            const total = STEPS.length;
+                            const currentIdx = Math.min(Math.max(selectedOrder.currentStep - 1, 0), total - 1);
+                            const viewingIdx = viewingStep - 1;
+                            // Progress bar reflects actual completion, not just viewing
+                            const progressWidth = Math.min(100, (currentIdx / (total - 1)) * 100);
+                            
+                            return (
+                                <div 
+                                    className="absolute top-1/2 left-0 h-3 bg-blue-500 -z-10 transition-all duration-500 rounded-full shadow-sm" 
+                                    style={{ width: `${selectedOrder.status === 'pending_receive' ? 0 : progressWidth}%` }} 
+                                />
+                            );
+                        })()}
+
+                        {STEPS.map((step) => {
+                            const isCompleted = selectedOrder.status !== 'pending_receive' && selectedOrder.currentStep >= step.id;
+                            const isViewing = viewingStep === step.id;
+                            
+                            return (
+                                <div key={step.id} className="z-10 flex flex-col items-center relative cursor-pointer" onClick={() => setViewingStep(step.id)}>
+                                    <div className={`w-3 h-3 rounded-full flex items-center justify-center transition-all shadow-sm ${
+                                        isViewing ? 'bg-white border-2 border-blue-600 scale-150' :
+                                        isCompleted ? 'bg-blue-500 scale-110' : 
+                                        'bg-slate-300'
+                                    }`}>
+                                    </div>
+                                    <span className={`absolute top-6 text-[9px] font-bold whitespace-nowrap transition-colors ${
+                                        isViewing ? 'text-blue-600 scale-110' : isCompleted ? 'text-slate-600' : 'text-slate-400'
+                                    }`}>
+                                        {step.label}
+                                    </span>
+                                </div>
+                            );
+                        })}
                      </div>
-                     
-                     <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                         {/* Stepper */}
-                         {selectedOrder.status !== 'pending_receive' && (
-                             <div className="relative pb-4">
-                                 <div className="absolute left-4 top-4 bottom-4 w-0.5 bg-slate-100 z-0"></div>
-                                 <div className="space-y-6 relative z-10">
-                                     {STEPS.map((step) => {
-                                         const isCompleted = selectedOrder.currentStep >= step.id;
-                                         const isCurrent = selectedOrder.currentStep === step.id;
-                                         
-                                         return (
-                                             <div key={step.id} className="flex items-start gap-3">
-                                                 <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center flex-shrink-0 bg-white transition-colors ${
-                                                     isCompleted ? 'border-blue-500 text-blue-500' : 'border-slate-200 text-slate-300'
-                                                 }`}>
-                                                     <step.icon size={14} />
+                 </div>
+
+                 {/* Content Area */}
+                 <div className="flex-1 overflow-y-auto p-4 bg-white relative">
+                     <div className="max-w-md mx-auto h-full flex flex-col">
+                         
+                         {/* Step Title */}
+                         <div className="mb-6 text-center">
+                             <h2 className="text-xl font-bold text-slate-800 flex items-center justify-center gap-2">
+                                 {React.createElement(STEPS.find(s => s.id === viewingStep)?.icon || ClipboardList, { size: 24, className: 'text-blue-500' })}
+                                 {STEPS.find(s => s.id === viewingStep)?.label}
+                             </h2>
+                             <p className="text-xs text-slate-400 mt-1">
+                                 {selectedOrder.status === 'pending_receive' ? '等待接收订单' : 
+                                  selectedOrder.currentStep >= viewingStep ? '此环节已完成' : '等待进行此环节'}
+                             </p>
+                         </div>
+
+                         {/* Content based on state */}
+                         <div className="flex-1 space-y-4">
+                             {/* Order Details (Always visible as context) */}
+                             <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 space-y-3">
+                                 <div className="flex justify-between text-xs">
+                                     <span className="text-slate-500">归属门店</span>
+                                     <span className="font-bold text-slate-700">{selectedOrder.storeName}</span>
+                                 </div>
+                                 <div className="flex justify-between text-xs">
+                                     <span className="text-slate-500">下单时间</span>
+                                     <span className="font-bold text-slate-700">{selectedOrder.createTime}</span>
+                                 </div>
+                                 <div className="border-t border-slate-200 pt-2">
+                                     <p className="text-xs font-bold text-slate-500 mb-2">商品清单</p>
+                                     <div className="space-y-2">
+                                         {selectedOrder.items.map((item, idx) => (
+                                             <div key={idx} className="flex items-center gap-2 bg-white p-2 rounded border border-slate-100">
+                                                 <div className="w-8 h-8 bg-slate-100 rounded flex-shrink-0 overflow-hidden">
+                                                     {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover" /> : <Package size={16} className="m-auto mt-2 text-slate-300" />}
                                                  </div>
-                                                 <div className="pt-1">
-                                                     <p className={`text-xs font-bold ${isCompleted ? 'text-slate-800' : 'text-slate-400'}`}>{step.label}</p>
-                                                     {isCurrent && !isCompleted && <p className="text-[10px] text-blue-500">进行中...</p>}
-                                                     {isCompleted && <p className="text-[10px] text-green-600">已完成</p>}
+                                                 <div className="flex-1 min-w-0">
+                                                     <p className="text-xs font-bold truncate">{item.productName}</p>
+                                                     <p className="text-[10px] text-slate-500">x {item.quantity}</p>
                                                  </div>
                                              </div>
-                                         )
-                                     })}
+                                         ))}
+                                     </div>
                                  </div>
-                                 
-                                 {/* Demo Button to Advance Step */}
-                                 {selectedOrder.status !== 'completed' && (
-                                     <button 
-                                        onClick={() => handleStepAdvance(selectedOrder.id, selectedOrder.currentStep)}
-                                        className="mt-6 w-full py-2 bg-slate-100 text-slate-600 text-xs font-bold rounded hover:bg-slate-200"
-                                     >
-                                        [演示] 进入下一环节
-                                     </button>
-                                 )}
                              </div>
+
+                             {/* Specific Step Instructions (Mock) */}
+                             {selectedOrder.status === 'pending_receive' ? (
+                                 <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 text-center">
+                                     <p className="text-sm font-bold text-orange-700 mb-2">订单待接收</p>
+                                     <p className="text-xs text-orange-600/80">请确认订单信息无误后点击下方按钮接收，开始采购流程。</p>
+                                 </div>
+                             ) : (
+                                 <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
+                                     <p className="text-sm font-bold text-blue-800 mb-2">当前环节任务</p>
+                                     <p className="text-xs text-blue-600/80">
+                                         {viewingStep === 1 && "核对订单详细信息，确认无误。"}
+                                         {viewingStep === 2 && "联系供应商备货，确认货期。"}
+                                         {viewingStep === 3 && "清点货物，打包出库。"}
+                                         {viewingStep === 4 && "安排物流运输，跟踪单号。"}
+                                         {viewingStep === 5 && "门店签收确认，流程结束。"}
+                                     </p>
+                                 </div>
+                             )}
+                         </div>
+                     </div>
+                 </div>
+
+                 {/* Footer Navigation & Actions */}
+                 <div className="p-4 bg-white border-t border-slate-100 flex-shrink-0">
+                     <div className="max-w-md mx-auto flex flex-col gap-3">
+                         {/* Primary Action Button */}
+                         {selectedOrder.status === 'pending_receive' ? (
+                             <button 
+                                onClick={handleConfirmOrderStart}
+                                className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-2"
+                             >
+                                <CheckCircle size={18} /> 确认接收订单
+                             </button>
+                         ) : (
+                             // Only show complete button if viewing the current active step
+                             selectedOrder.currentStep === viewingStep && selectedOrder.currentStep < 5 && (
+                                 <button 
+                                    onClick={handleCompleteCurrentStep}
+                                    className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                 >
+                                    <CheckCircle size={18} /> 确认完成此环节
+                                 </button>
+                             )
                          )}
 
-                         {selectedOrder.status === 'pending_receive' && (
-                             <div className="bg-orange-50 p-4 rounded-lg border border-orange-100 text-center">
-                                 <p className="text-sm font-bold text-orange-700 mb-2">订单待接收</p>
-                                 <p className="text-xs text-orange-600/80 mb-4">请确认订单信息无误后点击接收，开始采购流程。</p>
+                         {/* Navigation Buttons */}
+                         {selectedOrder.status !== 'pending_receive' && (
+                             <div className="flex gap-3">
                                  <button 
-                                    onClick={(e) => { handleConfirmReceive(e, selectedOrder.id); setSelectedOrder(prev => prev ? ({...prev, status: 'purchasing', currentStep: 1}) : null); }}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700"
+                                    onClick={() => navigateStep('prev')}
+                                    disabled={viewingStep <= 1}
+                                    className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl disabled:opacity-50 flex items-center justify-center gap-1 hover:bg-slate-200 transition-colors"
                                  >
-                                    确认接收
+                                     <ChevronLeft size={16} /> 上一环节
+                                 </button>
+                                 <button 
+                                    onClick={() => navigateStep('next')}
+                                    disabled={viewingStep >= 5} // Can view ahead? Usually restricted to current progress. Let's allow viewing all but only acting on current.
+                                    className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl disabled:opacity-50 flex items-center justify-center gap-1 hover:bg-slate-200 transition-colors"
+                                 >
+                                     下一环节 <ChevronRight size={16} />
                                  </button>
                              </div>
                          )}
-
-                         {/* Order Info */}
-                         <div className="bg-slate-50 rounded-lg p-3 border border-slate-100 space-y-2">
-                             <div className="flex justify-between text-xs">
-                                 <span className="text-slate-500">归属门店</span>
-                                 <span className="font-bold text-slate-700">{selectedOrder.storeName}</span>
-                             </div>
-                             <div className="flex justify-between text-xs">
-                                 <span className="text-slate-500">下单时间</span>
-                                 <span className="font-bold text-slate-700">{selectedOrder.createTime}</span>
-                             </div>
-                             <div className="flex justify-between text-xs">
-                                 <span className="text-slate-500">备注说明</span>
-                                 <span className="font-bold text-slate-700 text-right max-w-[60%]">{selectedOrder.remark}</span>
-                             </div>
-                             <div className="border-t border-slate-200 pt-2 mt-2">
-                                 <p className="text-xs font-bold text-slate-500 mb-2">商品清单</p>
-                                 <div className="space-y-2">
-                                     {selectedOrder.items.map((item, idx) => (
-                                         <div key={idx} className="flex items-center gap-2 bg-white p-2 rounded border border-slate-100">
-                                             <div className="w-8 h-8 bg-slate-100 rounded flex-shrink-0 overflow-hidden">
-                                                 {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover" /> : <Package size={16} className="m-auto mt-2 text-slate-300" />}
-                                             </div>
-                                             <div className="flex-1 min-w-0">
-                                                 <p className="text-xs font-bold truncate">{item.productName}</p>
-                                                 <p className="text-[10px] text-slate-500">¥ {item.price} x {item.quantity}</p>
-                                             </div>
-                                             <div className="text-xs font-bold text-slate-700">¥ {(item.price * item.quantity).toLocaleString()}</div>
-                                         </div>
-                                     ))}
-                                 </div>
-                                 <div className="flex justify-end mt-2 pt-2 border-t border-dashed border-slate-200">
-                                     <span className="text-sm font-bold text-orange-600">总计: ¥ {selectedOrder.totalPrice.toLocaleString()}</span>
-                                 </div>
-                             </div>
-                         </div>
                      </div>
                  </div>
              </div>

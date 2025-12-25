@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent, useMemo } from 'react';
-import { Hammer, Store, ChevronDown, Clock, CheckCircle, Upload, X, Calendar, ClipboardList, AlertCircle, ArrowRight, Gavel, BedDouble, Info, Image as ImageIcon, MapPin, ChevronLeft, ChevronRight, Navigation, Plus } from 'lucide-react';
+import { Hammer, Store, ChevronDown, Clock, CheckCircle, Upload, X, Calendar, ClipboardList, AlertCircle, ArrowRight, Gavel, BedDouble, Info, Image as ImageIcon, MapPin, ChevronLeft, ChevronRight, Navigation, Plus, Check } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Store as StoreType, InstallNode, InstallStatus, RoomImageCategory } from '../../types';
 
@@ -52,17 +52,34 @@ export const RoomInstall: React.FC = () => {
       return node ? node.name : '等待交付';
   };
 
-  // Example Images Map
+  // Example Images Map (Updated keys and added modules)
   const EXAMPLE_IMAGES: Record<string, string> = {
-      '打卡': 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=600&auto=format&fit=crop', // Meeting/People
-      '清点货物': 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?q=80&w=600&auto=format&fit=crop', // Boxes
-      '安装完成': 'https://images.unsplash.com/photo-1540518614846-7eded433c457?q=80&w=600&auto=format&fit=crop', // Bedroom
-      '调试完成': 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?q=80&w=600&auto=format&fit=crop', // Electronics/Screen
-      '交付完成': 'https://images.unsplash.com/photo-1556155092-490a1ba16284?q=80&w=600&auto=format&fit=crop', // Handshake/Signature
+      '打卡': 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=600&auto=format&fit=crop', 
+      '清点货物': 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?q=80&w=600&auto=format&fit=crop', 
+      '安装': 'https://images.unsplash.com/photo-1540518614846-7eded433c457?q=80&w=600&auto=format&fit=crop', 
+      '调试': 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?q=80&w=600&auto=format&fit=crop',
+      '交付': 'https://images.unsplash.com/photo-1556155092-490a1ba16284?q=80&w=600&auto=format&fit=crop',
+      // Modules
+      '玄关': 'https://images.unsplash.com/photo-1554995207-c18c203602cb?q=80&w=600&auto=format&fit=crop',
+      '桌面': 'https://images.unsplash.com/photo-1593640408182-31c70c8268f5?q=80&w=600&auto=format&fit=crop',
+      '床': 'https://images.unsplash.com/photo-1505693416388-b0346ef4174d?q=80&w=600&auto=format&fit=crop'
   };
 
-  const openExample = (nodeName: string) => {
-      const url = EXAMPLE_IMAGES[nodeName];
+  const openExample = (nodeName: string, roomType?: string) => {
+      // Try to get dynamic example from store config first if roomType is provided
+      let url = null;
+      if (roomType && activeStore) {
+          const config = activeStore.roomTypeConfigs.find(rt => rt.name === roomType);
+          if (config?.exampleImages?.[nodeName]) {
+              url = config.exampleImages[nodeName];
+          }
+      }
+
+      // Fallback to static
+      if (!url) {
+          url = EXAMPLE_IMAGES[nodeName];
+      }
+
       if (url) {
           setExampleImage({ title: `${nodeName} - 示例图`, url });
       }
@@ -521,21 +538,57 @@ export const RoomInstall: React.FC = () => {
                     </button>
                 </div>
 
-                {/* Progress Indicator */}
-                <div className="px-6 py-4 bg-slate-50 flex-shrink-0">
-                    <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-bold text-slate-600">
-                            步骤 {currentStepIndex + 1}/{activeStore.installation.nodes.length}
-                        </span>
-                        <span className="text-xs font-bold text-blue-600">
-                            {currentNode.name}
-                        </span>
-                    </div>
-                    <div className="w-full bg-slate-200 rounded-full h-2">
-                        <div 
-                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${((currentStepIndex + 1) / activeStore.installation.nodes.length) * 100}%` }}
-                        ></div>
+                {/* Progress Stepper with Nodes */}
+                <div className="px-6 py-6 bg-slate-50 flex-shrink-0 pb-12">
+                    <div className="relative flex items-center justify-between mb-2 px-1">
+                        {/* Background Line */}
+                        <div className="absolute top-1/2 left-0 right-0 h-3 bg-slate-200 -z-10 rounded-full" />
+                        
+                        {/* Progress Line */}
+                        {(() => {
+                            const total = activeStore.installation.nodes.length;
+                            // Find last completed index
+                            let lastCompletedIdx = -1;
+                            for (let i = 0; i < total; i++) {
+                                if (activeStore.installation.nodes[i].completed) lastCompletedIdx = i;
+                                else break;
+                            }
+                            // Progress width goes to center of current step if selected, or full if completed
+                            const progressWidth = Math.min(100, (Math.max(lastCompletedIdx, currentStepIndex) / (total - 1)) * 100);
+                            
+                            return (
+                                <div 
+                                    className="absolute top-1/2 left-0 h-3 bg-green-500 -z-10 transition-all duration-500 rounded-full shadow-sm" 
+                                    style={{ width: `${progressWidth}%` }} 
+                                />
+                            );
+                        })()}
+
+                        {activeStore.installation.nodes.map((node, i) => {
+                            const isCompleted = node.completed;
+                            const isCurrent = i === currentStepIndex;
+                            
+                            return (
+                                <div key={i} className="z-10 flex flex-col items-center relative">
+                                    <div className="bg-white rounded-full p-0.5 mb-1 shadow-sm">
+                                        <div className={`w-3 h-3 rounded-full flex items-center justify-center transition-all ${
+                                            isCompleted ? 'bg-green-500 scale-110' : 
+                                            isCurrent ? 'bg-white border-2 border-blue-600 scale-125' : 
+                                            'bg-slate-300'
+                                        }`}>
+                                            {isCompleted && <Check size={8} className="text-white" />}
+                                            {isCurrent && <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>}
+                                        </div>
+                                    </div>
+                                    {/* Node Label - Always Visible */}
+                                    <span className={`absolute top-6 text-[9px] font-bold whitespace-nowrap transition-colors ${
+                                        isCurrent ? 'text-blue-600 scale-110' : isCompleted ? 'text-slate-600' : 'text-slate-400'
+                                    }`}>
+                                        {node.name}
+                                    </span>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
 
@@ -545,7 +598,7 @@ export const RoomInstall: React.FC = () => {
                         
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-xl font-bold text-slate-800">{currentNode.name}</h2>
-                            {currentStepIndex > 0 && currentStepIndex <= 5 && (
+                            {currentStepIndex > 0 && currentStepIndex <= 5 && currentNode.name !== '安装' && (
                                 <button 
                                     onClick={() => openExample(currentNode.name)}
                                     className="flex items-center gap-1 bg-blue-50 text-blue-600 px-2 py-1 rounded text-xs font-bold hover:bg-blue-100 transition-colors"
@@ -670,9 +723,18 @@ export const RoomInstall: React.FC = () => {
                                                         const images = roomData[cat] || [];
                                                         return (
                                                             <div key={cat}>
-                                                                <p className="text-xs font-bold text-slate-500 mb-2 flex items-center gap-1">
-                                                                    <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div> {cat}
-                                                                </p>
+                                                                <div className="flex justify-between items-center mb-2">
+                                                                    <p className="text-xs font-bold text-slate-500 flex items-center gap-1">
+                                                                        <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div> {cat}
+                                                                    </p>
+                                                                    <button 
+                                                                        onClick={() => openExample(cat, room.type)}
+                                                                        className="flex items-center gap-1 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[10px] hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                                                                    >
+                                                                        <ImageIcon size={10} /> 查看示例
+                                                                    </button>
+                                                                </div>
+                                                                
                                                                 <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
                                                                     {!isLocked && !currentNode.completed && (
                                                                         <div className="w-16 h-16 border border-dashed border-blue-200 rounded-lg bg-blue-50 flex-shrink-0 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-100 relative">

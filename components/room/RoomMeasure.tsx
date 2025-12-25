@@ -1,11 +1,18 @@
 import React, { useState, ChangeEvent } from 'react';
-import { Ruler, Store, ChevronDown, Plus, X, Upload, ClipboardList, Edit3, Check, Save, Filter, BedDouble } from 'lucide-react';
+import { Ruler, Store, ChevronDown, Plus, X, Upload, ClipboardList, Edit3, Check, Save, Filter, BedDouble, HelpCircle, Image as ImageIcon } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { RoomImageCategory, RoomImage, RoomMeasurement, MeasurementType } from '../../types';
 
 const MODULES: RoomImageCategory[] = ['玄关', '桌面', '床'];
 
 type RoomStatusFilter = 'all' | 'no_image' | 'pending' | 'completed';
+
+// Static example images fallback
+const EXAMPLE_IMAGES: Record<string, string> = {
+    '玄关': 'https://images.unsplash.com/photo-1554995207-c18c203602cb?q=80&w=600&auto=format&fit=crop',
+    '桌面': 'https://images.unsplash.com/photo-1593640408182-31c70c8268f5?q=80&w=600&auto=format&fit=crop',
+    '床': 'https://images.unsplash.com/photo-1505693416388-b0346ef4174d?q=80&w=600&auto=format&fit=crop'
+};
 
 export const RoomMeasure: React.FC = () => {
   const { regions, stores, updateStore } = useApp();
@@ -21,6 +28,9 @@ export const RoomMeasure: React.FC = () => {
     type: '正常安装',
     remark: ''
   });
+
+  // Example Image Modal State
+  const [viewingExample, setViewingExample] = useState<{ title: string; url: string } | null>(null);
 
   // Computed
   const filteredStores = selectedRegion 
@@ -117,6 +127,27 @@ export const RoomMeasure: React.FC = () => {
       setEditingCategory(null);
   };
 
+  const openExample = (moduleName: string) => {
+      // 1. Try to get from store config first (if viewing a room with a type)
+      let exampleUrl = null;
+      if (currentStore && currentRoom) {
+          const roomType = currentRoom.type;
+          const config = currentStore.roomTypeConfigs.find(rt => rt.name === roomType);
+          if (config?.exampleImages?.[moduleName]) {
+              exampleUrl = config.exampleImages[moduleName];
+          }
+      }
+      
+      // 2. Fallback to global static
+      if (!exampleUrl && EXAMPLE_IMAGES[moduleName]) {
+          exampleUrl = EXAMPLE_IMAGES[moduleName];
+      }
+
+      if (exampleUrl) {
+          setViewingExample({ title: `${moduleName}示例`, url: exampleUrl });
+      }
+  };
+
   return (
     <div className="h-full flex flex-col">
         {/* Filters - Fixed */}
@@ -203,18 +234,26 @@ export const RoomMeasure: React.FC = () => {
                                         <div className="w-2 h-4 bg-blue-500 rounded-full"></div>
                                         {moduleName}
                                     </h4>
-                                    <span className="text-[10px] bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded font-mono">共 {images.length} 张图</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded font-mono">共 {images.length} 张图</span>
+                                        <button 
+                                            onClick={() => openExample(moduleName)}
+                                            className="flex items-center gap-1 text-[10px] text-blue-500 bg-blue-50 px-2 py-0.5 rounded hover:bg-blue-100 font-bold transition-colors"
+                                        >
+                                            <HelpCircle size={10} /> 示例
+                                        </button>
+                                    </div>
                                 </div>
                                 
                                 {/* Part 1: Images */}
-                                <div className="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 content-start">
+                                <div className="p-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 content-start">
                                     {/* Upload Button */}
                                     <div className="aspect-square border-2 border-dashed border-blue-200 bg-blue-50/50 rounded-xl flex flex-col items-center justify-center relative hover:bg-blue-50 transition-colors cursor-pointer group">
                                         <input 
                                             type="file" 
                                             accept="image/*" 
                                             onChange={(e) => handleImageUpload(e, moduleName)} 
-                                            className="absolute inset-0 opacity-0 cursor-pointer" 
+                                            className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full" 
                                         />
                                         <Upload className="text-blue-400 mb-1 group-hover:scale-110 transition-transform" size={20} />
                                         <span className="text-[10px] text-blue-500 font-bold">上传</span>
@@ -335,6 +374,25 @@ export const RoomMeasure: React.FC = () => {
                 </div>
             )}
         </div>
+
+        {/* Example Image Modal */}
+        {viewingExample && (
+            <div className="fixed inset-0 z-[70] bg-black/80 flex items-center justify-center p-4 animate-fadeIn" onClick={() => setViewingExample(null)}>
+                <div className="bg-transparent w-full max-w-lg flex flex-col items-center animate-scaleIn" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white rounded-t-lg px-4 py-2 w-full flex justify-between items-center">
+                        <span className="font-bold text-sm text-slate-800 flex items-center gap-2">
+                            <ImageIcon size={16} className="text-blue-500"/> {viewingExample.title}
+                        </span>
+                        <button onClick={() => setViewingExample(null)} className="p-1 hover:bg-slate-100 rounded-full">
+                            <X size={16} className="text-slate-500"/>
+                        </button>
+                    </div>
+                    <div className="bg-black rounded-b-lg overflow-hidden w-full border-t border-slate-100">
+                        <img src={viewingExample.url} alt="Example" className="w-full max-h-[70vh] object-contain" />
+                    </div>
+                </div>
+            </div>
+        )}
     </div>
   );
 };

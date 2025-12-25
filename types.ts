@@ -9,6 +9,7 @@ export type Region = {
 export type RoomTypeConfig = {
   id: string;
   name: string;
+  exampleImages?: Record<string, string>; // Maps RoomImageCategory to URL
 };
 
 export type RoomImageCategory = '玄关' | '桌面' | '床';

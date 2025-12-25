@@ -1,3 +1,4 @@
+// 标记：本次更新了客房建档详情页全屏展示及复尺评估显示，优化了客房安装进度条样式，并升级采购进度详情为全屏页且支持确认接收和环节翻页
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

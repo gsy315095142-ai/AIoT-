@@ -1,6 +1,6 @@
 import React, { useState, ChangeEvent, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Star, Table, Ruler, ArrowLeft, Search, ChevronDown, ChevronRight, Filter, Settings, Check, HelpCircle, Image as ImageIcon } from 'lucide-react';
+import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Star, Table, Ruler, ArrowLeft, Search, ChevronDown, ChevronRight, Filter, Settings, Check, HelpCircle, Image as ImageIcon, ClipboardList } from 'lucide-react';
 import { Store as StoreType, Room, RoomImageCategory, RoomImage, RoomTypeConfig } from '../../types';
 
 const ROOM_MODULES: RoomImageCategory[] = ['玄关', '桌面', '床'];
@@ -295,9 +295,63 @@ export const RoomArchive: React.FC = () => {
       setIsAssignOpen(false);
   };
 
+  // --- Example Image Config Logic ---
+  const handleConfigImageUpload = (category: string, e: ChangeEvent<HTMLInputElement>) => {
+      if (!activeStore || !activeRoomTypeName) return;
+      if (e.target.files && e.target.files[0]) {
+          const url = URL.createObjectURL(e.target.files[0]);
+          
+          const updatedTypeConfigs = activeStore.roomTypeConfigs.map(rt => {
+              if (rt.name === activeRoomTypeName) {
+                  return {
+                      ...rt,
+                      exampleImages: {
+                          ...(rt.exampleImages || {}),
+                          [category]: url
+                      }
+                  };
+              }
+              return rt;
+          });
+          
+          updateStore(activeStore.id, { roomTypeConfigs: updatedTypeConfigs });
+          e.target.value = '';
+      }
+  };
+
+  const removeConfigImage = (category: string) => {
+      if (!activeStore || !activeRoomTypeName) return;
+      
+      const updatedTypeConfigs = activeStore.roomTypeConfigs.map(rt => {
+          if (rt.name === activeRoomTypeName) {
+              const newImages = { ...(rt.exampleImages || {}) };
+              delete newImages[category];
+              return { ...rt, exampleImages: newImages };
+          }
+          return rt;
+      });
+      
+      updateStore(activeStore.id, { roomTypeConfigs: updatedTypeConfigs });
+  };
+
   const openExample = (moduleName: string) => {
-      if (EXAMPLE_IMAGES[moduleName]) {
-          setViewingExample({ title: `${moduleName}示例`, url: EXAMPLE_IMAGES[moduleName] });
+      // 1. Try to get from store config first
+      let exampleUrl = null;
+      if (activeStore && editingRoom) {
+          const roomType = editingRoom.room.type;
+          const config = activeStore.roomTypeConfigs.find(rt => rt.name === roomType);
+          if (config?.exampleImages?.[moduleName]) {
+              exampleUrl = config.exampleImages[moduleName];
+          }
+      }
+      
+      // 2. Fallback to global static
+      if (!exampleUrl && EXAMPLE_IMAGES[moduleName]) {
+          exampleUrl = EXAMPLE_IMAGES[moduleName];
+      }
+
+      if (exampleUrl) {
+          setViewingExample({ title: `${moduleName}示例`, url: exampleUrl });
       }
   };
 
@@ -307,6 +361,7 @@ export const RoomArchive: React.FC = () => {
       // --- Detail View: Store Rooms ---
       const roomCount = activeStore.rooms.length;
       const availableRoomTypes = activeStore.roomTypeConfigs || [];
+      const currentRoomTypeConfig = availableRoomTypes.find(rt => rt.name === activeRoomTypeName);
       
       // Filter Logic
       const filteredRooms = activeStore.rooms.filter(room => {
@@ -401,138 +456,207 @@ export const RoomArchive: React.FC = () => {
                   </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 bg-slate-50">
-                  {filteredRooms.length > 0 ? (
-                      // Grid layout: Larger tiles
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                          {filteredRooms.map(room => (
-                              <button 
-                                  key={room.number}
-                                  onClick={() => openRoomDetail(activeStore.id, room)}
-                                  className={`aspect-square flex flex-col items-center justify-center p-2 rounded-xl border-2 shadow-sm transition-all hover:shadow-md active:scale-95 group relative overflow-hidden
-                                      ${room.type === '样板房' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-400 hover:text-blue-600'}
-                                  `}
-                              >
-                                  {/* Background decoration for Sample Room */}
-                                  {room.type === '样板房' && (
-                                      <div className="absolute top-0 right-0 p-1">
-                                           <Star size={16} className="text-amber-400 fill-amber-400" />
-                                      </div>
-                                  )}
+              <div className="flex-1 overflow-y-auto bg-slate-50 pb-20">
+                  <div className="p-4">
+                    {filteredRooms.length > 0 ? (
+                        // Grid layout: Larger tiles
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            {filteredRooms.map(room => (
+                                <button 
+                                    key={room.number}
+                                    onClick={() => openRoomDetail(activeStore.id, room)}
+                                    className={`aspect-square flex flex-col items-center justify-center p-2 rounded-xl border-2 shadow-sm transition-all hover:shadow-md active:scale-95 group relative overflow-hidden
+                                        ${room.type === '样板房' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-400 hover:text-blue-600'}
+                                    `}
+                                >
+                                    {/* Background decoration for Sample Room */}
+                                    {room.type === '样板房' && (
+                                        <div className="absolute top-0 right-0 p-1">
+                                            <Star size={16} className="text-amber-400 fill-amber-400" />
+                                        </div>
+                                    )}
 
-                                  <div className="flex-1 flex flex-col items-center justify-center w-full pt-4">
-                                      <div className="text-4xl font-bold leading-none tracking-tight">{room.number}</div>
-                                  </div>
+                                    <div className="flex-1 flex flex-col items-center justify-center w-full pt-4">
+                                        <div className="text-4xl font-bold leading-none tracking-tight">{room.number}</div>
+                                    </div>
+                                    
+                                    <div className={`text-xs font-bold px-3 py-1.5 rounded-full mb-2 ${
+                                        room.type === '样板房' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-500 group-hover:bg-blue-50 group-hover:text-blue-600'
+                                    }`}>
+                                        {room.type}
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center h-40 text-slate-400">
+                            <BedDouble size={40} className="mb-2 opacity-20" />
+                            <p className="text-sm">该房型下暂无客房</p>
+                        </div>
+                    )}
+                  </div>
+
+                  {/* Config Section for Schematic Diagrams */}
+                  <div className="px-4 pb-4">
+                      <h3 className="text-xs font-bold text-slate-500 mb-3 flex items-center gap-1 uppercase">
+                          <ImageIcon size={12} /> 
+                          「{activeRoomTypeName}」标准示意图配置
+                      </h3>
+                      <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
+                          <div className="grid grid-cols-3 gap-3">
+                              {ROOM_MODULES.map(moduleName => {
+                                  const existingImage = currentRoomTypeConfig?.exampleImages?.[moduleName];
                                   
-                                  <div className={`text-xs font-bold px-3 py-1.5 rounded-full mb-2 ${
-                                      room.type === '样板房' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-500 group-hover:bg-blue-50 group-hover:text-blue-600'
-                                  }`}>
-                                      {room.type}
-                                  </div>
-                              </button>
-                          ))}
-                      </div>
-                  ) : (
-                      <div className="flex flex-col items-center justify-center h-60 text-slate-400">
-                          <BedDouble size={40} className="mb-2 opacity-20" />
-                          <p className="text-sm">该房型下暂无客房</p>
-                      </div>
-                  )}
-              </div>
-
-              {/* Render Room Detail Modal Logic inside detail view scope or globally below */}
-              {editingRoom && (
-                  <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
-                      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-scaleIn max-h-[85vh]">
-                          <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center flex-shrink-0">
-                              <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                                  <BedDouble size={20} className="text-blue-600" />
-                                  客房详情 - {editingRoom.room.number}
-                              </h3>
-                              <button onClick={() => setEditingRoom(null)}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
-                          </div>
-                          
-                          <div className="p-5 space-y-4 overflow-y-auto flex-1">
-                              {/* Room Type */}
-                              <div>
-                                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">房型选择</label>
-                                  <div className="grid grid-cols-2 gap-3">
-                                      {availableRoomTypes.map(rt => {
-                                          const isSelected = editingRoom.room.type === rt.name;
-                                          const isSample = rt.name === '样板房'; 
-                                          
-                                          return (
-                                            <label key={rt.id} className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                                                isSelected 
-                                                    ? (isSample ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-blue-500 bg-blue-50 text-blue-700')
-                                                    : 'border-slate-200 bg-white text-slate-500 hover:border-blue-200'
-                                            }`}>
-                                                <input 
-                                                    type="radio" 
-                                                    className="hidden" 
-                                                    checked={isSelected} 
-                                                    onChange={() => setEditingRoom({...editingRoom, room: {...editingRoom.room, type: rt.name}})} 
-                                                />
-                                                {isSample ? <Star size={24} className="mb-1 fill-current" /> : <BedDouble size={24} className="mb-1" />}
-                                                <span className="text-xs font-bold">{rt.name}</span>
-                                            </label>
-                                          )
-                                      })}
-                                  </div>
-                              </div>
-                              {/* ... Room Images Logic (Same as before) ... */}
-                              <div>
-                                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">客房照片</label>
-                                  <div className="space-y-4">
-                                      {ROOM_MODULES.map(category => {
-                                          const catImages = editingRoom.room.images?.filter(img => img.category === category) || [];
-                                          return (
-                                              <div key={category} className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                                                  <div className="flex items-center justify-between mb-2">
-                                                      <div className="flex items-center gap-2">
-                                                          <div className="w-1.5 h-3 bg-blue-500 rounded-full"></div>
-                                                          <span className="text-xs font-bold text-slate-700">{category}</span>
+                                  return (
+                                      <div key={moduleName} className="flex flex-col gap-2">
+                                          <div className="text-[10px] font-bold text-slate-600 text-center">{moduleName}</div>
+                                          {existingImage ? (
+                                              <div className="aspect-square rounded-lg border border-slate-200 relative group overflow-hidden bg-slate-50">
+                                                  <img src={existingImage} alt={`${moduleName} example`} className="w-full h-full object-cover" />
+                                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                                      <div className="relative cursor-pointer">
+                                                          <Edit2 size={16} className="text-white" />
+                                                          <input type="file" accept="image/*" onChange={(e) => handleConfigImageUpload(moduleName, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
                                                       </div>
-                                                      <button 
-                                                        onClick={() => openExample(category)}
-                                                        className="flex items-center gap-1 text-[10px] text-blue-500 bg-blue-50 px-2 py-0.5 rounded hover:bg-blue-100 font-bold"
-                                                      >
-                                                          <HelpCircle size={10} /> 示例
+                                                      <button onClick={() => removeConfigImage(moduleName)} className="text-white hover:text-red-400">
+                                                          <Trash2 size={16} />
                                                       </button>
                                                   </div>
-                                                  <div className="grid grid-cols-3 gap-2">
-                                                      <div className="aspect-square border-2 border-dashed border-blue-200 bg-white rounded-lg flex flex-col items-center justify-center relative hover:bg-blue-50 transition-colors cursor-pointer group">
-                                                          <input type="file" accept="image/*" onChange={(e) => handleRoomImageUpload(e, category)} className="absolute inset-0 opacity-0 cursor-pointer" />
-                                                          <Plus className="text-blue-400 mb-1 group-hover:scale-110 transition-transform" size={16} />
-                                                          <span className="text-[8px] text-blue-500 font-bold">上传</span>
-                                                      </div>
-                                                      {catImages.map((img, idx) => (
-                                                          <div key={idx} className="aspect-square rounded-lg border border-slate-200 relative group overflow-hidden bg-white">
-                                                              <img src={img.url} alt={`room-${category}-${idx}`} className="w-full h-full object-cover" />
-                                                              <button 
-                                                                  onClick={() => removeRoomImage(img)} 
-                                                                  className="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                              >
-                                                                  <X size={10} />
-                                                              </button>
-                                                          </div>
-                                                      ))}
-                                                  </div>
                                               </div>
-                                          );
-                                      })}
-                                  </div>
+                                          ) : (
+                                              <div className="aspect-square border-2 border-dashed border-slate-200 rounded-lg flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer relative group">
+                                                  <input type="file" accept="image/*" onChange={(e) => handleConfigImageUpload(moduleName, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                                  <Plus size={20} className="text-slate-300 group-hover:text-blue-400 mb-1" />
+                                                  <span className="text-[9px] text-slate-400 font-bold group-hover:text-blue-500">上传</span>
+                                              </div>
+                                          )}
+                                      </div>
+                                  );
+                              })}
+                          </div>
+                      </div>
+                  </div>
+              </div>
+
+              {/* Room Detail Page (Full Screen) */}
+              {editingRoom && (
+                  <div className="fixed inset-0 z-[60] bg-white flex flex-col animate-slideInRight">
+                      {/* Header */}
+                      <div className="bg-white p-4 border-b border-slate-100 flex justify-between items-center flex-shrink-0 shadow-sm">
+                          <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                              <BedDouble size={20} className="text-blue-600" />
+                              客房详情 - {editingRoom.room.number}
+                          </h3>
+                          <button onClick={() => setEditingRoom(null)} className="p-2 bg-slate-50 rounded-full hover:bg-slate-100"><X size={20} className="text-slate-500" /></button>
+                      </div>
+                      
+                      <div className="p-5 space-y-6 overflow-y-auto flex-1 bg-slate-50">
+                          {/* Room Type */}
+                          <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                              <label className="block text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-1"><Store size={12} /> 房型选择</label>
+                              <div className="grid grid-cols-2 gap-3">
+                                  {availableRoomTypes.map(rt => {
+                                      const isSelected = editingRoom.room.type === rt.name;
+                                      const isSample = rt.name === '样板房'; 
+                                      
+                                      return (
+                                        <label key={rt.id} className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                                            isSelected 
+                                                ? (isSample ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-blue-500 bg-blue-50 text-blue-700')
+                                                : 'border-slate-200 bg-white text-slate-500 hover:border-blue-200'
+                                        }`}>
+                                            <input 
+                                                type="radio" 
+                                                className="hidden" 
+                                                checked={isSelected} 
+                                                onChange={() => setEditingRoom({...editingRoom, room: {...editingRoom.room, type: rt.name}})} 
+                                            />
+                                            {isSample ? <Star size={24} className="mb-1 fill-current" /> : <BedDouble size={24} className="mb-1" />}
+                                            <span className="text-xs font-bold">{rt.name}</span>
+                                        </label>
+                                      )
+                                  })}
                               </div>
                           </div>
-                          
-                          <div className="p-4 border-t border-slate-100 bg-slate-50 flex-shrink-0">
-                              <button 
-                                  onClick={handleRoomSave}
-                                  className="w-full py-2.5 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition-colors"
-                              >
-                                  保存客房信息
-                              </button>
+
+                          {/* Room Modules - Images & Measurements */}
+                          <div className="space-y-4">
+                              <label className="block text-xs font-bold text-slate-500 uppercase px-1">模块详情</label>
+                              {ROOM_MODULES.map(category => {
+                                  const catImages = editingRoom.room.images?.filter(img => img.category === category) || [];
+                                  const measurement = editingRoom.room.measurements?.find(m => m.category === category);
+                                  
+                                  return (
+                                      <div key={category} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                                          <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-50">
+                                              <div className="flex items-center gap-2">
+                                                  <div className="w-1.5 h-4 bg-blue-500 rounded-full"></div>
+                                                  <span className="text-sm font-bold text-slate-800">{category}</span>
+                                              </div>
+                                              <button 
+                                                onClick={() => openExample(category)}
+                                                className="flex items-center gap-1 text-[10px] text-blue-500 bg-blue-50 px-2 py-0.5 rounded hover:bg-blue-100 font-bold"
+                                              >
+                                                  <HelpCircle size={10} /> 示例
+                                              </button>
+                                          </div>
+
+                                          {/* Measurement Evaluation Info */}
+                                          <div className="mb-4">
+                                               {measurement ? (
+                                                   <div className={`p-3 rounded-lg border flex flex-col gap-1 ${
+                                                       measurement.type === '特殊安装' ? 'bg-orange-50 border-orange-100 text-orange-800' : 'bg-green-50 border-green-100 text-green-800'
+                                                   }`}>
+                                                       <div className="flex items-center gap-2">
+                                                           <ClipboardList size={14} />
+                                                           <span className="text-xs font-bold">复尺评估: {measurement.type}</span>
+                                                       </div>
+                                                       {measurement.remark && (
+                                                           <p className="text-[10px] opacity-80 pl-5">{measurement.remark}</p>
+                                                       )}
+                                                   </div>
+                                               ) : (
+                                                   <div className="p-3 rounded-lg border border-dashed border-slate-200 bg-slate-50 text-slate-400 text-xs flex items-center justify-center gap-2">
+                                                       <Ruler size={14} /> 暂无复尺评估数据
+                                                   </div>
+                                               )}
+                                          </div>
+
+                                          {/* Images */}
+                                          <div>
+                                              <p className="text-[10px] font-bold text-slate-400 mb-2 uppercase">现场照片</p>
+                                              <div className="grid grid-cols-4 gap-2">
+                                                  <div className="aspect-square border-2 border-dashed border-blue-200 bg-blue-50 rounded-lg flex flex-col items-center justify-center relative hover:bg-blue-100 transition-colors cursor-pointer group">
+                                                      <input type="file" accept="image/*" onChange={(e) => handleRoomImageUpload(e, category)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                                      <Plus className="text-blue-400 mb-1 group-hover:scale-110 transition-transform" size={16} />
+                                                      <span className="text-[8px] text-blue-500 font-bold">上传</span>
+                                                  </div>
+                                                  {catImages.map((img, idx) => (
+                                                      <div key={idx} className="aspect-square rounded-lg border border-slate-200 relative group overflow-hidden bg-slate-100">
+                                                          <img src={img.url} alt={`room-${category}-${idx}`} className="w-full h-full object-cover" />
+                                                          <button 
+                                                              onClick={() => removeRoomImage(img)} 
+                                                              className="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                          >
+                                                              <X size={10} />
+                                                          </button>
+                                                      </div>
+                                                  ))}
+                                              </div>
+                                          </div>
+                                      </div>
+                                  );
+                              })}
                           </div>
+                      </div>
+                      
+                      <div className="p-4 border-t border-slate-100 bg-white flex-shrink-0">
+                          <button 
+                              onClick={handleRoomSave}
+                              className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition-colors text-sm"
+                          >
+                              保存信息
+                          </button>
                       </div>
                   </div>
               )}
