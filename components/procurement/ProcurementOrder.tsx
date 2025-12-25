@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ShoppingBag, ChevronDown, Package, Plus, Minus, Search, Check, X, ListFilter } from 'lucide-react';
+import { ShoppingBag, ChevronDown, Package, Plus, Minus, Search, Check, X, ListFilter, CheckCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ProductType, ProductSubType, Product } from '../../types';
 
@@ -17,6 +17,9 @@ export const ProcurementOrder: React.FC = () => {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [selectedStoreId, setSelectedStoreId] = useState('');
   const [remark, setRemark] = useState('');
+
+  // Toast State
+  const [showSuccess, setShowSuccess] = useState(false);
 
   // Constants
   const PRODUCT_TYPES: ProductType[] = ['硬件', '物料'];
@@ -103,11 +106,22 @@ export const ProcurementOrder: React.FC = () => {
       setSelectedStoreId('');
       setRemark('');
       setIsCheckoutOpen(false);
-      alert('下单成功！');
+      
+      // Show Toast
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
   };
 
   return (
     <div className="h-full flex flex-col relative overflow-hidden bg-slate-50">
+        {/* Success Toast */}
+        {showSuccess && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[70] bg-green-500 text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-2 animate-scaleIn">
+                <CheckCircle size={20} />
+                <span className="font-bold text-sm">下单成功，已转入内部采购环节</span>
+            </div>
+        )}
+
         {/* Sticky Filter Bar */}
         <div className="bg-slate-50 pt-4 px-4 pb-2 flex-shrink-0 z-10">
             <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 grid grid-cols-2 gap-3">

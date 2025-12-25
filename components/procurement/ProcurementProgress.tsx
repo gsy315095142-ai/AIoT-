@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TrendingUp, Package, ChevronRight, CheckCircle, Truck, ClipboardList, Box, MapPin, X, ChevronLeft } from 'lucide-react';
+import { TrendingUp, Package, ChevronRight, CheckCircle, Truck, ClipboardList, Box, MapPin, X, ChevronLeft, Check } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ProcurementOrder } from '../../types';
 
@@ -61,6 +61,8 @@ export const ProcurementProgress: React.FC = () => {
       if (direction === 'next' && viewingStep < STEPS.length) setViewingStep(viewingStep + 1);
   };
 
+  const getStepLabel = (stepId: number) => STEPS.find(s => s.id === stepId)?.label || '';
+
   return (
     <div className="h-full flex flex-col p-4 space-y-3">
         {procurementOrders.length === 0 && (
@@ -74,6 +76,7 @@ export const ProcurementProgress: React.FC = () => {
         {procurementOrders.map(order => {
             const isPending = order.status === 'pending_receive';
             const isCompleted = order.status === 'completed';
+            const currentStepLabel = isPending ? '待接收' : isCompleted ? '已完成' : getStepLabel(order.currentStep);
             
             return (
                 <div 
@@ -93,12 +96,14 @@ export const ProcurementProgress: React.FC = () => {
                         </div>
                         <div className="text-right">
                              <div className="font-bold text-orange-600 text-sm">¥ {order.totalPrice.toLocaleString()}</div>
-                             <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded inline-block mt-1 ${
-                                 isPending ? 'bg-slate-100 text-slate-500' :
-                                 isCompleted ? 'bg-green-100 text-green-700' :
-                                 'bg-blue-100 text-blue-700'
-                             }`}>
-                                 {isPending ? '待接收' : isCompleted ? '已完成' : '采购中'}
+                             <div className="mt-1 text-right">
+                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                                     isPending ? 'bg-slate-50 text-slate-500 border-slate-200' :
+                                     isCompleted ? 'bg-green-50 text-green-600 border-green-200' :
+                                     'bg-blue-50 text-blue-600 border-blue-200'
+                                 }`}>
+                                     当前: {currentStepLabel}
+                                 </span>
                              </div>
                         </div>
                     </div>
@@ -152,19 +157,19 @@ export const ProcurementProgress: React.FC = () => {
                  <div className="bg-slate-50 px-6 py-6 pb-12 flex-shrink-0">
                      <div className="relative flex items-center justify-between mb-2 px-1">
                         {/* Background Track */}
-                        <div className="absolute top-1/2 left-0 right-0 h-3 bg-slate-200 -z-10 rounded-full" />
+                        <div className="absolute top-1/2 left-0 right-0 h-3 bg-slate-200 z-0 rounded-full -translate-y-1/2" />
                         
                         {/* Active Progress */}
                         {(() => {
                             const total = STEPS.length;
                             const currentIdx = Math.min(Math.max(selectedOrder.currentStep - 1, 0), total - 1);
-                            const viewingIdx = viewingStep - 1;
-                            // Progress bar reflects actual completion, not just viewing
+                            
+                            // Progress bar reflects actual completion
                             const progressWidth = Math.min(100, (currentIdx / (total - 1)) * 100);
                             
                             return (
                                 <div 
-                                    className="absolute top-1/2 left-0 h-3 bg-blue-500 -z-10 transition-all duration-500 rounded-full shadow-sm" 
+                                    className="absolute top-1/2 left-0 h-3 bg-blue-500 z-0 transition-all duration-500 rounded-full shadow-sm -translate-y-1/2" 
                                     style={{ width: `${selectedOrder.status === 'pending_receive' ? 0 : progressWidth}%` }} 
                                 />
                             );
@@ -178,9 +183,10 @@ export const ProcurementProgress: React.FC = () => {
                                 <div key={step.id} className="z-10 flex flex-col items-center relative cursor-pointer" onClick={() => setViewingStep(step.id)}>
                                     <div className={`w-3 h-3 rounded-full flex items-center justify-center transition-all shadow-sm ${
                                         isViewing ? 'bg-white border-2 border-blue-600 scale-150' :
-                                        isCompleted ? 'bg-blue-500 scale-110' : 
+                                        isCompleted ? 'bg-green-500 scale-110' : 
                                         'bg-slate-300'
                                     }`}>
+                                        {isCompleted && <Check size={8} className="text-white" />}
                                     </div>
                                     <span className={`absolute top-6 text-[9px] font-bold whitespace-nowrap transition-colors ${
                                         isViewing ? 'text-blue-600 scale-110' : isCompleted ? 'text-slate-600' : 'text-slate-400'
@@ -273,8 +279,18 @@ export const ProcurementProgress: React.FC = () => {
                                 <CheckCircle size={18} /> 确认接收订单
                              </button>
                          ) : (
-                             // Only show complete button if viewing the current active step
-                             selectedOrder.currentStep === viewingStep && selectedOrder.currentStep < 5 && (
+                             // Logic: 
+                             // If viewing a previous step (viewingStep < currentStep), it's done -> Show "Completed".
+                             // If viewing current step (viewingStep === currentStep) AND not fully completed -> Show "Confirm".
+                             // If fully completed -> Show "Completed".
+                             (viewingStep < selectedOrder.currentStep || selectedOrder.status === 'completed') ? (
+                                <button 
+                                    disabled
+                                    className="w-full py-3 bg-green-50 text-green-600 font-bold rounded-xl border border-green-100 flex items-center justify-center gap-2 cursor-default"
+                                 >
+                                    <CheckCircle size={18} /> 已完成
+                                 </button>
+                             ) : (
                                  <button 
                                     onClick={handleCompleteCurrentStep}
                                     className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-2"

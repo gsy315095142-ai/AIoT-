@@ -542,7 +542,7 @@ export const RoomInstall: React.FC = () => {
                 <div className="px-6 py-6 bg-slate-50 flex-shrink-0 pb-12">
                     <div className="relative flex items-center justify-between mb-2 px-1">
                         {/* Background Line */}
-                        <div className="absolute top-1/2 left-0 right-0 h-3 bg-slate-200 -z-10 rounded-full" />
+                        <div className="absolute top-1/2 left-0 right-0 h-3 bg-slate-200 z-0 rounded-full -translate-y-1/2" />
                         
                         {/* Progress Line */}
                         {(() => {
@@ -558,7 +558,7 @@ export const RoomInstall: React.FC = () => {
                             
                             return (
                                 <div 
-                                    className="absolute top-1/2 left-0 h-3 bg-green-500 -z-10 transition-all duration-500 rounded-full shadow-sm" 
+                                    className="absolute top-1/2 left-0 h-3 bg-green-500 z-0 transition-all duration-500 rounded-full shadow-sm -translate-y-1/2" 
                                     style={{ width: `${progressWidth}%` }} 
                                 />
                             );
@@ -840,13 +840,22 @@ export const RoomInstall: React.FC = () => {
                     ) : (
                         <div className="flex flex-col gap-3">
                             {/* Confirmation Action for Current Step */}
-                            {!isLocked && !currentNode.completed && (
-                                <button 
-                                    onClick={handleConfirmStep}
-                                    className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-2"
-                                >
-                                    <CheckCircle size={18} /> 确认完成此环节
-                                </button>
+                            {!isLocked && (
+                                currentNode.completed ? (
+                                    <button 
+                                        disabled
+                                        className="w-full py-3 bg-green-50 text-green-600 font-bold rounded-xl border border-green-100 flex items-center justify-center gap-2 cursor-default"
+                                    >
+                                        <CheckCircle size={18} /> 已完成
+                                    </button>
+                                ) : (
+                                    <button 
+                                        onClick={handleConfirmStep}
+                                        className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <CheckCircle size={18} /> 确认完成此环节
+                                    </button>
+                                )
                             )}
                             
                             {/* Just Next/Prev or Submit Final */}
