@@ -1,4 +1,4 @@
-import { useState, useMemo, ChangeEvent } from 'react';
+import React, { useState, useMemo, ChangeEvent } from 'react';
 import { useApp } from '../context/AppContext';
 import { DeviceStatus, OpsStatus, DeviceImage, DeviceEvent, Device, AuditStatus, AuditType } from '../types';
 import { CATEGORY_LIMITS } from '../components/DeviceComponents';

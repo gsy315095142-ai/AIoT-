@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent, AuditRecord, AuditStatus, AuditType, StoreInstallation, InstallNode, Product, RoomTypeConfig } from '../types';
+import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent, AuditRecord, AuditStatus, AuditType, StoreInstallation, InstallNode, Product, RoomTypeConfig, ProcurementOrder } from '../types';
 
 // Initial Mock Data
 const MOCK_REGIONS: Region[] = [
@@ -23,11 +23,17 @@ const createMockInstallation = (status: any = 'unstarted'): StoreInstallation =>
     appointmentTime: undefined
 });
 
+const DEFAULT_ROOM_TYPES: RoomTypeConfig[] = [
+    { id: 'rt1', name: '普通房' },
+    { id: 'rt2', name: '样板房' },
+];
+
 const MOCK_STORES: Store[] = [
   { 
     id: 's1', 
     regionId: 'r1', 
     name: '上海南京路店', 
+    roomTypeConfigs: [...DEFAULT_ROOM_TYPES],
     rooms: [
         { number: '2101', type: '普通房', images: [] },
         { number: '2102', type: '普通房', images: [] },
@@ -39,6 +45,7 @@ const MOCK_STORES: Store[] = [
     id: 's2', 
     regionId: 'r1', 
     name: '杭州西湖店', 
+    roomTypeConfigs: [...DEFAULT_ROOM_TYPES],
     rooms: [
         { number: '101', type: '普通房', images: [] },
         { number: '102', type: '样板房', images: [] }
@@ -49,6 +56,7 @@ const MOCK_STORES: Store[] = [
     id: 's3', 
     regionId: 'r2', 
     name: '北京三里屯店', 
+    roomTypeConfigs: [...DEFAULT_ROOM_TYPES],
     rooms: [
         { number: 'Lobby', type: '普通房', images: [] },
         { number: '301', type: '普通房', images: [] },
@@ -60,6 +68,7 @@ const MOCK_STORES: Store[] = [
     id: 's4', 
     regionId: 'r3', 
     name: '广州天河城店', 
+    roomTypeConfigs: [...DEFAULT_ROOM_TYPES],
     rooms: [
         { number: '501', type: '普通房', images: [] },
         { number: '505', type: '普通房', images: [] }
@@ -162,11 +171,6 @@ const MOCK_DEVICES: Device[] = [
 
 const MOCK_PRODUCTS: Product[] = []; // Default no products as requested
 
-const MOCK_ROOM_TYPES: RoomTypeConfig[] = [
-    { id: 'rt1', name: '普通房' },
-    { id: 'rt2', name: '样板房' },
-];
-
 interface AppContextType {
   currentUser: string | null;
   login: (username: string) => void;
@@ -174,7 +178,6 @@ interface AppContextType {
   regions: Region[];
   stores: Store[];
   deviceTypes: DeviceType[];
-  roomTypes: RoomTypeConfig[]; // New
   devices: Device[];
   auditRecords: AuditRecord[];
   
@@ -183,6 +186,10 @@ interface AppContextType {
   addProcurementProduct: (product: Omit<Product, 'id'>) => void;
   updateProcurementProduct: (id: string, data: Partial<Product>) => void;
   removeProcurementProduct: (id: string) => void;
+  
+  procurementOrders: ProcurementOrder[];
+  addProcurementOrder: (order: Omit<ProcurementOrder, 'id' | 'status' | 'currentStep' | 'createTime'>) => void;
+  updateProcurementOrder: (id: string, data: Partial<ProcurementOrder>) => void;
 
   // Header Action
   headerRightAction: ReactNode;
@@ -196,8 +203,6 @@ interface AppContextType {
   removeStore: (id: string) => void;
   addDeviceType: (name: string) => void;
   removeDeviceType: (id: string) => void;
-  addRoomType: (name: string) => void; // New
-  removeRoomType: (id: string) => void; // New
   addDevice: (device: Omit<Device, 'id' | 'events' | 'status' | 'opsStatus' | 'cpuUsage' | 'memoryUsage' | 'signalStrength' | 'lastTestTime'>) => void;
   updateDevice: (id: string, data: Partial<Device>, customEventMessage?: string, eventMeta?: { remark?: string, images?: string[] }) => void;
   deleteDeviceEvent: (deviceId: string, eventId: string) => void;
@@ -214,10 +219,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [regions, setRegions] = useState<Region[]>(MOCK_REGIONS);
   const [stores, setStores] = useState<Store[]>(MOCK_STORES);
   const [deviceTypes, setDeviceTypes] = useState<DeviceType[]>(MOCK_DEVICE_TYPES);
-  const [roomTypes, setRoomTypes] = useState<RoomTypeConfig[]>(MOCK_ROOM_TYPES); // New
   const [devices, setDevices] = useState<Device[]>(MOCK_DEVICES);
   const [auditRecords, setAuditRecords] = useState<AuditRecord[]>([]);
   const [procurementProducts, setProcurementProducts] = useState<Product[]>(MOCK_PRODUCTS);
+  const [procurementOrders, setProcurementOrders] = useState<ProcurementOrder[]>([]);
   const [headerRightAction, setHeaderRightAction] = useState<ReactNode>(null);
 
   const login = (username: string) => {
@@ -268,14 +273,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const removeDeviceType = (id: string) => {
     setDeviceTypes(deviceTypes.filter(t => t.id !== id));
-  };
-
-  const addRoomType = (name: string) => {
-    setRoomTypes([...roomTypes, { id: `rt-${Date.now()}`, name }]);
-  };
-
-  const removeRoomType = (id: string) => {
-    setRoomTypes(roomTypes.filter(rt => rt.id !== id));
   };
 
   const addDevice = (deviceData: Omit<Device, 'id' | 'events' | 'status' | 'opsStatus' | 'cpuUsage' | 'memoryUsage' | 'signalStrength' | 'lastTestTime'>) => {
@@ -548,17 +545,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setProcurementProducts(prev => prev.filter(p => p.id !== id));
   };
 
+  const addProcurementOrder = (orderData: Omit<ProcurementOrder, 'id' | 'status' | 'currentStep' | 'createTime'>) => {
+      const newOrder: ProcurementOrder = {
+          ...orderData,
+          id: `po-${Date.now()}`,
+          status: 'pending_receive',
+          currentStep: 0,
+          createTime: new Date().toLocaleString()
+      };
+      setProcurementOrders(prev => [newOrder, ...prev]);
+  };
+
+  const updateProcurementOrder = (id: string, data: Partial<ProcurementOrder>) => {
+      setProcurementOrders(prev => prev.map(o => o.id === id ? { ...o, ...data } : o));
+  };
+
   return (
     <AppContext.Provider value={{ 
       currentUser,
       login,
       logout,
-      regions, stores, deviceTypes, roomTypes, devices, auditRecords,
+      regions, stores, deviceTypes, devices, auditRecords,
       procurementProducts, addProcurementProduct, updateProcurementProduct, removeProcurementProduct,
+      procurementOrders, addProcurementOrder, updateProcurementOrder,
       headerRightAction, setHeaderRightAction,
       addRegion, removeRegion, 
       addStore, updateStore, updateStoreInstallation, removeStore, 
-      addDeviceType, removeDeviceType, addRoomType, removeRoomType,
+      addDeviceType, removeDeviceType, 
       addDevice, updateDevice, deleteDeviceEvent,
       submitOpsStatusChange, submitInspectionReport, approveAudit, rejectAudit
     }}>

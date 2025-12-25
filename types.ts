@@ -54,8 +54,9 @@ export type Store = {
   id: string;
   regionId: string;
   name: string;
+  roomTypeConfigs: RoomTypeConfig[]; // New: Per-store room types
   rooms: Room[];
-  installation?: StoreInstallation; // New Field
+  installation?: StoreInstallation; 
 };
 
 export type DeviceType = {
@@ -183,4 +184,31 @@ export type Product = {
   subType: ProductSubType;
   price: number;
   imageUrl?: string;
+};
+
+export type ProcurementOrderItem = {
+  productId: string;
+  productName: string;
+  price: number;
+  quantity: number;
+  imageUrl?: string;
+};
+
+// Procurement Process Steps: 
+// 0: Pending Receive (Not started in progress flow yet)
+// 1: Confirmed (确认订单)
+// 2: Stocking (备货)
+// 3: Packing (出库打包)
+// 4: Logistics (物流)
+// 5: Signed (签收)
+export type ProcurementOrder = {
+  id: string;
+  storeId: string;
+  storeName: string;
+  items: ProcurementOrderItem[];
+  totalPrice: number;
+  remark: string;
+  status: 'pending_receive' | 'purchasing' | 'completed';
+  currentStep: number; // 0 to 5
+  createTime: string;
 };

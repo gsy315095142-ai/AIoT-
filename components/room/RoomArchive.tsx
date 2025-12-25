@@ -1,16 +1,17 @@
 import React, { useState, ChangeEvent } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Star, Table, Ruler, ArrowLeft, Search, ChevronDown, ChevronRight, Filter } from 'lucide-react';
-import { Store as StoreType, Room, RoomImageCategory, RoomImage } from '../../types';
+import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Star, Table, Ruler, ArrowLeft, Search, ChevronDown, ChevronRight, Filter, Settings } from 'lucide-react';
+import { Store as StoreType, Room, RoomImageCategory, RoomImage, RoomTypeConfig } from '../../types';
 
 const ROOM_MODULES: RoomImageCategory[] = ['玄关', '桌面', '床'];
 
 export const RoomArchive: React.FC = () => {
-  const { regions, stores, roomTypes, addStore, updateStore, removeStore } = useApp();
+  const { regions, stores, addStore, updateStore, removeStore } = useApp();
 
   // Navigation & Filter State
   const [viewingStoreId, setViewingStoreId] = useState<string | null>(null);
   const [regionFilter, setRegionFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState(''); // New Search State
   const [roomTypeFilter, setRoomTypeFilter] = useState(''); // New filter for room detail view
 
   // Store Management Modal State
@@ -21,12 +22,18 @@ export const RoomArchive: React.FC = () => {
       name: string;
       regionId: string;
       rooms: { key: string; number: string }[];
+      roomTypes: RoomTypeConfig[];
   }>({
       id: '',
       name: '',
       regionId: '',
-      rooms: []
+      rooms: [],
+      roomTypes: []
   });
+  const [newRoomTypeName, setNewRoomTypeName] = useState('');
+
+  // Store Room Type Config Modal
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
 
   // Room Detail Modal State
   const [editingRoom, setEditingRoom] = useState<{ storeId: string; room: Room } | null>(null);
@@ -36,6 +43,7 @@ export const RoomArchive: React.FC = () => {
   
   const filteredStores = stores.filter(s => {
       if (regionFilter && s.regionId !== regionFilter) return false;
+      if (searchQuery && !s.name.toLowerCase().includes(searchQuery.toLowerCase())) return false; // Fuzzy Search Logic
       return true;
   });
 
@@ -43,7 +51,13 @@ export const RoomArchive: React.FC = () => {
 
   const openAddStoreModal = () => {
       setEditingStoreId(null);
-      setStoreForm({ id: '', name: '', regionId: '', rooms: [{ key: 'init', number: '' }] });
+      setStoreForm({ 
+          id: '', 
+          name: '', 
+          regionId: '', 
+          rooms: [{ key: 'init', number: '' }],
+          roomTypes: [{ id: 'rt1', name: '普通房' }, { id: 'rt2', name: '样板房' }] // Defaults
+      });
       setIsStoreModalOpen(true);
   };
 
@@ -55,7 +69,8 @@ export const RoomArchive: React.FC = () => {
           regionId: store.regionId,
           rooms: store.rooms.length > 0 
             ? store.rooms.map((r, i) => ({ key: `room-${i}-${Date.now()}`, number: r.number }))
-            : [{ key: 'init', number: '' }]
+            : [{ key: 'init', number: '' }],
+          roomTypes: store.roomTypeConfigs ? [...store.roomTypeConfigs] : []
       });
       setIsStoreModalOpen(true);
   };
@@ -104,16 +119,38 @@ export const RoomArchive: React.FC = () => {
        });
   };
 
+  // -- Room Type Config Logic in Modal --
+  const addFormRoomType = () => {
+      if (!newRoomTypeName.trim()) return;
+      setStoreForm(prev => ({
+          ...prev,
+          roomTypes: [...prev.roomTypes, { id: `rt-${Date.now()}`, name: newRoomTypeName.trim() }]
+      }));
+      setNewRoomTypeName('');
+  };
+
+  const removeFormRoomType = (id: string) => {
+      setStoreForm(prev => ({
+          ...prev,
+          roomTypes: prev.roomTypes.filter(rt => rt.id !== id)
+      }));
+  };
+
   const handleStoreSubmit = (e: React.FormEvent) => {
       e.preventDefault();
       
+      if (storeForm.roomTypes.length === 0) {
+          alert('请至少配置一种房型');
+          return;
+      }
+
       const inputRoomNumbers = storeForm.rooms.map(r => r.number.trim()).filter(Boolean);
       const uniqueNumbers = Array.from(new Set(inputRoomNumbers)); 
       
-      const defaultRoomType = roomTypes.length > 0 ? roomTypes[0].name : '普通房';
+      const defaultRoomType = storeForm.roomTypes[0].name;
 
       const mergeRooms = (currentRooms: Room[] = []): Room[] => {
-          return uniqueNumbers.map(num => {
+          return uniqueNumbers.map((num: string) => {
               const existing = currentRooms.find(r => r.number === num);
               if (existing) return existing;
               return { number: num, type: defaultRoomType, images: [] }; 
@@ -127,6 +164,7 @@ export const RoomArchive: React.FC = () => {
           updateStore(editingStoreId, {
               name: storeForm.name,
               regionId: storeForm.regionId,
+              roomTypeConfigs: storeForm.roomTypes,
               rooms: mergeRooms(existingStore.rooms)
           });
       } else {
@@ -138,6 +176,7 @@ export const RoomArchive: React.FC = () => {
               id: storeForm.id,
               name: storeForm.name,
               regionId: storeForm.regionId,
+              roomTypeConfigs: storeForm.roomTypes,
               rooms: mergeRooms([])
           });
       }
@@ -148,6 +187,30 @@ export const RoomArchive: React.FC = () => {
       if (window.confirm(`确定要删除门店 "${name}" 吗？此操作不可恢复。`)) {
           removeStore(id);
       }
+  };
+
+  // --- Independent Config Modal for Existing Store ---
+  const handleOpenConfigModal = () => {
+      if (!activeStore) return;
+      // Initialize form with current store data just for the room types part
+      setStoreForm({
+          id: activeStore.id,
+          name: activeStore.name,
+          regionId: activeStore.regionId,
+          rooms: [], // Not needed for this modal
+          roomTypes: activeStore.roomTypeConfigs ? [...activeStore.roomTypeConfigs] : []
+      });
+      setIsConfigModalOpen(true);
+  };
+
+  const handleConfigSave = () => {
+      if (!activeStore) return;
+      if (storeForm.roomTypes.length === 0) {
+          alert('请至少保留一种房型');
+          return;
+      }
+      updateStore(activeStore.id, { roomTypeConfigs: storeForm.roomTypes });
+      setIsConfigModalOpen(false);
   };
 
   // --- Room Detail Logic ---
@@ -200,6 +263,7 @@ export const RoomArchive: React.FC = () => {
   if (viewingStoreId && activeStore) {
       // --- Detail View: Store Rooms ---
       const roomCount = activeStore.rooms.length;
+      const availableRoomTypes = activeStore.roomTypeConfigs || [];
       
       // Filter Logic
       const filteredRooms = activeStore.rooms.filter(room => {
@@ -211,17 +275,25 @@ export const RoomArchive: React.FC = () => {
           <div className="h-full flex flex-col bg-white">
               {/* Sticky Header with Title and Filter */}
               <div className="sticky top-0 bg-white z-10 shadow-sm">
-                  <div className="flex items-center gap-3 p-4 pb-2">
-                      <button 
-                          onClick={() => setViewingStoreId(null)}
-                          className="p-2 -ml-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"
-                      >
-                          <ArrowLeft size={20} />
-                      </button>
-                      <div>
-                          <h2 className="text-base font-bold text-slate-800">{activeStore.name}</h2>
-                          <p className="text-xs text-slate-500">共 {filteredRooms.length}/{roomCount} 间客房</p>
+                  <div className="flex items-center justify-between p-4 pb-2">
+                      <div className="flex items-center gap-3">
+                          <button 
+                              onClick={() => setViewingStoreId(null)}
+                              className="p-2 -ml-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"
+                          >
+                              <ArrowLeft size={20} />
+                          </button>
+                          <div>
+                              <h2 className="text-base font-bold text-slate-800">{activeStore.name}</h2>
+                              <p className="text-xs text-slate-500">共 {filteredRooms.length}/{roomCount} 间客房</p>
+                          </div>
                       </div>
+                      <button 
+                          onClick={handleOpenConfigModal}
+                          className="flex items-center gap-1 text-[10px] bg-slate-100 text-slate-600 px-2 py-1.5 rounded-lg font-bold hover:bg-slate-200"
+                      >
+                          <Settings size={12} /> 房型配置
+                      </button>
                   </div>
 
                   {/* Room Filter Bar */}
@@ -233,7 +305,7 @@ export const RoomArchive: React.FC = () => {
                               onChange={(e) => setRoomTypeFilter(e.target.value)}
                           >
                               <option value="">全部房型</option>
-                              {roomTypes.map(rt => <option key={rt.id} value={rt.name}>{rt.name}</option>)}
+                              {availableRoomTypes.map(rt => <option key={rt.id} value={rt.name}>{rt.name}</option>)}
                           </select>
                           <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
                           <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
@@ -297,9 +369,9 @@ export const RoomArchive: React.FC = () => {
                               <div>
                                   <label className="block text-xs font-bold text-slate-500 uppercase mb-2">房型选择</label>
                                   <div className="grid grid-cols-2 gap-3">
-                                      {roomTypes.map(rt => {
+                                      {availableRoomTypes.map(rt => {
                                           const isSelected = editingRoom.room.type === rt.name;
-                                          const isSample = rt.name === '样板房'; // Keep legacy visual check if name matches
+                                          const isSample = rt.name === '样板房'; 
                                           
                                           return (
                                             <label key={rt.id} className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
@@ -368,6 +440,52 @@ export const RoomArchive: React.FC = () => {
                       </div>
                   </div>
               )}
+
+              {/* Independent Config Modal */}
+              {isConfigModalOpen && (
+                 <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-scaleIn">
+                        <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
+                            <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                                <Settings size={20} className="text-blue-600" />
+                                房型配置 - {activeStore.name}
+                            </h3>
+                            <button onClick={() => setIsConfigModalOpen(false)}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
+                        </div>
+                        <div className="p-5 flex-1">
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">房型列表</label>
+                            <div className="flex gap-2 mb-3">
+                                <input 
+                                    type="text" 
+                                    placeholder="输入房型名称"
+                                    className="flex-1 border border-slate-200 rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    value={newRoomTypeName}
+                                    onChange={e => setNewRoomTypeName(e.target.value)}
+                                />
+                                <button onClick={addFormRoomType} className="bg-blue-600 text-white px-3 rounded hover:bg-blue-700"><Plus size={16}/></button>
+                            </div>
+                            <div className="border border-slate-200 rounded-lg overflow-hidden bg-white max-h-60 overflow-y-auto">
+                                <ul className="divide-y divide-slate-100">
+                                    {storeForm.roomTypes.map(rt => (
+                                        <li key={rt.id} className="p-3 flex justify-between items-center hover:bg-slate-50">
+                                            <span className="text-sm font-medium text-slate-700">{rt.name}</span>
+                                            <button onClick={() => removeFormRoomType(rt.id)} className="text-slate-300 hover:text-red-500"><Trash2 size={16} /></button>
+                                        </li>
+                                    ))}
+                                    {storeForm.roomTypes.length === 0 && (
+                                        <li className="p-4 text-center text-xs text-slate-400">请至少添加一种房型</li>
+                                    )}
+                                </ul>
+                            </div>
+                        </div>
+                        <div className="p-4 border-t border-slate-100 bg-slate-50">
+                            <button onClick={handleConfigSave} className="w-full bg-blue-600 text-white font-bold py-2.5 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+                                保存配置
+                            </button>
+                        </div>
+                    </div>
+                 </div>
+              )}
           </div>
       );
   }
@@ -387,18 +505,43 @@ export const RoomArchive: React.FC = () => {
                 </button>
             </div>
 
-            {/* 1.2 Filter Bar */}
-            <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 mb-2">
-                <div className="relative">
-                    <select 
-                        className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={regionFilter}
-                        onChange={(e) => setRegionFilter(e.target.value)}
-                    >
-                        <option value="">全部大区</option>
-                        {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+            {/* 1.2 Search & Filter Bar */}
+            <div className="space-y-2">
+                {/* Search Bar */}
+                <div className="bg-white p-2 rounded-xl shadow-sm border border-slate-100">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <input 
+                            type="text" 
+                            placeholder="搜索门店名称..."
+                            className="w-full bg-slate-50 border-none rounded-lg py-2 pl-9 pr-4 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                        {searchQuery && (
+                            <button 
+                                onClick={() => setSearchQuery('')}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                            >
+                                <X size={14} />
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {/* Filter Bar */}
+                <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-100">
+                    <div className="relative">
+                        <select 
+                            className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            value={regionFilter}
+                            onChange={(e) => setRegionFilter(e.target.value)}
+                        >
+                            <option value="">全部大区</option>
+                            {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                    </div>
                 </div>
             </div>
         </div>
@@ -496,6 +639,35 @@ export const RoomArchive: React.FC = () => {
                                 {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                             </select>
                         </div>
+                        
+                        {/* Room Type Config Section */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">房型设置 *</label>
+                            <div className="flex gap-2 mb-2">
+                                <input 
+                                    type="text" 
+                                    placeholder="输入房型名称"
+                                    className="flex-1 border border-slate-200 rounded p-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    value={newRoomTypeName}
+                                    onChange={e => setNewRoomTypeName(e.target.value)}
+                                />
+                                <button type="button" onClick={addFormRoomType} className="bg-blue-600 text-white px-3 rounded hover:bg-blue-700 text-xs font-bold">添加</button>
+                            </div>
+                            <div className="border border-slate-200 rounded-lg overflow-hidden bg-slate-50 max-h-32 overflow-y-auto">
+                                <ul className="divide-y divide-slate-100">
+                                    {storeForm.roomTypes.map(rt => (
+                                        <li key={rt.id} className="p-2 flex justify-between items-center hover:bg-white text-xs">
+                                            <span className="font-bold text-slate-700">{rt.name}</span>
+                                            <button type="button" onClick={() => removeFormRoomType(rt.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={14} /></button>
+                                        </li>
+                                    ))}
+                                    {storeForm.roomTypes.length === 0 && (
+                                        <li className="p-3 text-center text-xs text-red-400">请添加至少一种房型</li>
+                                    )}
+                                </ul>
+                            </div>
+                        </div>
+
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">客房列表 (动态添加)</label>
                             <div className="border border-slate-200 rounded-lg overflow-hidden flex flex-col">
