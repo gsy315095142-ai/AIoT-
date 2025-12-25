@@ -1,6 +1,6 @@
-import React, { useState, ChangeEvent } from 'react';
+import React, { useState, ChangeEvent, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Star, Table, Ruler, ArrowLeft, Search, ChevronDown, ChevronRight, Filter, Settings } from 'lucide-react';
+import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Star, Table, Ruler, ArrowLeft, Search, ChevronDown, ChevronRight, Filter, Settings, Check } from 'lucide-react';
 import { Store as StoreType, Room, RoomImageCategory, RoomImage, RoomTypeConfig } from '../../types';
 
 const ROOM_MODULES: RoomImageCategory[] = ['玄关', '桌面', '床'];
@@ -12,7 +12,10 @@ export const RoomArchive: React.FC = () => {
   const [viewingStoreId, setViewingStoreId] = useState<string | null>(null);
   const [regionFilter, setRegionFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState(''); // New Search State
-  const [roomTypeFilter, setRoomTypeFilter] = useState(''); // New filter for room detail view
+  
+  // Detail View State
+  const [activeRoomTypeName, setActiveRoomTypeName] = useState('');
+  const [isAssignOpen, setIsAssignOpen] = useState(false);
 
   // Store Management Modal State
   const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
@@ -46,6 +49,22 @@ export const RoomArchive: React.FC = () => {
       if (searchQuery && !s.name.toLowerCase().includes(searchQuery.toLowerCase())) return false; // Fuzzy Search Logic
       return true;
   });
+
+  // Sync Active Room Type
+  useEffect(() => {
+      if (activeStore) {
+          const types = activeStore.roomTypeConfigs || [];
+          const typeNames = types.map(t => t.name);
+          
+          if (activeRoomTypeName && !typeNames.includes(activeRoomTypeName)) {
+               // Current active type was deleted or invalid, reset to first
+               setActiveRoomTypeName(typeNames[0] || '');
+          } else if (!activeRoomTypeName && typeNames.length > 0) {
+               // Initial load
+               setActiveRoomTypeName(typeNames[0]);
+          }
+      }
+  }, [activeStore, activeRoomTypeName]);
 
   // --- Store Management Logic ---
 
@@ -258,6 +277,15 @@ export const RoomArchive: React.FC = () => {
       });
   };
 
+  const handleAssignRoom = (roomNumber: string) => {
+      if (!activeStore) return;
+      const updatedRooms = activeStore.rooms.map(r => 
+          r.number === roomNumber ? { ...r, type: activeRoomTypeName } : r
+      );
+      updateStore(activeStore.id, { rooms: updatedRooms });
+      setIsAssignOpen(false);
+  };
+
   // --- View Switching ---
 
   if (viewingStoreId && activeStore) {
@@ -267,14 +295,17 @@ export const RoomArchive: React.FC = () => {
       
       // Filter Logic
       const filteredRooms = activeStore.rooms.filter(room => {
-          if (roomTypeFilter && room.type !== roomTypeFilter) return false;
+          if (activeRoomTypeName && room.type !== activeRoomTypeName) return false;
           return true;
       });
 
+      // Rooms available to be assigned to the current type (all rooms NOT of current type)
+      const assignableRooms = activeStore.rooms.filter(r => r.type !== activeRoomTypeName);
+
       return (
           <div className="h-full flex flex-col bg-white">
-              {/* Sticky Header with Title and Filter */}
-              <div className="sticky top-0 bg-white z-10 shadow-sm">
+              {/* Sticky Header with Title and Tabs */}
+              <div className="sticky top-0 bg-white z-10 shadow-sm flex flex-col">
                   <div className="flex items-center justify-between p-4 pb-2">
                       <div className="flex items-center gap-3">
                           <button 
@@ -285,7 +316,7 @@ export const RoomArchive: React.FC = () => {
                           </button>
                           <div>
                               <h2 className="text-base font-bold text-slate-800">{activeStore.name}</h2>
-                              <p className="text-xs text-slate-500">共 {filteredRooms.length}/{roomCount} 间客房</p>
+                              <p className="text-xs text-slate-500">共 {roomCount} 间客房</p>
                           </div>
                       </div>
                       <button 
@@ -296,19 +327,61 @@ export const RoomArchive: React.FC = () => {
                       </button>
                   </div>
 
-                  {/* Room Filter Bar */}
-                  <div className="px-4 pb-3">
-                      <div className="relative">
-                          <select 
-                              className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 pl-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              value={roomTypeFilter}
-                              onChange={(e) => setRoomTypeFilter(e.target.value)}
+                  {/* Room Type Tabs */}
+                  <div className="flex px-4 border-b border-slate-100 overflow-x-auto no-scrollbar gap-6">
+                      {availableRoomTypes.map(rt => (
+                          <button
+                              key={rt.id}
+                              onClick={() => setActiveRoomTypeName(rt.name)}
+                              className={`py-3 text-sm font-bold whitespace-nowrap relative transition-colors ${
+                                  activeRoomTypeName === rt.name ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'
+                              }`}
                           >
-                              <option value="">全部房型</option>
-                              {availableRoomTypes.map(rt => <option key={rt.id} value={rt.name}>{rt.name}</option>)}
-                          </select>
-                          <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
-                          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                              {rt.name}
+                              {activeRoomTypeName === rt.name && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-t-full" />}
+                          </button>
+                      ))}
+                  </div>
+
+                  {/* Action Bar (Assign Room) */}
+                  <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex justify-between items-center relative z-20">
+                      <span className="text-xs text-slate-500 font-bold">本房型: {filteredRooms.length} 间</span>
+                      
+                      <div className="relative">
+                          <button 
+                              onClick={() => setIsAssignOpen(!isAssignOpen)}
+                              className="flex items-center gap-1 bg-white border border-blue-200 text-blue-600 text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-blue-50 transition-colors"
+                          >
+                              <Plus size={12} /> 选择客房进行分配
+                          </button>
+                          
+                          {/* Assignment Dropdown */}
+                          {isAssignOpen && (
+                              <>
+                                  <div className="fixed inset-0 z-10" onClick={() => setIsAssignOpen(false)}></div>
+                                  <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 z-20 max-h-60 overflow-y-auto animate-scaleIn origin-top-right">
+                                      <div className="p-2.5 text-[10px] text-slate-400 font-bold bg-slate-50 border-b border-slate-100 sticky top-0 uppercase">
+                                          选择客房移动至「{activeRoomTypeName}」
+                                      </div>
+                                      {assignableRooms.length > 0 ? (
+                                          <div className="divide-y divide-slate-50">
+                                              {assignableRooms.map(r => (
+                                                  <button
+                                                      key={r.number}
+                                                      onClick={() => handleAssignRoom(r.number)}
+                                                      className="w-full text-left px-4 py-2.5 text-xs text-slate-700 hover:bg-blue-50 flex justify-between items-center transition-colors"
+                                                  >
+                                                      <span className="font-bold">{r.number}</span>
+                                                      <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{r.type}</span>
+                                                  </button>
+                                              ))}
+                                          </div>
+                                      ) : (
+                                          <div className="p-4 text-center text-xs text-slate-400">无可分配客房</div>
+                                      )}
+                                  </div>
+                              </>
+                          )}
                       </div>
                   </div>
               </div>
@@ -347,7 +420,7 @@ export const RoomArchive: React.FC = () => {
                   ) : (
                       <div className="flex flex-col items-center justify-center h-60 text-slate-400">
                           <BedDouble size={40} className="mb-2 opacity-20" />
-                          <p className="text-sm">没有找到相关客房</p>
+                          <p className="text-sm">该房型下暂无客房</p>
                       </div>
                   )}
               </div>
@@ -559,7 +632,11 @@ export const RoomArchive: React.FC = () => {
                     // 1.4 Store Item Layout (Click to Open Detail)
                     <div 
                         key={s.id} 
-                        onClick={() => { setViewingStoreId(s.id); setRoomTypeFilter(''); }}
+                        onClick={() => { 
+                            setViewingStoreId(s.id); 
+                            const initialType = s.roomTypeConfigs?.[0]?.name || '';
+                            setActiveRoomTypeName(initialType);
+                        }}
                         className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between cursor-pointer group hover:shadow-md transition-all active:scale-[0.99]"
                     >
                         <div className="flex-1">
