@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent } from 'react';
-import { Ruler, Store, ChevronDown, Plus, X, Upload, ClipboardList, Edit3, Check, Save, Filter, BedDouble, HelpCircle, Image as ImageIcon } from 'lucide-react';
+import { Ruler, Store, ChevronDown, Plus, X, Upload, ClipboardList, Edit3, Check, Save, Filter, BedDouble, HelpCircle, Image as ImageIcon, Send, AlertCircle, CheckCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { RoomImageCategory, RoomImage, RoomMeasurement, MeasurementType } from '../../types';
 
@@ -29,6 +29,10 @@ export const RoomMeasure: React.FC = () => {
     remark: ''
   });
 
+  // Rejection State
+  const [rejectingCategory, setRejectingCategory] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+
   // Example Image Modal State
   const [viewingExample, setViewingExample] = useState<{ title: string; url: string } | null>(null);
 
@@ -43,8 +47,8 @@ export const RoomMeasure: React.FC = () => {
   const filteredRooms = currentStore?.rooms.filter(room => {
       const hasImages = room.images && room.images.length > 0;
       // We assume there are 3 required modules for completion
-      const measurementCount = room.measurements ? room.measurements.length : 0;
-      const isCompleted = measurementCount >= 3; // Simple rule: 3 measurements implies done
+      const measurementCount = room.measurements ? room.measurements.filter(m => m.status === 'approved').length : 0;
+      const isCompleted = measurementCount >= 3; // Simple rule: 3 approved measurements implies done
       
       if (statusFilter === 'all') return true;
       if (statusFilter === 'no_image') return !hasImages;
@@ -102,17 +106,23 @@ export const RoomMeasure: React.FC = () => {
     setEditingCategory(null);
   };
 
-  const saveMeasurement = (category: RoomImageCategory) => {
+  const saveMeasurement = (category: RoomImageCategory, currentStatus?: 'pending' | 'approved' | 'rejected') => {
       if (!currentStore || !currentRoom) return;
+
+      // Keep existing status if updating content, or default to undefined (draft) if new
+      // Unless it was rejected, then maybe keep rejected until resubmitted? 
+      // Requirement 3.3: Update content anytime.
+      const status = currentStatus; 
 
       const newMeasurement: RoomMeasurement = {
           category,
           type: editForm.type,
-          remark: editForm.remark
+          remark: editForm.remark,
+          status: status,
+          rejectReason: status === 'rejected' ? currentRoom.measurements?.find(m => m.category === category)?.rejectReason : undefined
       };
 
       const existingMeasurements = currentRoom.measurements || [];
-      // Remove existing for this category if any, then add new
       const otherMeasurements = existingMeasurements.filter(m => m.category !== category);
       const updatedMeasurements = [...otherMeasurements, newMeasurement];
 
@@ -125,6 +135,71 @@ export const RoomMeasure: React.FC = () => {
 
       updateStore(currentStore.id, { rooms: updatedRooms });
       setEditingCategory(null);
+  };
+
+  const submitAudit = (category: RoomImageCategory) => {
+      if (!currentStore || !currentRoom) return;
+      const measurement = currentRoom.measurements?.find(m => m.category === category);
+      if (!measurement) return;
+
+      const newMeasurement = { ...measurement, status: 'pending' as const, rejectReason: undefined };
+      
+      const existingMeasurements = currentRoom.measurements || [];
+      const otherMeasurements = existingMeasurements.filter(m => m.category !== category);
+      const updatedMeasurements = [...otherMeasurements, newMeasurement];
+
+      const updatedRooms = currentStore.rooms.map(r => {
+          if (r.number === currentRoom.number) {
+              return { ...r, measurements: updatedMeasurements };
+          }
+          return r;
+      });
+
+      updateStore(currentStore.id, { rooms: updatedRooms });
+  };
+
+  const handleApprove = (category: RoomImageCategory) => {
+      if (!currentStore || !currentRoom) return;
+      const measurement = currentRoom.measurements?.find(m => m.category === category);
+      if (!measurement) return;
+
+      const newMeasurement = { ...measurement, status: 'approved' as const };
+      
+      const existingMeasurements = currentRoom.measurements || [];
+      const otherMeasurements = existingMeasurements.filter(m => m.category !== category);
+      const updatedMeasurements = [...otherMeasurements, newMeasurement];
+
+      const updatedRooms = currentStore.rooms.map(r => {
+          if (r.number === currentRoom.number) {
+              return { ...r, measurements: updatedMeasurements };
+          }
+          return r;
+      });
+
+      updateStore(currentStore.id, { rooms: updatedRooms });
+  };
+
+  const handleReject = (category: RoomImageCategory) => {
+      if (!currentStore || !currentRoom || !rejectReason.trim()) return;
+      const measurement = currentRoom.measurements?.find(m => m.category === category);
+      if (!measurement) return;
+
+      const newMeasurement = { ...measurement, status: 'rejected' as const, rejectReason };
+      
+      const existingMeasurements = currentRoom.measurements || [];
+      const otherMeasurements = existingMeasurements.filter(m => m.category !== category);
+      const updatedMeasurements = [...otherMeasurements, newMeasurement];
+
+      const updatedRooms = currentStore.rooms.map(r => {
+          if (r.number === currentRoom.number) {
+              return { ...r, measurements: updatedMeasurements };
+          }
+          return r;
+      });
+
+      updateStore(currentStore.id, { rooms: updatedRooms });
+      setRejectingCategory(null);
+      setRejectReason('');
   };
 
   const openExample = (moduleName: string) => {
@@ -225,16 +300,34 @@ export const RoomMeasure: React.FC = () => {
                         const measurement = currentRoom.measurements?.find(m => m.category === moduleName);
                         const isEditing = editingCategory === moduleName;
                         const hasImages = images.length > 0;
+                        const status = measurement?.status;
 
                         return (
-                            <div key={moduleName} className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
+                            <div key={moduleName} className={`bg-white rounded-xl shadow-sm border overflow-hidden flex flex-col transition-all ${
+                                status === 'rejected' ? 'border-red-200 ring-2 ring-red-50' : 
+                                status === 'approved' ? 'border-green-200' : 
+                                'border-slate-100'
+                            }`}>
                                 {/* Module Header */}
                                 <div className="bg-slate-50 p-3 border-b border-slate-100 flex justify-between items-center">
                                     <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
-                                        <div className="w-2 h-4 bg-blue-500 rounded-full"></div>
+                                        <div className={`w-2 h-4 rounded-full ${
+                                            status === 'approved' ? 'bg-green-500' : 
+                                            status === 'rejected' ? 'bg-red-500' : 
+                                            status === 'pending' ? 'bg-orange-500' : 'bg-blue-500'
+                                        }`}></div>
                                         {moduleName}
                                     </h4>
                                     <div className="flex items-center gap-2">
+                                        {status && (
+                                            <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${
+                                                status === 'approved' ? 'bg-green-100 text-green-700' : 
+                                                status === 'rejected' ? 'bg-red-100 text-red-700' : 
+                                                'bg-orange-100 text-orange-700'
+                                            }`}>
+                                                {status === 'pending' ? '待审核' : status === 'approved' ? '已通过' : '已驳回'}
+                                            </span>
+                                        )}
                                         <span className="text-[10px] bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded font-mono">共 {images.length} 张图</span>
                                         <button 
                                             onClick={() => openExample(moduleName)}
@@ -278,7 +371,7 @@ export const RoomMeasure: React.FC = () => {
                                 {/* Divider */}
                                 <div className="h-px bg-slate-100 mx-4"></div>
 
-                                {/* Part 2: Evaluation */}
+                                {/* Part 2: Evaluation & Audit */}
                                 <div className="p-4">
                                     <h5 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-1">
                                         <ClipboardList size={12} /> 复尺评估
@@ -318,7 +411,7 @@ export const RoomMeasure: React.FC = () => {
                                                     取消
                                                 </button>
                                                 <button 
-                                                    onClick={() => saveMeasurement(moduleName)}
+                                                    onClick={() => saveMeasurement(moduleName, measurement?.status)}
                                                     className="px-3 py-1.5 rounded bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-colors flex items-center gap-1"
                                                 >
                                                     <Save size={12} /> 保存
@@ -327,29 +420,86 @@ export const RoomMeasure: React.FC = () => {
                                         </div>
                                     ) : (
                                         measurement ? (
-                                            <div className={`rounded-lg p-3 border flex items-start justify-between group ${
-                                                measurement.type === '特殊安装' ? 'bg-orange-50 border-orange-200' : 'bg-slate-50 border-slate-200'
-                                            }`}>
-                                                <div className="flex-1">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                                                            measurement.type === '特殊安装' 
-                                                                ? 'bg-orange-100 text-orange-700 border-orange-200' 
-                                                                : 'bg-green-100 text-green-700 border-green-200'
-                                                        }`}>
-                                                            {measurement.type}
-                                                        </span>
+                                            <div className="space-y-3">
+                                                <div className={`rounded-lg p-3 border flex items-start justify-between group ${
+                                                    measurement.type === '特殊安装' ? 'bg-orange-50 border-orange-200' : 'bg-slate-50 border-slate-200'
+                                                }`}>
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                                                measurement.type === '特殊安装' 
+                                                                    ? 'bg-orange-100 text-orange-700 border-orange-200' 
+                                                                    : 'bg-green-100 text-green-700 border-green-200'
+                                                            }`}>
+                                                                {measurement.type}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap">
+                                                            {measurement.remark || '无备注说明'}
+                                                        </p>
                                                     </div>
-                                                    <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap">
-                                                        {measurement.remark || '无备注说明'}
-                                                    </p>
+                                                    <button 
+                                                        onClick={() => startEditing(moduleName, measurement)}
+                                                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors opacity-0 group-hover:opacity-100"
+                                                    >
+                                                        <Edit3 size={16} />
+                                                    </button>
                                                 </div>
-                                                <button 
-                                                    onClick={() => startEditing(moduleName, measurement)}
-                                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors opacity-0 group-hover:opacity-100"
-                                                >
-                                                    <Edit3 size={16} />
-                                                </button>
+
+                                                {/* Rejection Reason Display */}
+                                                {status === 'rejected' && measurement.rejectReason && (
+                                                    <div className="bg-red-50 border border-red-100 rounded-lg p-2 text-xs text-red-700 flex items-start gap-2">
+                                                        <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                                                        <div>
+                                                            <span className="font-bold">驳回原因:</span> {measurement.rejectReason}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Audit Actions */}
+                                                <div className="flex gap-2">
+                                                    {!status || status === 'rejected' ? (
+                                                        <button 
+                                                            onClick={() => submitAudit(moduleName)}
+                                                            className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-1 shadow-sm"
+                                                        >
+                                                            <Send size={12} /> {status === 'rejected' ? '重新提交审核' : '提交审核'}
+                                                        </button>
+                                                    ) : status === 'pending' ? (
+                                                        rejectingCategory === moduleName ? (
+                                                            <div className="flex-1 flex gap-2 animate-fadeIn">
+                                                                <input 
+                                                                    autoFocus
+                                                                    placeholder="驳回原因..." 
+                                                                    className="flex-1 border border-red-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-red-300 outline-none"
+                                                                    value={rejectReason}
+                                                                    onChange={e => setRejectReason(e.target.value)}
+                                                                />
+                                                                <button onClick={() => handleReject(moduleName)} className="bg-red-500 text-white px-3 rounded text-xs">确认</button>
+                                                                <button onClick={() => setRejectingCategory(null)} className="bg-slate-200 text-slate-600 px-3 rounded text-xs">取消</button>
+                                                            </div>
+                                                        ) : (
+                                                            <>
+                                                                <button 
+                                                                    onClick={() => setRejectingCategory(moduleName)}
+                                                                    className="flex-1 py-2 border border-red-200 text-red-600 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors"
+                                                                >
+                                                                    驳回
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => handleApprove(moduleName)}
+                                                                    className="flex-1 py-2 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700 transition-colors shadow-sm"
+                                                                >
+                                                                    同意
+                                                                </button>
+                                                            </>
+                                                        )
+                                                    ) : (
+                                                        <div className="flex-1 py-2 bg-slate-50 border border-slate-100 text-green-600 rounded-lg text-xs font-bold flex items-center justify-center gap-1 cursor-default">
+                                                            <CheckCircle size={14} /> 已通过审核并归档
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         ) : (
                                             <button 

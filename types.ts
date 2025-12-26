@@ -27,6 +27,8 @@ export type RoomMeasurement = {
   category: RoomImageCategory;
   type: MeasurementType;
   remark: string;
+  status?: 'pending' | 'approved' | 'rejected'; // Audit Status
+  rejectReason?: string;
 };
 
 export type Room = {

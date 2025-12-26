@@ -1,4 +1,4 @@
-// 标记：本次更新修复了内部下单成功提示和期望交货日期填写，优化了采购进度确认时间显示及物流跳转，并将打卡环节更名为到店打卡
+// 标记：本次更新在采购进度增加期望交货时间显示，并在客房复尺页面增加了审核流程（提交/同意/驳回），同步数据至门店建档的逻辑
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

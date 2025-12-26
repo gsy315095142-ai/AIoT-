@@ -243,12 +243,21 @@ export const ProcurementProgress: React.FC = () => {
                             <div className="text-xs text-slate-500 mt-0.5">
                                 共 {order.items.reduce((sum, item) => sum + item.quantity, 0)} 件商品
                             </div>
-                            {order.remark && (
-                                <div className="text-[10px] text-slate-500 mt-1.5 bg-slate-50 px-2 py-1 rounded flex items-start gap-1">
-                                    <FileText size={10} className="mt-0.5 shrink-0 text-slate-400" />
-                                    <span className="line-clamp-1">{order.remark}</span>
-                                </div>
-                            )}
+                            
+                            <div className="mt-1.5 space-y-1">
+                                {order.expectDeliveryDate && (
+                                    <div className="text-[10px] text-slate-500 flex items-center gap-1">
+                                        <Calendar size={10} className="text-blue-500" />
+                                        期望交货: <span className="font-bold text-slate-700">{order.expectDeliveryDate}</span>
+                                    </div>
+                                )}
+                                {order.remark && (
+                                    <div className="text-[10px] text-slate-500 bg-slate-50 px-2 py-1 rounded flex items-start gap-1">
+                                        <FileText size={10} className="mt-0.5 shrink-0 text-slate-400" />
+                                        <span className="line-clamp-1">{order.remark}</span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                         <div className="text-right">
                              <div className="font-bold text-orange-600 text-sm">¥ {order.totalPrice.toLocaleString()}</div>

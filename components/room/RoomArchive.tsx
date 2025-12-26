@@ -259,33 +259,6 @@ export const RoomArchive: React.FC = () => {
       setEditingRoom(null);
   };
 
-  const handleRoomImageUpload = (e: ChangeEvent<HTMLInputElement>, category: RoomImageCategory) => {
-      if (!editingRoom) return;
-      if (e.target.files && e.target.files[0]) {
-          const url = URL.createObjectURL(e.target.files[0]);
-          const newImage: RoomImage = { url, category };
-          setEditingRoom({
-              ...editingRoom,
-              room: {
-                  ...editingRoom.room,
-                  images: [...(editingRoom.room.images || []), newImage]
-              }
-          });
-          e.target.value = '';
-      }
-  };
-
-  const removeRoomImage = (imageToRemove: RoomImage) => {
-      if (!editingRoom) return;
-      setEditingRoom({
-          ...editingRoom,
-          room: {
-              ...editingRoom.room,
-              images: editingRoom.room.images?.filter(img => img !== imageToRemove) || []
-          }
-      });
-  };
-
   const handleAssignRoom = (roomNumber: string) => {
       if (!activeStore) return;
       const updatedRooms = activeStore.rooms.map(r => 
@@ -583,8 +556,18 @@ export const RoomArchive: React.FC = () => {
                           <div className="space-y-4">
                               <label className="block text-xs font-bold text-slate-500 uppercase px-1">模块详情</label>
                               {ROOM_MODULES.map(category => {
-                                  const catImages = editingRoom.room.images?.filter(img => img.category === category) || [];
                                   const measurement = editingRoom.room.measurements?.find(m => m.category === category);
+                                  
+                                  // ONLY Show modules if measurement is approved.
+                                  // BUT the user wants to see images if approved.
+                                  // If there is no measurement, or not approved, we should check if we should hide it.
+                                  // However, RoomArchive is primarily for viewing existing data.
+                                  // If a measurement is in progress (pending/rejected), it shouldn't be "Filed" yet.
+                                  // So we only show if status === 'approved'.
+                                  
+                                  if (!measurement || measurement.status !== 'approved') return null;
+
+                                  const catImages = editingRoom.room.images?.filter(img => img.category === category) || [];
                                   
                                   return (
                                       <div key={category} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
@@ -603,50 +586,43 @@ export const RoomArchive: React.FC = () => {
 
                                           {/* Measurement Evaluation Info */}
                                           <div className="mb-4">
-                                               {measurement ? (
-                                                   <div className={`p-3 rounded-lg border flex flex-col gap-1 ${
-                                                       measurement.type === '特殊安装' ? 'bg-orange-50 border-orange-100 text-orange-800' : 'bg-green-50 border-green-100 text-green-800'
-                                                   }`}>
-                                                       <div className="flex items-center gap-2">
-                                                           <ClipboardList size={14} />
-                                                           <span className="text-xs font-bold">复尺评估: {measurement.type}</span>
-                                                       </div>
-                                                       {measurement.remark && (
-                                                           <p className="text-[10px] opacity-80 pl-5">{measurement.remark}</p>
-                                                       )}
+                                               <div className={`p-3 rounded-lg border flex flex-col gap-1 ${
+                                                   measurement.type === '特殊安装' ? 'bg-orange-50 border-orange-100 text-orange-800' : 'bg-green-50 border-green-100 text-green-800'
+                                               }`}>
+                                                   <div className="flex items-center gap-2">
+                                                       <ClipboardList size={14} />
+                                                       <span className="text-xs font-bold">复尺评估: {measurement.type}</span>
                                                    </div>
-                                               ) : (
-                                                   <div className="p-3 rounded-lg border border-dashed border-slate-200 bg-slate-50 text-slate-400 text-xs flex items-center justify-center gap-2">
-                                                       <Ruler size={14} /> 暂无复尺评估数据
-                                                   </div>
-                                               )}
+                                                   {measurement.remark && (
+                                                       <p className="text-[10px] opacity-80 pl-5">{measurement.remark}</p>
+                                                   )}
+                                               </div>
                                           </div>
 
-                                          {/* Images */}
+                                          {/* Images (Read-only in Archive view mostly, but here allow edit since it's "Room Detail") 
+                                              Actually, prompt says "If agreed... update to Store Filing page". 
+                                              It implies this page is the destination. 
+                                              Let's show images here.
+                                          */}
                                           <div>
                                               <p className="text-[10px] font-bold text-slate-400 mb-2 uppercase">现场照片</p>
                                               <div className="grid grid-cols-4 gap-2">
-                                                  <div className="aspect-square border-2 border-dashed border-blue-200 bg-blue-50 rounded-lg flex flex-col items-center justify-center relative hover:bg-blue-100 transition-colors cursor-pointer group">
-                                                      <input type="file" accept="image/*" onChange={(e) => handleRoomImageUpload(e, category)} className="absolute inset-0 opacity-0 cursor-pointer" />
-                                                      <Plus className="text-blue-400 mb-1 group-hover:scale-110 transition-transform" size={16} />
-                                                      <span className="text-[8px] text-blue-500 font-bold">上传</span>
-                                                  </div>
                                                   {catImages.map((img, idx) => (
                                                       <div key={idx} className="aspect-square rounded-lg border border-slate-200 relative group overflow-hidden bg-slate-100">
                                                           <img src={img.url} alt={`room-${category}-${idx}`} className="w-full h-full object-cover" />
-                                                          <button 
-                                                              onClick={() => removeRoomImage(img)} 
-                                                              className="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                          >
-                                                              <X size={10} />
-                                                          </button>
                                                       </div>
                                                   ))}
+                                                  {catImages.length === 0 && <span className="text-xs text-slate-400 col-span-4 italic">暂无照片</span>}
                                               </div>
                                           </div>
                                       </div>
                                   );
                               })}
+                              {(!editingRoom.room.measurements || !editingRoom.room.measurements.some(m => m.status === 'approved')) && (
+                                  <div className="text-center py-8 text-slate-400 text-xs bg-white rounded-xl border border-dashed">
+                                      暂无已归档的复尺数据
+                                  </div>
+                              )}
                           </div>
                       </div>
                       
