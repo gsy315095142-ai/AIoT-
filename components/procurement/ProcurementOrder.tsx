@@ -1,12 +1,19 @@
 import React, { useState, useMemo } from 'react';
-import { ShoppingBag, ChevronDown, Package, Plus, Minus, Search, Check, X, ListFilter, CheckCircle } from 'lucide-react';
+import { ShoppingBag, ChevronDown, Package, Plus, Minus, Search, Check, X, ListFilter, CheckCircle, Store, ArrowLeft, TrendingUp, Box, Calendar } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { ProductType, ProductSubType, Product } from '../../types';
+import { ProductType, ProductSubType, Product, ProcurementOrder as OrderType } from '../../types';
 
 export const ProcurementOrder: React.FC = () => {
-  const { procurementProducts, stores, addProcurementOrder } = useApp();
+  const { procurementProducts, stores, regions, procurementOrders, addProcurementOrder } = useApp();
 
-  // Filters
+  // View Mode: 'storeList' | 'productSelect'
+  const [viewMode, setViewMode] = useState<'storeList' | 'productSelect'>('storeList');
+  
+  // Store Selection State
+  const [selectedStoreId, setSelectedStoreId] = useState('');
+  const [regionFilter, setRegionFilter] = useState('');
+
+  // Product Filter State
   const [filterType, setFilterType] = useState<string>('');
   const [filterSubType, setFilterSubType] = useState<string>('');
   
@@ -15,8 +22,8 @@ export const ProcurementOrder: React.FC = () => {
   
   // Checkout Modal
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [selectedStoreId, setSelectedStoreId] = useState('');
   const [remark, setRemark] = useState('');
+  const [deliveryDate, setDeliveryDate] = useState('');
 
   // Toast State
   const [showSuccess, setShowSuccess] = useState(false);
@@ -31,6 +38,39 @@ export const ProcurementOrder: React.FC = () => {
       if (type === '物料') return SUB_TYPES_MATERIAL;
       return [...SUB_TYPES_HARDWARE, ...SUB_TYPES_MATERIAL];
   };
+
+  const STEPS = ['确认订单', '备货', '出库打包', '物流', '签收'];
+
+  // --- Store List Logic ---
+  const filteredStores = useMemo(() => {
+      return stores.filter(s => !regionFilter || s.regionId === regionFilter);
+  }, [stores, regionFilter]);
+
+  const getStoreOrderInfo = (storeId: string) => {
+      // Get all orders for this store
+      const orders = procurementOrders.filter(o => o.storeId === storeId);
+      
+      // Calculate total completed items
+      const inventoryCount = orders
+        .filter(o => o.status === 'completed')
+        .reduce((sum, o) => sum + o.items.reduce((s, i) => s + i.quantity, 0), 0);
+
+      // Find active order (latest pending/purchasing)
+      const activeOrder = orders
+        .filter(o => o.status !== 'completed')
+        .sort((a, b) => new Date(b.createTime).getTime() - new Date(a.createTime).getTime())[0];
+
+      return { inventoryCount, activeOrder };
+  };
+
+  const handleSelectStore = (storeId: string) => {
+      setSelectedStoreId(storeId);
+      setViewMode('productSelect');
+      // Reset cart when entering new store
+      setCart({});
+  };
+
+  // --- Product Selection Logic ---
 
   // Helper: Cart Management
   const updateQuantity = (productId: string, delta: number) => {
@@ -77,11 +117,6 @@ export const ProcurementOrder: React.FC = () => {
 
   // Submit Handler
   const handleSubmitOrder = () => {
-      if (!selectedStoreId) {
-          alert('请选择归属门店');
-          return;
-      }
-      
       const store = stores.find(s => s.id === selectedStoreId);
       if (!store) return;
 
@@ -98,33 +133,141 @@ export const ProcurementOrder: React.FC = () => {
           storeName: store.name,
           items: orderItems,
           totalPrice,
-          remark
+          remark,
+          expectDeliveryDate: deliveryDate
       });
 
-      // Reset
+      // Reset & Return to List
       setCart({});
       setSelectedStoreId('');
       setRemark('');
+      setDeliveryDate('');
       setIsCheckoutOpen(false);
+      setViewMode('storeList');
       
       // Show Toast
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
   };
 
+  // --- RENDER ---
+
+  // Common Toast - Render outside conditional views so it persists across state changes
+  const SuccessToast = () => (
+      showSuccess ? (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[70] bg-green-500 text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-2 animate-scaleIn pointer-events-none">
+            <CheckCircle size={20} />
+            <span className="font-bold text-sm">下单成功，已转入内部采购环节</span>
+        </div>
+      ) : null
+  );
+
+  if (viewMode === 'storeList') {
+      return (
+        <div className="h-full flex flex-col bg-slate-50 relative">
+            <SuccessToast />
+            {/* Header / Filter */}
+            <div className="p-4 bg-white border-b border-slate-100 shadow-sm sticky top-0 z-10">
+                <div className="flex items-center gap-2 mb-3">
+                    <Store className="text-blue-600" size={20} />
+                    <h2 className="font-bold text-slate-800">选择下单门店</h2>
+                </div>
+                <div className="relative">
+                    <select 
+                        className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-3 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={regionFilter}
+                        onChange={(e) => setRegionFilter(e.target.value)}
+                    >
+                        <option value="">全部大区</option>
+                        {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                </div>
+            </div>
+
+            {/* Store List */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {filteredStores.map(store => {
+                    const regionName = regions.find(r => r.id === store.regionId)?.name;
+                    const { inventoryCount, activeOrder } = getStoreOrderInfo(store.id);
+                    
+                    return (
+                        <div 
+                            key={store.id} 
+                            onClick={() => handleSelectStore(store.id)}
+                            className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 cursor-pointer active:scale-[0.98] transition-all hover:shadow-md relative overflow-hidden"
+                        >
+                            <div className="flex justify-between items-start mb-3">
+                                <div>
+                                    <h4 className="font-bold text-slate-800 text-sm mb-1">{store.name}</h4>
+                                    <span className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{regionName}</span>
+                                </div>
+                                <div className="text-right">
+                                    <div className="text-[10px] text-slate-400 font-bold uppercase">已有商品</div>
+                                    <div className="text-xl font-bold text-slate-800 flex items-center justify-end gap-1">
+                                        <Box size={14} className="text-slate-400" />
+                                        {inventoryCount}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {activeOrder ? (
+                                <div className="bg-blue-50 rounded-lg p-2 flex items-center gap-3 border border-blue-100">
+                                    <div className="bg-blue-200 p-1.5 rounded-full text-blue-700">
+                                        <TrendingUp size={14} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="text-[10px] font-bold text-blue-800">采购进行中</span>
+                                            <span className="text-[9px] text-blue-600 font-mono">
+                                                {activeOrder.status === 'pending_receive' ? '待接收' : STEPS[activeOrder.currentStep - 1]}
+                                            </span>
+                                        </div>
+                                        <div className="w-full bg-blue-200 h-1 rounded-full overflow-hidden">
+                                            <div 
+                                                className="h-full bg-blue-600 rounded-full transition-all duration-500" 
+                                                style={{ width: `${activeOrder.status === 'pending_receive' ? 5 : (activeOrder.currentStep / 5) * 100}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-[10px] text-slate-400 flex items-center gap-1 opacity-60">
+                                    <CheckCircle size={12} /> 当前无进行中订单
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+      );
+  }
+
+  // --- View Mode: Product Select ---
+  const currentStoreName = stores.find(s => s.id === selectedStoreId)?.name;
+
   return (
     <div className="h-full flex flex-col relative overflow-hidden bg-slate-50">
-        {/* Success Toast */}
-        {showSuccess && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[70] bg-green-500 text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-2 animate-scaleIn">
-                <CheckCircle size={20} />
-                <span className="font-bold text-sm">下单成功，已转入内部采购环节</span>
-            </div>
-        )}
+        <SuccessToast />
 
-        {/* Sticky Filter Bar */}
-        <div className="bg-slate-50 pt-4 px-4 pb-2 flex-shrink-0 z-10">
-            <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 grid grid-cols-2 gap-3">
+        {/* Header With Back Button */}
+        <div className="bg-white border-b border-slate-200 pt-4 px-4 pb-2 flex-shrink-0 z-10">
+            <div className="flex items-center gap-2 mb-3">
+                <button 
+                    onClick={() => setViewMode('storeList')}
+                    className="p-1 -ml-1 rounded-full hover:bg-slate-100 text-slate-600 transition-colors"
+                >
+                    <ArrowLeft size={20} />
+                </button>
+                <div>
+                    <h2 className="font-bold text-slate-800 text-sm">{currentStoreName}</h2>
+                    <p className="text-[10px] text-slate-500">选择商品加入采购单</p>
+                </div>
+            </div>
+
+            {/* Filters */}
+            <div className="grid grid-cols-2 gap-3 mb-2">
                 <div className="relative">
                     <select 
                         className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -152,7 +295,7 @@ export const ProcurementOrder: React.FC = () => {
         </div>
 
         {/* Product List - Bottom padding accounts for the fixed footer */}
-        <div className="flex-1 overflow-y-auto px-4 pb-48 space-y-3">
+        <div className="flex-1 overflow-y-auto px-4 pb-48 space-y-3 pt-3">
              {filteredProducts.length === 0 && (
                 <div className="text-center py-10 text-slate-400 text-xs">没有找到相关货物</div>
             )}
@@ -259,20 +402,27 @@ export const ProcurementOrder: React.FC = () => {
                      </div>
                      
                      <div className="p-5 space-y-4">
-                         <div>
-                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">归属门店 *</label>
-                             <div className="relative">
-                                <select 
-                                    className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2.5 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={selectedStoreId}
-                                    onChange={(e) => setSelectedStoreId(e.target.value)}
-                                >
-                                    <option value="">请选择门店</option>
-                                    {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                </select>
-                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                         <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+                             <div className="text-xs text-slate-500 uppercase font-bold mb-1">归属门店</div>
+                             <div className="text-sm font-bold text-blue-900 flex items-center gap-2">
+                                 <Store size={14} />
+                                 {currentStoreName}
                              </div>
                          </div>
+
+                         <div>
+                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">期望交货时间</label>
+                             <div className="relative">
+                                 <input 
+                                    type="date"
+                                    className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none pl-8"
+                                    value={deliveryDate}
+                                    onChange={e => setDeliveryDate(e.target.value)}
+                                 />
+                                 <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                             </div>
+                         </div>
+
                          <div>
                              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">备注说明 *</label>
                              <textarea 

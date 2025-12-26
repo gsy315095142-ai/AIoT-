@@ -3,6 +3,19 @@ import { Hammer, Store, ChevronDown, Clock, CheckCircle, Upload, X, Calendar, Cl
 import { useApp } from '../../context/AppContext';
 import { Store as StoreType, InstallNode, InstallStatus, RoomImageCategory } from '../../types';
 
+// Moved outside component to avoid scope/re-creation issues
+const EXAMPLE_IMAGES: Record<string, string> = {
+    '到店打卡': 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=600&auto=format&fit=crop', 
+    '清点货物': 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?q=80&w=600&auto=format&fit=crop', 
+    '安装': 'https://images.unsplash.com/photo-1540518614846-7eded433c457?q=80&w=600&auto=format&fit=crop', 
+    '调试': 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?q=80&w=600&auto=format&fit=crop',
+    '交付': 'https://images.unsplash.com/photo-1556155092-490a1ba16284?q=80&w=600&auto=format&fit=crop',
+    // Modules
+    '玄关': 'https://images.unsplash.com/photo-1554995207-c18c203602cb?q=80&w=600&auto=format&fit=crop',
+    '桌面': 'https://images.unsplash.com/photo-1593640408182-31c70c8268f5?q=80&w=600&auto=format&fit=crop',
+    '床': 'https://images.unsplash.com/photo-1505693416388-b0346ef4174d?q=80&w=600&auto=format&fit=crop'
+};
+
 export const RoomInstall: React.FC = () => {
   const { regions, stores, updateStoreInstallation } = useApp();
   
@@ -67,6 +80,12 @@ export const RoomInstall: React.FC = () => {
               url = config.exampleImages[nodeName];
           }
       }
+      
+      // Fallback to static
+      if (!url) {
+          url = EXAMPLE_IMAGES[nodeName];
+      }
+
       if (url) {
           setExampleImage({ title: `${nodeName} - 示例图`, url });
       }
@@ -116,6 +135,11 @@ export const RoomInstall: React.FC = () => {
           setCurrentStepIndex(prev => prev - 1);
           setExpandedRoomNumber(null);
       }
+  };
+
+  const jumpToStep = (index: number) => {
+      setCurrentStepIndex(index);
+      setExpandedRoomNumber(null);
   };
 
   // Node Updates
@@ -349,7 +373,13 @@ export const RoomInstall: React.FC = () => {
       
       const currentNode = activeStore.installation.nodes[currentStepIndex];
       const newNodes = [...activeStore.installation.nodes];
-      newNodes[currentStepIndex] = { ...currentNode, completed: true };
+      
+      // Update complete status and completion time
+      newNodes[currentStepIndex] = { 
+          ...currentNode, 
+          completed: true,
+          completionTime: new Date().toLocaleString()
+      };
       
       const newStatus = activeStore.installation.status === 'unstarted' ? 'in_progress' : activeStore.installation.status;
 
@@ -388,8 +418,11 @@ export const RoomInstall: React.FC = () => {
 
   const isAuditMode = activeStore?.installation?.status === 'pending_review';
   const isApproved = activeStore?.installation?.status === 'approved';
-  // Allow edit even if complete, unless locked by Audit/Approval status
-  const isLocked = isApproved || isAuditMode; 
+  
+  // Allow edit even if complete/approved/audit, essentially always unlocked unless waiting for audit result
+  // But wait, if pending review, we probably shouldn't allow edits? The prompt says "Installation completed state can edit".
+  // So 'approved' state allows edit. 'pending_review' implies it's in someone else's hands.
+  const isLocked = isAuditMode; 
 
   const isRoomCompleted = (roomData: any) => {
       const categories: RoomImageCategory[] = ['玄关', '桌面', '床'];
@@ -456,12 +489,9 @@ export const RoomInstall: React.FC = () => {
                                 <h4 className="font-bold text-slate-800 text-sm flex items-center gap-1">
                                     {store.name}
                                     {isRejected && (
-                                        <button 
-                                            onClick={(e) => handleViewRejectReason(e, install.rejectReason || '')}
-                                            className="text-red-500 hover:text-red-600 hover:scale-110 transition-transform"
-                                        >
-                                            <AlertCircle size={14} fill="#fee2e2" />
-                                        </button>
+                                        <div className="bg-red-100 text-red-600 px-1.5 py-0.5 rounded flex items-center gap-1 text-[10px] font-normal animate-pulse">
+                                            <AlertCircle size={10} /> 驳回
+                                        </div>
                                     )}
                                 </h4>
                                 <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -493,6 +523,13 @@ export const RoomInstall: React.FC = () => {
                                 </button>
                             )}
                         </div>
+
+                        {/* Rejection Reason Display */}
+                        {isRejected && install.rejectReason && (
+                            <div className="mb-3 bg-red-50 p-2 rounded text-xs text-red-700 border border-red-100">
+                                <span className="font-bold">驳回原因:</span> {install.rejectReason}
+                            </div>
+                        )}
 
                         {/* Progress Bar */}
                         <div className="space-y-1">
@@ -532,18 +569,6 @@ export const RoomInstall: React.FC = () => {
             </div>
         )}
 
-        {exampleImage && (
-            <div className="fixed inset-0 z-[70] bg-black/80 flex items-center justify-center p-4 animate-fadeIn" onClick={() => setExampleImage(null)}>
-                <div className="bg-transparent w-full max-w-lg flex flex-col items-center animate-scaleIn" onClick={e => e.stopPropagation()}>
-                    <div className="bg-white rounded-t-lg px-4 py-2 w-full flex justify-between items-center">
-                        <span className="font-bold text-sm text-slate-800 flex items-center gap-2"><ImageIcon size={16} className="text-blue-500"/> {exampleImage.title}</span>
-                        <button onClick={() => setExampleImage(null)} className="p-1 hover:bg-slate-100 rounded-full"><X size={16} className="text-slate-500"/></button>
-                    </div>
-                    <div className="bg-black rounded-b-lg overflow-hidden w-full border-t border-slate-100"><img src={exampleImage.url} alt="Example" className="w-full max-h-[70vh] object-contain" /></div>
-                </div>
-            </div>
-        )}
-
         {/* FULL SCREEN PROGRESS PAGE */}
         {isDetailModalOpen && activeStore && activeStore.installation && currentNode && (
             <div className="fixed inset-0 z-[60] bg-white flex flex-col animate-slideInRight">
@@ -570,7 +595,7 @@ export const RoomInstall: React.FC = () => {
                             const isCompleted = node.completed;
                             const isCurrent = i === currentStepIndex;
                             return (
-                                <div key={i} className="z-10 flex flex-col items-center relative">
+                                <div key={i} className="z-10 flex flex-col items-center relative cursor-pointer" onClick={() => jumpToStep(i)}>
                                     <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all duration-300 z-10 border-2 shadow-sm ${isCompleted ? 'bg-green-500 border-green-500' : isCurrent ? 'bg-white border-blue-600 scale-125' : 'bg-white border-slate-300'}`}>
                                         {isCompleted && <Check size={10} className="text-white" strokeWidth={3} />}
                                         {isCurrent && <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" />}
@@ -585,7 +610,14 @@ export const RoomInstall: React.FC = () => {
                 <div className="flex-1 overflow-y-auto p-4 bg-white relative">
                     <div className="max-w-md mx-auto h-full flex flex-col">
                         <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-bold text-slate-800">{currentNode.name}</h2>
+                            <div>
+                                <h2 className="text-xl font-bold text-slate-800">{currentNode.name}</h2>
+                                {currentNode.completed && currentNode.completionTime && (
+                                    <span className="text-[10px] text-green-600 font-bold bg-green-50 px-1.5 py-0.5 rounded mt-1 inline-block">
+                                        完成时间: {currentNode.completionTime}
+                                    </span>
+                                )}
+                            </div>
                             {currentStepIndex > 0 && currentStepIndex <= 5 && currentNode.name !== '安装' && (
                                 <button onClick={() => openExample(currentNode.name)} className="flex items-center gap-1 bg-blue-50 text-blue-600 px-2 py-1 rounded text-xs font-bold hover:bg-blue-100 transition-colors"><ImageIcon size={12} /> 查看示例</button>
                             )}
@@ -734,7 +766,7 @@ export const RoomInstall: React.FC = () => {
                                                 >
                                                     <div className="flex items-center gap-2">
                                                         <BedDouble size={16} className="text-slate-500" />
-                                                        <span className="text-sm font-bold text-slate-700">{room.number} 调试检测</span>
+                                                        <span className="text-sm font-bold text-slate-700">{room.number} ({room.type}) 调试检测</span>
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         {isRoomDone && <CheckCircle size={16} className="text-green-500" />}
@@ -871,6 +903,7 @@ export const RoomInstall: React.FC = () => {
 
                 {/* Footer Navigation */}
                 <div className="p-4 bg-white border-t border-slate-100 flex-shrink-0">
+                    {/* Rejection Input Mode */}
                     {isAuditMode && rejectMode ? (
                          <div className="space-y-3 animate-fadeIn">
                             <textarea 
@@ -885,14 +918,18 @@ export const RoomInstall: React.FC = () => {
                                 <button onClick={handleAuditReject} className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl text-sm shadow-md">确认驳回</button>
                             </div>
                         </div>
-                    ) : isAuditMode ? (
-                        <div className="flex gap-3">
-                            <button onClick={() => setRejectMode(true)} className="flex-1 py-3 border border-red-200 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition-colors">驳回</button>
-                            <button onClick={handleAuditApprove} className="flex-1 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-md transition-colors">审核通过</button>
-                        </div>
                     ) : (
                         <div className="flex flex-col gap-3">
-                            {!isLocked && (
+                            {/* Audit Decision Buttons (Visible only in Audit Mode and NOT reject mode) */}
+                            {isAuditMode && (
+                                <div className="flex gap-3 mb-1">
+                                    <button onClick={() => setRejectMode(true)} className="flex-1 py-2 border border-red-200 bg-red-50 text-red-600 font-bold rounded-lg hover:bg-red-100 transition-colors text-xs">驳回</button>
+                                    <button onClick={handleAuditApprove} className="flex-1 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 shadow-sm transition-colors text-xs">审核通过</button>
+                                </div>
+                            )}
+
+                            {/* Normal Operation Button - Visible if NOT Audit Mode (Allowed even if approved/completed) */}
+                            {!isAuditMode && (
                                 <button 
                                     onClick={handleConfirmStep}
                                     disabled={!canCompleteStep}
@@ -906,6 +943,7 @@ export const RoomInstall: React.FC = () => {
                                 </button>
                             )}
                             
+                            {/* Navigation Buttons - Always visible to allow flipping pages */}
                             <div className="flex gap-3">
                                 <button 
                                     onClick={goPrevStep} 
@@ -916,13 +954,20 @@ export const RoomInstall: React.FC = () => {
                                 </button>
                                 
                                 {currentStepIndex === activeStore.installation.nodes.length - 1 ? (
-                                    <button 
-                                        onClick={handleSubmit}
-                                        disabled={!activeStore.installation.nodes.every(n => n.completed)}
-                                        className="flex-1 py-3 bg-green-600 text-white font-bold rounded-xl shadow-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-700 transition-colors"
-                                    >
-                                        提交审核
-                                    </button>
+                                    /* If last step, show Submit Audit if applicable, or disabled */
+                                    !isAuditMode && !isApproved ? (
+                                        <button 
+                                            onClick={handleSubmit}
+                                            disabled={!activeStore.installation.nodes.every(n => n.completed)}
+                                            className="flex-1 py-3 bg-green-600 text-white font-bold rounded-xl shadow-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-700 transition-colors"
+                                        >
+                                            提交审核
+                                        </button>
+                                    ) : (
+                                        <button disabled className="flex-1 py-3 bg-slate-100 text-slate-400 font-bold rounded-xl cursor-default">
+                                            已是最后一步
+                                        </button>
+                                    )
                                 ) : (
                                     <button 
                                         onClick={goNextStep}
@@ -934,6 +979,19 @@ export const RoomInstall: React.FC = () => {
                             </div>
                         </div>
                     )}
+                </div>
+            </div>
+        )}
+
+        {/* Example Image Modal - Moved to end to ensure high z-index stacking */}
+        {exampleImage && (
+            <div className="fixed inset-0 z-[70] bg-black/80 flex items-center justify-center p-4 animate-fadeIn" onClick={() => setExampleImage(null)}>
+                <div className="bg-transparent w-full max-w-lg flex flex-col items-center animate-scaleIn" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white rounded-t-lg px-4 py-2 w-full flex justify-between items-center">
+                        <span className="font-bold text-sm text-slate-800 flex items-center gap-2"><ImageIcon size={16} className="text-blue-500"/> {exampleImage.title}</span>
+                        <button onClick={() => setExampleImage(null)} className="p-1 hover:bg-slate-100 rounded-full"><X size={16} className="text-slate-500"/></button>
+                    </div>
+                    <div className="bg-black rounded-b-lg overflow-hidden w-full border-t border-slate-100"><img src={exampleImage.url} alt="Example" className="w-full max-h-[70vh] object-contain" /></div>
                 </div>
             </div>
         )}

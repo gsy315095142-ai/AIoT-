@@ -43,6 +43,7 @@ export type InstallNode = {
   name: string;
   completed: boolean;
   data?: any; // Changed from string to any to support string (time), string[] (images), or object (complex room images)
+  completionTime?: string; // New field for completion timestamp
 };
 
 export type StoreInstallation = {
@@ -200,6 +201,7 @@ export type ProcurementOrderItem = {
 export type ProcurementStepData = {
     images?: string[];
     logisticsLink?: string;
+    completionTime?: string; // New field for step completion timestamp
 };
 
 // Procurement Process Steps: 
@@ -216,6 +218,7 @@ export type ProcurementOrder = {
   items: ProcurementOrderItem[];
   totalPrice: number;
   remark: string;
+  expectDeliveryDate?: string; // New field
   status: 'pending_receive' | 'purchasing' | 'completed';
   currentStep: number; // 0 to 5
   createTime: string;

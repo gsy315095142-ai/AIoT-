@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent, useMemo } from 'react';
-import { TrendingUp, Package, ChevronRight, CheckCircle, Truck, ClipboardList, Box, MapPin, X, ChevronLeft, Check, Upload, Link, Copy, Clipboard, FileText, Image as ImageIcon } from 'lucide-react';
+import { TrendingUp, Package, ChevronRight, CheckCircle, Truck, ClipboardList, Box, MapPin, X, ChevronLeft, Check, Upload, Link, Copy, Clipboard, FileText, Image as ImageIcon, ExternalLink, Calendar } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ProcurementOrder } from '../../types';
 
@@ -120,63 +120,65 @@ export const ProcurementProgress: React.FC = () => {
       }
   };
 
+  const openLogisticsLink = () => {
+      if (selectedOrder?.stepData?.[4]?.logisticsLink) {
+          window.open(selectedOrder.stepData[4].logisticsLink, '_blank');
+      }
+  };
+
   // --- Actions ---
 
   const handleConfirmOrderStart = () => {
       if (!selectedOrder) return;
+      
+      // Step 1 completed now
+      const completionTime = new Date().toLocaleString();
+      const currentStepData = selectedOrder.stepData?.[1] || {};
+      const newStepData = {
+          ...selectedOrder.stepData,
+          [1]: {
+              ...currentStepData,
+              completionTime: completionTime
+          }
+      };
+
       // Change status to purchasing.
       // Automatically skip Step 1 (Confirm Order) as "completed" and move to Step 2 (Stocking)
       const nextStep = 2;
-      updateProcurementOrder(selectedOrder.id, { status: 'purchasing', currentStep: nextStep });
-      setSelectedOrder(prev => prev ? ({ ...prev, status: 'purchasing', currentStep: nextStep }) : null);
+      
+      updateProcurementOrder(selectedOrder.id, { status: 'purchasing', currentStep: nextStep, stepData: newStepData });
+      setSelectedOrder(prev => prev ? ({ ...prev, status: 'purchasing', currentStep: nextStep, stepData: newStepData }) : null);
       setViewingStep(nextStep);
   };
 
   const handleCompleteCurrentStep = () => {
       if (!selectedOrder) return;
 
-      // Validation
-      const currentData = selectedOrder.stepData?.[selectedOrder.currentStep] || {};
+      const completionTime = new Date().toLocaleString();
+      const currentStepId = selectedOrder.currentStep;
       
-      if (selectedOrder.currentStep === 2) { // Stocking
-          if (!currentData.images || currentData.images.length === 0) {
-              alert('请上传备货清单照片');
-              return;
+      // Update completion time for CURRENT step
+      const currentStepData = selectedOrder.stepData?.[currentStepId] || {};
+      const newStepData = {
+          ...selectedOrder.stepData,
+          [currentStepId]: {
+              ...currentStepData,
+              completionTime: completionTime
           }
-      }
-      if (selectedOrder.currentStep === 3) { // Packing
-          if (!currentData.images || currentData.images.length === 0) {
-              alert('请上传出库打包照片');
-              return;
-          }
-      }
-      if (selectedOrder.currentStep === 4) { // Logistics
-          if (!currentData.logisticsLink || !currentData.logisticsLink.trim()) {
-              alert('请输入物流链接');
-              return;
-          }
-      }
-      if (selectedOrder.currentStep === 5) { // Signed
-          if (!currentData.images || currentData.images.length === 0) {
-              alert('请上传签收照片');
-              return;
-          }
-      }
+      };
 
       // Proceed
-      if (selectedOrder.currentStep < 5) {
-          const nextStep = selectedOrder.currentStep + 1;
-          // IMPORTANT: Status stays 'purchasing' when moving to step 5 (Signed). 
-          // Only completing step 5 marks the order as 'completed'.
+      if (currentStepId < 5) {
+          const nextStep = currentStepId + 1;
           const status = 'purchasing';
           
-          updateProcurementOrder(selectedOrder.id, { currentStep: nextStep, status });
-          setSelectedOrder(prev => prev ? ({ ...prev, currentStep: nextStep, status }) : null);
+          updateProcurementOrder(selectedOrder.id, { currentStep: nextStep, status, stepData: newStepData });
+          setSelectedOrder(prev => prev ? ({ ...prev, currentStep: nextStep, status, stepData: newStepData }) : null);
           setViewingStep(nextStep);
-      } else if (selectedOrder.currentStep === 5) {
+      } else if (currentStepId === 5) {
           // If on step 5 and completing it
-          updateProcurementOrder(selectedOrder.id, { status: 'completed' });
-          setSelectedOrder(prev => prev ? ({ ...prev, status: 'completed' }) : null);
+          updateProcurementOrder(selectedOrder.id, { status: 'completed', stepData: newStepData });
+          setSelectedOrder(prev => prev ? ({ ...prev, status: 'completed', stepData: newStepData }) : null);
       }
   };
 
@@ -373,11 +375,19 @@ export const ProcurementProgress: React.FC = () => {
                                  {React.createElement(STEPS.find(s => s.id === viewingStep)?.icon || ClipboardList, { size: 24, className: 'text-blue-500' })}
                                  {STEPS.find(s => s.id === viewingStep)?.label}
                              </h2>
-                             <p className="text-xs text-slate-400 mt-1">
-                                 {selectedOrder.status === 'pending_receive' ? '等待接收订单' : 
-                                  selectedOrder.currentStep > viewingStep || selectedOrder.status === 'completed' ? '此环节已完成' : 
-                                  selectedOrder.currentStep === viewingStep ? '当前正在进行' : '等待进行此环节'}
-                             </p>
+                             <div className="flex flex-col items-center gap-1 mt-1">
+                                 <p className="text-xs text-slate-400">
+                                     {selectedOrder.status === 'pending_receive' ? '等待接收订单' : 
+                                      selectedOrder.currentStep > viewingStep || selectedOrder.status === 'completed' ? '此环节已完成' : 
+                                      selectedOrder.currentStep === viewingStep ? '当前正在进行' : '等待进行此环节'}
+                                 </p>
+                                 {/* Show Completion Time */}
+                                 {selectedOrder.stepData?.[viewingStep]?.completionTime && (
+                                     <span className="text-[10px] text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded">
+                                         完成时间: {selectedOrder.stepData[viewingStep].completionTime}
+                                     </span>
+                                 )}
+                             </div>
                          </div>
 
                          {/* Content based on state */}
@@ -393,6 +403,15 @@ export const ProcurementProgress: React.FC = () => {
                                         <span className="text-slate-500">下单时间</span>
                                         <span className="font-bold text-slate-700">{selectedOrder.createTime}</span>
                                     </div>
+                                    {selectedOrder.expectDeliveryDate && (
+                                        <div className="flex justify-between text-xs">
+                                            <span className="text-slate-500">期望交货</span>
+                                            <span className="font-bold text-blue-600 flex items-center gap-1">
+                                                <Calendar size={12} />
+                                                {selectedOrder.expectDeliveryDate}
+                                            </span>
+                                        </div>
+                                    )}
                                     <div className="border-t border-slate-200 pt-2">
                                         <p className="text-xs font-bold text-slate-500 mb-2">商品清单</p>
                                         <div className="space-y-2">
@@ -485,8 +504,17 @@ export const ProcurementProgress: React.FC = () => {
                                              )}
                                          </div>
                                          {selectedOrder.stepData?.[4]?.logisticsLink && (
-                                             <div className="mt-2 text-xs text-blue-600 bg-blue-50 p-2 rounded break-all">
-                                                 已录入: {selectedOrder.stepData[4].logisticsLink}
+                                             <div className="mt-2 flex items-center gap-2">
+                                                 <div className="flex-1 text-xs text-blue-600 bg-blue-50 p-2 rounded break-all">
+                                                     已录入: {selectedOrder.stepData[4].logisticsLink}
+                                                 </div>
+                                                 <button 
+                                                    onClick={openLogisticsLink}
+                                                    className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                                                    title="跳转链接"
+                                                 >
+                                                     <ExternalLink size={14} />
+                                                 </button>
                                              </div>
                                          )}
                                      </div>

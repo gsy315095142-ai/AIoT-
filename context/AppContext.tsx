@@ -10,11 +10,11 @@ const MOCK_REGIONS: Region[] = [
 
 const DEFAULT_NODES: InstallNode[] = [
     { name: '预约安装时间', completed: false, data: '' },
-    { name: '打卡', completed: false, data: [] },
+    { name: '到店打卡', completed: false, data: [] }, // Renamed from 打卡
     { name: '清点货物', completed: false, data: [] },
-    { name: '安装', completed: false, data: {} }, // Renamed from 安装完成
-    { name: '调试', completed: false, data: [] }, // Renamed from 调试完成
-    { name: '交付', completed: false, data: [] }, // Renamed from 交付完成
+    { name: '安装', completed: false, data: {} }, 
+    { name: '调试', completed: false, data: [] }, 
+    { name: '交付', completed: false, data: [] }, 
 ];
 
 const createMockInstallation = (status: any = 'unstarted'): StoreInstallation => ({
