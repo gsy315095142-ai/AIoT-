@@ -1,4 +1,4 @@
-// 标记：本次更新升级了审核流程，【客房复尺】调整为初审（安装运维经理）+终审（驻地业务经理），【安装进度】调整为四级审核（安装运维经理->美术人员->驻地业务经理->区大总）
+// 标记：本次更新优化了客房复尺的交互流程，改为先选门店再选客房的层级结构，提升了用户体验。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
