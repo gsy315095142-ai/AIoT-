@@ -1,4 +1,4 @@
-// 标记：本次修复了客房安装和采购进度详情页的进度条对齐与节点完成状态显示问题，并增加了内部下单成功的文字提示
+// 标记：本次更新优化了采购进度详情页的交互逻辑，实现环节确认后才打勾，并美化了顶部进度条样式
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

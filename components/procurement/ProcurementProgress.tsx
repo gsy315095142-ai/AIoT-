@@ -53,6 +53,10 @@ export const ProcurementProgress: React.FC = () => {
           updateProcurementOrder(selectedOrder.id, { currentStep: nextStep, status });
           setSelectedOrder(prev => prev ? ({ ...prev, currentStep: nextStep, status }) : null);
           setViewingStep(nextStep);
+      } else if (selectedOrder.currentStep === 5) {
+          // If on step 5 and completing it
+          updateProcurementOrder(selectedOrder.id, { status: 'completed' });
+          setSelectedOrder(prev => prev ? ({ ...prev, status: 'completed' }) : null);
       }
   };
 
@@ -124,7 +128,8 @@ export const ProcurementProgress: React.FC = () => {
                             <div className="flex items-center gap-1">
                                 {STEPS.map((step) => (
                                     <div key={step.id} className={`h-1.5 flex-1 rounded-full ${
-                                        order.currentStep >= step.id ? 'bg-blue-500' : 'bg-slate-100'
+                                        order.currentStep > step.id || order.status === 'completed' ? 'bg-green-500' : 
+                                        order.currentStep === step.id ? 'bg-blue-500' : 'bg-slate-100'
                                     }`}></div>
                                 ))}
                             </div>
@@ -154,42 +159,51 @@ export const ProcurementProgress: React.FC = () => {
                  </div>
                  
                  {/* Progress Bar Area */}
-                 <div className="bg-slate-50 px-6 py-6 pb-12 flex-shrink-0">
-                     <div className="relative flex items-center justify-between mb-2 px-1">
+                 <div className="bg-slate-50 px-6 py-8 pb-12 flex-shrink-0">
+                     <div className="relative flex items-center justify-between mb-2 px-2">
                         {/* Background Track */}
-                        <div className="absolute top-1/2 left-0 right-0 h-3 bg-slate-200 z-0 rounded-full -translate-y-1/2" />
+                        <div className="absolute top-1/2 left-0 right-0 h-1.5 bg-slate-200 z-0 rounded-full -translate-y-1/2" />
                         
                         {/* Active Progress */}
                         {(() => {
                             const total = STEPS.length;
                             const currentIdx = Math.min(Math.max(selectedOrder.currentStep - 1, 0), total - 1);
                             
-                            // Progress bar reflects actual completion
+                            // Progress bar reflects current position
                             const progressWidth = Math.min(100, (currentIdx / (total - 1)) * 100);
                             
                             return (
                                 <div 
-                                    className="absolute top-1/2 left-0 h-3 bg-blue-500 z-0 transition-all duration-500 rounded-full shadow-sm -translate-y-1/2" 
+                                    className="absolute top-1/2 left-0 h-1.5 bg-gradient-to-r from-blue-400 to-blue-600 z-0 transition-all duration-500 rounded-full shadow-sm -translate-y-1/2" 
                                     style={{ width: `${selectedOrder.status === 'pending_receive' ? 0 : progressWidth}%` }} 
                                 />
                             );
                         })()}
 
                         {STEPS.map((step) => {
-                            const isCompleted = selectedOrder.status !== 'pending_receive' && selectedOrder.currentStep >= step.id;
+                            // Logic: 
+                            // Completed: Current status is 'completed' OR Current step has moved PAST this step.
+                            const isCompleted = selectedOrder.status === 'completed' || (selectedOrder.status !== 'pending_receive' && selectedOrder.currentStep > step.id);
+                            
+                            // Current: Not completed, not pending receive, and step matches.
+                            const isCurrent = selectedOrder.status !== 'pending_receive' && selectedOrder.status !== 'completed' && selectedOrder.currentStep === step.id;
+                            
                             const isViewing = viewingStep === step.id;
                             
                             return (
-                                <div key={step.id} className="z-10 flex flex-col items-center relative cursor-pointer" onClick={() => setViewingStep(step.id)}>
-                                    <div className={`w-3 h-3 rounded-full flex items-center justify-center transition-all shadow-sm ${
-                                        isViewing ? 'bg-white border-2 border-blue-600 scale-150' :
-                                        isCompleted ? 'bg-green-500 scale-110' : 
-                                        'bg-slate-300'
-                                    }`}>
-                                        {isCompleted && <Check size={8} className="text-white" />}
+                                <div key={step.id} className="z-10 flex flex-col items-center relative cursor-pointer group" onClick={() => setViewingStep(step.id)}>
+                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all duration-300 shadow-sm border-2 ${
+                                        isCompleted ? 'bg-green-500 border-green-500 scale-110' : 
+                                        isCurrent ? 'bg-white border-blue-600 scale-125 shadow-blue-200' :
+                                        'bg-white border-slate-300'
+                                    } ${isViewing && !isCurrent ? 'ring-2 ring-blue-200 ring-offset-2' : ''}`}>
+                                        {isCompleted && <Check size={12} className="text-white" strokeWidth={3} />}
+                                        {isCurrent && <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" />}
                                     </div>
-                                    <span className={`absolute top-6 text-[9px] font-bold whitespace-nowrap transition-colors ${
-                                        isViewing ? 'text-blue-600 scale-110' : isCompleted ? 'text-slate-600' : 'text-slate-400'
+                                    <span className={`absolute top-7 text-[10px] font-bold whitespace-nowrap transition-colors duration-300 ${
+                                        isCurrent ? 'text-blue-600 scale-110' : 
+                                        isCompleted ? 'text-green-600' : 
+                                        'text-slate-400'
                                     }`}>
                                         {step.label}
                                     </span>
@@ -211,7 +225,8 @@ export const ProcurementProgress: React.FC = () => {
                              </h2>
                              <p className="text-xs text-slate-400 mt-1">
                                  {selectedOrder.status === 'pending_receive' ? '等待接收订单' : 
-                                  selectedOrder.currentStep >= viewingStep ? '此环节已完成' : '等待进行此环节'}
+                                  selectedOrder.currentStep > viewingStep || selectedOrder.status === 'completed' ? '此环节已完成' : 
+                                  selectedOrder.currentStep === viewingStep ? '当前正在进行' : '等待进行此环节'}
                              </p>
                          </div>
 
@@ -280,22 +295,29 @@ export const ProcurementProgress: React.FC = () => {
                              </button>
                          ) : (
                              // Logic: 
-                             // If viewing a previous step (viewingStep < currentStep), it's done -> Show "Completed".
-                             // If viewing current step (viewingStep === currentStep) AND not fully completed -> Show "Confirm".
-                             // If fully completed -> Show "Completed".
-                             (viewingStep < selectedOrder.currentStep || selectedOrder.status === 'completed') ? (
+                             // If completed fully OR current step has passed viewing step -> Show Completed.
+                             // Else if viewing step IS current step -> Show Confirm.
+                             (selectedOrder.status === 'completed' || selectedOrder.currentStep > viewingStep) ? (
                                 <button 
                                     disabled
                                     className="w-full py-3 bg-green-50 text-green-600 font-bold rounded-xl border border-green-100 flex items-center justify-center gap-2 cursor-default"
                                  >
                                     <CheckCircle size={18} /> 已完成
                                  </button>
-                             ) : (
+                             ) : selectedOrder.currentStep === viewingStep ? (
                                  <button 
                                     onClick={handleCompleteCurrentStep}
                                     className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-2"
                                  >
                                     <CheckCircle size={18} /> 确认完成此环节
+                                 </button>
+                             ) : (
+                                 // Viewing future step
+                                 <button 
+                                    disabled
+                                    className="w-full py-3 bg-slate-100 text-slate-400 font-bold rounded-xl flex items-center justify-center gap-2 cursor-default"
+                                 >
+                                    等待进行
                                  </button>
                              )
                          )}
@@ -312,7 +334,7 @@ export const ProcurementProgress: React.FC = () => {
                                  </button>
                                  <button 
                                     onClick={() => navigateStep('next')}
-                                    disabled={viewingStep >= 5} // Can view ahead? Usually restricted to current progress. Let's allow viewing all but only acting on current.
+                                    disabled={viewingStep >= 5} 
                                     className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl disabled:opacity-50 flex items-center justify-center gap-1 hover:bg-slate-200 transition-colors"
                                  >
                                      下一环节 <ChevronRight size={16} />
