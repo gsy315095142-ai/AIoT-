@@ -1,4 +1,4 @@
-// 标记：本次更新调整了【客房复尺】为按房型维度进行评估和图片上传，复尺结果同步至【客房建档】；【客房建档】详情页改为展示审核通过后的安装环节数据
+// 标记：本次更新移除了【客房复尺】页面的配置按钮；优化了【安装进度】中安装环节的交互，改为网格化客房展示及独立上传页
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

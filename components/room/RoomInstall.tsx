@@ -32,7 +32,10 @@ export const RoomInstall: React.FC = () => {
   // Progress Navigation State
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
 
-  // Accordion State for Install(3) and Debug(4) steps
+  // Install Step (3) State: Active Room for Upload
+  const [installingRoomNumber, setInstallingRoomNumber] = useState<string | null>(null);
+
+  // Accordion State for Debug(4) step (Still using accordion for Debug if desired, or reuse grid pattern later)
   const [expandedRoomNumber, setExpandedRoomNumber] = useState<string | null>(null);
 
   // Debug Step Loading State
@@ -106,6 +109,7 @@ export const RoomInstall: React.FC = () => {
       setRejectMode(false);
       setRejectReason('');
       setExpandedRoomNumber(null);
+      setInstallingRoomNumber(null);
       
       // Default to the first incomplete step, or the last step if all complete
       if (store.installation?.nodes) {
@@ -131,6 +135,7 @@ export const RoomInstall: React.FC = () => {
       if (activeStore?.installation && currentStepIndex < activeStore.installation.nodes.length - 1) {
           setCurrentStepIndex(prev => prev + 1);
           setExpandedRoomNumber(null);
+          setInstallingRoomNumber(null);
       }
   };
 
@@ -138,12 +143,14 @@ export const RoomInstall: React.FC = () => {
       if (currentStepIndex > 0) {
           setCurrentStepIndex(prev => prev - 1);
           setExpandedRoomNumber(null);
+          setInstallingRoomNumber(null);
       }
   };
 
   const jumpToStep = (index: number) => {
       setCurrentStepIndex(index);
       setExpandedRoomNumber(null);
+      setInstallingRoomNumber(null);
   };
 
   // Node Updates
@@ -716,71 +723,98 @@ export const RoomInstall: React.FC = () => {
                                 </div>
                             )}
 
-                            {/* Node 3: Room Installation (Expanded Accordion) */}
+                            {/* Node 3: Room Installation (Refactored to Grid) */}
                             {currentStepIndex === 3 && (
                                 <div className="space-y-4">
-                                    {activeStore.rooms.map((room) => {
-                                        const roomData = (currentNode.data && typeof currentNode.data === 'object') ? currentNode.data[room.number] || {} : {};
-                                        const categories: RoomImageCategory[] = ['玄关', '桌面', '床'];
-                                        const roomCompleted = isRoomCompleted(roomData);
-                                        const isExpanded = expandedRoomNumber === room.number;
-                                        
-                                        return (
-                                            <div key={room.number} className={`bg-white border rounded-xl overflow-hidden shadow-sm transition-all ${roomCompleted ? 'border-green-200' : 'border-slate-200'}`}>
-                                                <div 
-                                                    onClick={() => toggleRoomAccordion(room.number)}
-                                                    className="bg-slate-50 px-4 py-3 border-b border-slate-100 flex items-center justify-between cursor-pointer hover:bg-slate-100 transition-colors"
+                                    {/* Sub-view: Room Detail Upload */}
+                                    {installingRoomNumber ? (
+                                        <div className="animate-fadeIn">
+                                            <div className="flex items-center gap-2 mb-4">
+                                                <button 
+                                                    onClick={() => setInstallingRoomNumber(null)}
+                                                    className="p-1.5 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
                                                 >
-                                                    <div className="flex items-center gap-2">
-                                                        <BedDouble size={16} className="text-slate-500" />
-                                                        <span className="text-sm font-bold text-slate-700">{room.number} ({room.type})</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        {roomCompleted && <CheckCircle size={16} className="text-green-500" />}
-                                                        {isExpanded ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
-                                                    </div>
-                                                </div>
-                                                
-                                                {/* Accordion Content */}
-                                                {isExpanded && (
-                                                    <div className="p-4 space-y-4 animate-fadeIn">
+                                                    <ChevronLeft size={16} className="text-slate-600" />
+                                                </button>
+                                                <h3 className="font-bold text-slate-800">
+                                                    {installingRoomNumber} 房间安装图
+                                                </h3>
+                                            </div>
+
+                                            {(() => {
+                                                const roomData = (currentNode.data && typeof currentNode.data === 'object') ? currentNode.data[installingRoomNumber] || {} : {};
+                                                const categories: RoomImageCategory[] = ['玄关', '桌面', '床'];
+                                                const roomType = activeStore.rooms.find(r => r.number === installingRoomNumber)?.type;
+
+                                                return (
+                                                    <div className="space-y-4">
                                                         {categories.map(cat => {
                                                             const images = roomData[cat] || [];
                                                             return (
-                                                                <div key={cat} className="bg-slate-50/50 p-3 rounded-lg border border-slate-100">
-                                                                    <div className="flex justify-between items-center mb-2">
-                                                                        <p className="text-xs font-bold text-slate-600 flex items-center gap-1">
-                                                                            <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div> {cat}
+                                                                <div key={cat} className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                                                    <div className="flex justify-between items-center mb-3">
+                                                                        <p className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                                                                            <div className="w-2 h-2 bg-blue-500 rounded-full"></div> {cat}
                                                                         </p>
-                                                                        <button onClick={() => openExample(cat, room.type)} className="flex items-center gap-1 bg-white border border-slate-200 text-slate-500 px-2 py-0.5 rounded text-[10px] hover:text-blue-600"><ImageIcon size={10} /> 示例</button>
+                                                                        <button onClick={() => openExample(cat, roomType)} className="flex items-center gap-1 bg-white border border-slate-200 text-slate-500 px-2 py-1 rounded text-xs hover:text-blue-600 font-bold transition-colors">
+                                                                            <ImageIcon size={12} /> 示例
+                                                                        </button>
                                                                     </div>
-                                                                    <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                                                                    <div className="grid grid-cols-4 gap-3">
                                                                         {!isLocked && (
-                                                                            <div className="w-16 h-16 border-2 border-dashed border-blue-200 rounded-lg bg-white flex-shrink-0 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50 relative group">
-                                                                                <input type="file" accept="image/*" onChange={(e) => handleRoomImageUpload(room.number, cat, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
-                                                                                <Plus size={16} className="text-blue-400 mb-1 group-hover:scale-110 transition-transform" />
-                                                                                <span className="text-[8px] text-blue-500 font-bold">上传</span>
+                                                                            <div className="aspect-square border-2 border-dashed border-blue-200 rounded-lg bg-white flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50 relative group transition-colors">
+                                                                                <input type="file" accept="image/*" onChange={(e) => handleRoomImageUpload(installingRoomNumber, cat, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                                                                <Plus size={20} className="text-blue-400 mb-1 group-hover:scale-110 transition-transform" />
+                                                                                <span className="text-[9px] text-blue-500 font-bold">上传</span>
                                                                             </div>
                                                                         )}
                                                                         {images.map((url: string, imgIdx: number) => (
-                                                                            <div key={imgIdx} className="w-16 h-16 rounded-lg border border-slate-200 overflow-hidden relative group flex-shrink-0 bg-white">
-                                                                                <img src={url} alt={`${room.number}-${cat}`} className="w-full h-full object-cover" />
+                                                                            <div key={imgIdx} className="aspect-square rounded-lg border border-slate-200 overflow-hidden relative group bg-white shadow-sm">
+                                                                                <img src={url} alt={`${installingRoomNumber}-${cat}`} className="w-full h-full object-cover" />
                                                                                 {!isLocked && (
-                                                                                    <button onClick={() => removeRoomImage(room.number, cat, imgIdx)} className="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl opacity-0 group-hover:opacity-100"><X size={10} /></button>
+                                                                                    <button onClick={() => removeRoomImage(installingRoomNumber, cat, imgIdx)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-md"><X size={10} /></button>
                                                                                 )}
                                                                             </div>
                                                                         ))}
-                                                                        {images.length === 0 && isLocked && <span className="text-[10px] text-slate-300 self-center">无图片</span>}
                                                                     </div>
                                                                 </div>
                                                             );
                                                         })}
                                                     </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                    {activeStore.rooms.length === 0 && <div className="p-6 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed">无客房需安装</div>}
+                                                );
+                                            })()}
+                                        </div>
+                                    ) : (
+                                        // Grid View of Rooms
+                                        <div className="grid grid-cols-3 gap-3 animate-fadeIn">
+                                            {activeStore.rooms.map((room) => {
+                                                const roomData = (currentNode.data && typeof currentNode.data === 'object') ? currentNode.data[room.number] || {} : {};
+                                                const roomCompleted = isRoomCompleted(roomData);
+                                                
+                                                return (
+                                                    <div 
+                                                        key={room.number}
+                                                        onClick={() => setInstallingRoomNumber(room.number)}
+                                                        className={`aspect-square rounded-xl border-2 flex flex-col items-center justify-center cursor-pointer transition-all hover:shadow-md active:scale-95 relative overflow-hidden bg-white
+                                                            ${roomCompleted ? 'border-green-400 bg-green-50' : 'border-slate-200 hover:border-blue-300'}
+                                                        `}
+                                                    >
+                                                        <span className={`text-lg font-bold ${roomCompleted ? 'text-green-700' : 'text-slate-700'}`}>
+                                                            {room.number}
+                                                        </span>
+                                                        <span className="text-[10px] text-slate-400 mt-1">{room.type}</span>
+                                                        
+                                                        {roomCompleted && (
+                                                            <div className="absolute top-1 right-1">
+                                                                <CheckCircle size={16} className="text-green-500 bg-white rounded-full" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                            {activeStore.rooms.length === 0 && <div className="col-span-3 p-6 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed">无客房需安装</div>}
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
@@ -969,7 +1003,8 @@ export const RoomInstall: React.FC = () => {
                             )}
 
                             {/* Normal Operation Button - Visible if NOT Audit Mode (Allowed even if approved/completed) */}
-                            {!isAuditMode && (
+                            {/* Hide during room upload sub-view */}
+                            {!isAuditMode && !installingRoomNumber && (
                                 <button 
                                     onClick={handleConfirmStep}
                                     disabled={!canCompleteStep}

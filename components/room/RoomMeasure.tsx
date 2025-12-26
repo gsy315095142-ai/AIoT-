@@ -310,9 +310,6 @@ export const RoomMeasure: React.FC = () => {
                     <p className="text-[10px] text-slate-500">门店房型复尺</p>
                 </div>
             </div>
-            <button className="flex items-center gap-1 text-[10px] bg-slate-100 text-slate-600 px-2 py-1.5 rounded-lg font-bold hover:bg-slate-200">
-                <Settings size={12} /> 房型配置
-            </button>
         </div>
 
         {/* Room Type Tabs */}
