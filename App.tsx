@@ -1,4 +1,4 @@
-// 标记：本次更新优化了客房复尺的交互流程，改为先选门店再选客房的层级结构，提升了用户体验。
+// 标记：本次更新调整了【客房复尺】为按房型维度进行评估和图片上传，复尺结果同步至【客房建档】；【客房建档】详情页改为展示审核通过后的安装环节数据
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

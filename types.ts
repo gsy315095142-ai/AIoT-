@@ -7,13 +7,6 @@ export type Region = {
 
 export type UserRole = 'admin' | 'product_director' | 'hardware' | 'procurement' | 'local' | 'ops_manager' | 'business_manager' | 'artist' | 'area_manager' | 'area_assistant';
 
-// New Type for Dynamic Room Configuration
-export type RoomTypeConfig = {
-  id: string;
-  name: string;
-  exampleImages?: Record<string, string>; // Maps RoomImageCategory to URL
-};
-
 export type RoomImageCategory = '玄关' | '桌面' | '床';
 
 export type RoomImage = {
@@ -33,11 +26,23 @@ export type RoomMeasurement = {
   rejectReason?: string;
 };
 
+// New Type for Dynamic Room Configuration
+export type RoomTypeConfig = {
+  id: string;
+  name: string;
+  exampleImages?: Record<string, string>; // Maps RoomImageCategory to URL
+  
+  // Moved from Room to RoomTypeConfig
+  images?: RoomImage[]; // Actual Measurement Images for this Room Type
+  measurements?: RoomMeasurement[]; // Measurement Data for this Room Type
+};
+
 export type Room = {
   number: string;
   type: string; // Changed from '样板房' | '普通房' union to string for dynamic types
-  images: RoomImage[];
-  measurements?: RoomMeasurement[];
+  // measurements removed from here as they are now on Type level
+  // images removed from here as they are now on Type level (for measurement)
+  // However, for Installation, images are stored in the Node Data key-value pairs
 };
 
 // --- Installation Types ---

@@ -24,8 +24,8 @@ const createMockInstallation = (status: any = 'unstarted'): StoreInstallation =>
 });
 
 const DEFAULT_ROOM_TYPES: RoomTypeConfig[] = [
-    { id: 'rt1', name: '普通房' },
-    { id: 'rt2', name: '样板房' },
+    { id: 'rt1', name: '普通房', images: [], measurements: [] },
+    { id: 'rt2', name: '样板房', images: [], measurements: [] },
 ];
 
 const MOCK_STORES: Store[] = [
@@ -33,11 +33,11 @@ const MOCK_STORES: Store[] = [
     id: 's1', 
     regionId: 'r1', 
     name: '上海南京路店', 
-    roomTypeConfigs: [...DEFAULT_ROOM_TYPES],
+    roomTypeConfigs: JSON.parse(JSON.stringify(DEFAULT_ROOM_TYPES)),
     rooms: [
-        { number: '2101', type: '普通房', images: [] },
-        { number: '2102', type: '普通房', images: [] },
-        { number: '2103', type: '样板房', images: [] }
+        { number: '2101', type: '普通房' },
+        { number: '2102', type: '普通房' },
+        { number: '2103', type: '样板房' }
     ],
     installation: createMockInstallation()
   },
@@ -45,10 +45,10 @@ const MOCK_STORES: Store[] = [
     id: 's2', 
     regionId: 'r1', 
     name: '杭州西湖店', 
-    roomTypeConfigs: [...DEFAULT_ROOM_TYPES],
+    roomTypeConfigs: JSON.parse(JSON.stringify(DEFAULT_ROOM_TYPES)),
     rooms: [
-        { number: '101', type: '普通房', images: [] },
-        { number: '102', type: '样板房', images: [] }
+        { number: '101', type: '普通房' },
+        { number: '102', type: '样板房' }
     ],
     installation: createMockInstallation() // Changed from 'in_progress' to default
   },
@@ -56,11 +56,11 @@ const MOCK_STORES: Store[] = [
     id: 's3', 
     regionId: 'r2', 
     name: '北京三里屯店', 
-    roomTypeConfigs: [...DEFAULT_ROOM_TYPES],
+    roomTypeConfigs: JSON.parse(JSON.stringify(DEFAULT_ROOM_TYPES)),
     rooms: [
-        { number: 'Lobby', type: '普通房', images: [] },
-        { number: '301', type: '普通房', images: [] },
-        { number: '302', type: '普通房', images: [] }
+        { number: 'Lobby', type: '普通房' },
+        { number: '301', type: '普通房' },
+        { number: '302', type: '普通房' }
     ],
     installation: createMockInstallation()
   },
@@ -68,10 +68,10 @@ const MOCK_STORES: Store[] = [
     id: 's4', 
     regionId: 'r3', 
     name: '广州天河城店', 
-    roomTypeConfigs: [...DEFAULT_ROOM_TYPES],
+    roomTypeConfigs: JSON.parse(JSON.stringify(DEFAULT_ROOM_TYPES)),
     rooms: [
-        { number: '501', type: '普通房', images: [] },
-        { number: '505', type: '普通房', images: [] }
+        { number: '501', type: '普通房' },
+        { number: '505', type: '普通房' }
     ],
     installation: createMockInstallation()
   },

@@ -1,6 +1,6 @@
 import React, { useState, ChangeEvent, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Star, Table, Ruler, ArrowLeft, Search, ChevronDown, ChevronRight, Filter, Settings, Check, HelpCircle, Image as ImageIcon, ClipboardList } from 'lucide-react';
+import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Star, Table, Ruler, ArrowLeft, Search, ChevronDown, ChevronRight, Filter, Settings, Check, HelpCircle, Image as ImageIcon, ClipboardList, Hammer } from 'lucide-react';
 import { Store as StoreType, Room, RoomImageCategory, RoomImage, RoomTypeConfig } from '../../types';
 
 const ROOM_MODULES: RoomImageCategory[] = ['玄关', '桌面', '床'];
@@ -17,7 +17,7 @@ export const RoomArchive: React.FC = () => {
   // Navigation & Filter State
   const [viewingStoreId, setViewingStoreId] = useState<string | null>(null);
   const [regionFilter, setRegionFilter] = useState('');
-  const [searchQuery, setSearchQuery] = useState(''); // New Search State
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Detail View State
   const [activeRoomTypeName, setActiveRoomTypeName] = useState('');
@@ -55,7 +55,7 @@ export const RoomArchive: React.FC = () => {
   
   const filteredStores = stores.filter(s => {
       if (regionFilter && s.regionId !== regionFilter) return false;
-      if (searchQuery && !s.name.toLowerCase().includes(searchQuery.toLowerCase())) return false; // Fuzzy Search Logic
+      if (searchQuery && !s.name.toLowerCase().includes(searchQuery.toLowerCase())) return false; 
       return true;
   });
 
@@ -66,10 +66,8 @@ export const RoomArchive: React.FC = () => {
           const typeNames = types.map(t => t.name);
           
           if (activeRoomTypeName && !typeNames.includes(activeRoomTypeName)) {
-               // Current active type was deleted or invalid, reset to first
                setActiveRoomTypeName(typeNames[0] || '');
           } else if (!activeRoomTypeName && typeNames.length > 0) {
-               // Initial load
                setActiveRoomTypeName(typeNames[0]);
           }
       }
@@ -84,7 +82,7 @@ export const RoomArchive: React.FC = () => {
           name: '', 
           regionId: '', 
           rooms: [{ key: 'init', number: '' }],
-          roomTypes: [{ id: 'rt1', name: '普通房' }, { id: 'rt2', name: '样板房' }] // Defaults
+          roomTypes: [{ id: 'rt1', name: '普通房', images: [], measurements: [] }, { id: 'rt2', name: '样板房', images: [], measurements: [] }]
       });
       setIsStoreModalOpen(true);
   };
@@ -147,12 +145,11 @@ export const RoomArchive: React.FC = () => {
        });
   };
 
-  // -- Room Type Config Logic in Modal --
   const addFormRoomType = () => {
       if (!newRoomTypeName.trim()) return;
       setStoreForm(prev => ({
           ...prev,
-          roomTypes: [...prev.roomTypes, { id: `rt-${Date.now()}`, name: newRoomTypeName.trim() }]
+          roomTypes: [...prev.roomTypes, { id: `rt-${Date.now()}`, name: newRoomTypeName.trim(), images: [], measurements: [] }]
       }));
       setNewRoomTypeName('');
   };
@@ -217,15 +214,13 @@ export const RoomArchive: React.FC = () => {
       }
   };
 
-  // --- Independent Config Modal for Existing Store ---
   const handleOpenConfigModal = () => {
       if (!activeStore) return;
-      // Initialize form with current store data just for the room types part
       setStoreForm({
           id: activeStore.id,
           name: activeStore.name,
           regionId: activeStore.regionId,
-          rooms: [], // Not needed for this modal
+          rooms: [],
           roomTypes: activeStore.roomTypeConfigs ? [...activeStore.roomTypeConfigs] : []
       });
       setIsConfigModalOpen(true);
@@ -241,19 +236,15 @@ export const RoomArchive: React.FC = () => {
       setIsConfigModalOpen(false);
   };
 
-  // --- Room Detail Logic ---
-
   const openRoomDetail = (storeId: string, room: Room) => {
       setEditingRoom({ storeId, room });
   };
 
   const handleRoomSave = () => {
       if (!editingRoom) return;
-      
       const { storeId, room } = editingRoom;
       const store = stores.find(s => s.id === storeId);
       if (!store) return;
-
       const updatedRooms = store.rooms.map(r => r.number === room.number ? room : r);
       updateStore(storeId, { rooms: updatedRooms });
       setEditingRoom(null);
@@ -268,12 +259,10 @@ export const RoomArchive: React.FC = () => {
       setIsAssignOpen(false);
   };
 
-  // --- Example Image Config Logic ---
   const handleConfigImageUpload = (category: string, e: ChangeEvent<HTMLInputElement>) => {
       if (!activeStore || !activeRoomTypeName) return;
       if (e.target.files && e.target.files[0]) {
           const url = URL.createObjectURL(e.target.files[0]);
-          
           const updatedTypeConfigs = activeStore.roomTypeConfigs.map(rt => {
               if (rt.name === activeRoomTypeName) {
                   return {
@@ -286,7 +275,6 @@ export const RoomArchive: React.FC = () => {
               }
               return rt;
           });
-          
           updateStore(activeStore.id, { roomTypeConfigs: updatedTypeConfigs });
           e.target.value = '';
       }
@@ -294,7 +282,6 @@ export const RoomArchive: React.FC = () => {
 
   const removeConfigImage = (category: string) => {
       if (!activeStore || !activeRoomTypeName) return;
-      
       const updatedTypeConfigs = activeStore.roomTypeConfigs.map(rt => {
           if (rt.name === activeRoomTypeName) {
               const newImages = { ...(rt.exampleImages || {}) };
@@ -303,29 +290,7 @@ export const RoomArchive: React.FC = () => {
           }
           return rt;
       });
-      
       updateStore(activeStore.id, { roomTypeConfigs: updatedTypeConfigs });
-  };
-
-  const openExample = (moduleName: string) => {
-      // 1. Try to get from store config first
-      let exampleUrl = null;
-      if (activeStore && editingRoom) {
-          const roomType = editingRoom.room.type;
-          const config = activeStore.roomTypeConfigs.find(rt => rt.name === roomType);
-          if (config?.exampleImages?.[moduleName]) {
-              exampleUrl = config.exampleImages[moduleName];
-          }
-      }
-      
-      // 2. Fallback to global static
-      if (!exampleUrl && EXAMPLE_IMAGES[moduleName]) {
-          exampleUrl = EXAMPLE_IMAGES[moduleName];
-      }
-
-      if (exampleUrl) {
-          setViewingExample({ title: `${moduleName}示例`, url: exampleUrl });
-      }
   };
 
   // --- View Switching ---
@@ -336,25 +301,20 @@ export const RoomArchive: React.FC = () => {
       const availableRoomTypes = activeStore.roomTypeConfigs || [];
       const currentRoomTypeConfig = availableRoomTypes.find(rt => rt.name === activeRoomTypeName);
       
-      // Filter Logic
       const filteredRooms = activeStore.rooms.filter(room => {
           if (activeRoomTypeName && room.type !== activeRoomTypeName) return false;
           return true;
       });
 
-      // Rooms available to be assigned to the current type (all rooms NOT of current type)
       const assignableRooms = activeStore.rooms.filter(r => r.type !== activeRoomTypeName);
 
       return (
           <div className="h-full flex flex-col bg-white">
-              {/* Sticky Header with Title and Tabs */}
+              {/* Header */}
               <div className="sticky top-0 bg-white z-10 shadow-sm flex flex-col">
                   <div className="flex items-center justify-between p-4 pb-2">
                       <div className="flex items-center gap-3">
-                          <button 
-                              onClick={() => setViewingStoreId(null)}
-                              className="p-2 -ml-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"
-                          >
+                          <button onClick={() => setViewingStoreId(null)} className="p-2 -ml-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors">
                               <ArrowLeft size={20} />
                           </button>
                           <div>
@@ -362,15 +322,11 @@ export const RoomArchive: React.FC = () => {
                               <p className="text-xs text-slate-500">共 {roomCount} 间客房</p>
                           </div>
                       </div>
-                      <button 
-                          onClick={handleOpenConfigModal}
-                          className="flex items-center gap-1 text-[10px] bg-slate-100 text-slate-600 px-2 py-1.5 rounded-lg font-bold hover:bg-slate-200"
-                      >
+                      <button onClick={handleOpenConfigModal} className="flex items-center gap-1 text-[10px] bg-slate-100 text-slate-600 px-2 py-1.5 rounded-lg font-bold hover:bg-slate-200">
                           <Settings size={12} /> 房型配置
                       </button>
                   </div>
 
-                  {/* Room Type Tabs */}
                   <div className="flex px-4 border-b border-slate-100 overflow-x-auto no-scrollbar gap-6">
                       {availableRoomTypes.map(rt => (
                           <button
@@ -385,129 +341,150 @@ export const RoomArchive: React.FC = () => {
                           </button>
                       ))}
                   </div>
+              </div>
 
-                  {/* Action Bar (Assign Room) */}
-                  <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex justify-between items-center relative z-20">
-                      <span className="text-xs text-slate-500 font-bold">本房型: {filteredRooms.length} 间</span>
-                      
-                      <div className="relative">
-                          <button 
-                              onClick={() => setIsAssignOpen(!isAssignOpen)}
-                              className="flex items-center gap-1 bg-white border border-blue-200 text-blue-600 text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-blue-50 transition-colors"
-                          >
-                              <Plus size={12} /> 选择客房进行分配
-                          </button>
-                          
-                          {/* Assignment Dropdown */}
-                          {isAssignOpen && (
-                              <>
-                                  <div className="fixed inset-0 z-10" onClick={() => setIsAssignOpen(false)}></div>
-                                  <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 z-20 max-h-60 overflow-y-auto animate-scaleIn origin-top-right">
-                                      <div className="p-2.5 text-[10px] text-slate-400 font-bold bg-slate-50 border-b border-slate-100 sticky top-0 uppercase">
-                                          选择客房移动至「{activeRoomTypeName}」
-                                      </div>
-                                      {assignableRooms.length > 0 ? (
-                                          <div className="divide-y divide-slate-50">
-                                              {assignableRooms.map(r => (
-                                                  <button
-                                                      key={r.number}
-                                                      onClick={() => handleAssignRoom(r.number)}
-                                                      className="w-full text-left px-4 py-2.5 text-xs text-slate-700 hover:bg-blue-50 flex justify-between items-center transition-colors"
-                                                  >
-                                                      <span className="font-bold">{r.number}</span>
-                                                      <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{r.type}</span>
-                                                  </button>
+              <div className="flex-1 overflow-y-auto bg-slate-50 pb-20 p-4 space-y-4">
+                  
+                  {/* Module 1: Measurement Info - NOW READS FROM ROOM TYPE CONFIG */}
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
+                      <h3 className="text-xs font-bold text-slate-500 mb-3 flex items-center gap-1 uppercase">
+                          <Ruler size={14} className="text-blue-500" /> 
+                          【复尺模块】
+                      </h3>
+                      <div className="space-y-4">
+                          {currentRoomTypeConfig ? (
+                              ROOM_MODULES.map(moduleName => {
+                                  // Data Source: Room Type Config
+                                  const measurement = currentRoomTypeConfig.measurements?.find(m => m.category === moduleName);
+                                  const catImages = currentRoomTypeConfig.images?.filter(img => img.category === moduleName) || [];
+                                  
+                                  if (!measurement || measurement.status !== 'approved') return null;
+
+                                  return (
+                                      <div key={moduleName} className="border-b border-slate-50 last:border-0 pb-4 last:pb-0">
+                                          <div className="flex items-center gap-2 mb-2">
+                                              <span className="text-xs font-bold text-slate-800">{moduleName}</span>
+                                              <span className={`text-[10px] px-1.5 py-0.5 rounded border ${measurement.type === '特殊安装' ? 'bg-orange-50 border-orange-100 text-orange-700' : 'bg-green-50 border-green-100 text-green-700'}`}>
+                                                  {measurement.type}
+                                              </span>
+                                          </div>
+                                          {measurement.remark && <p className="text-[10px] text-slate-500 mb-2">{measurement.remark}</p>}
+                                          <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                                              {catImages.map((img, idx) => (
+                                                  <div key={idx} className="w-12 h-12 rounded border border-slate-200 flex-shrink-0 overflow-hidden">
+                                                      <img src={img.url} alt="measure" className="w-full h-full object-cover" />
+                                                  </div>
                                               ))}
                                           </div>
-                                      ) : (
-                                          <div className="p-4 text-center text-xs text-slate-400">无可分配客房</div>
-                                      )}
-                                  </div>
-                              </>
+                                      </div>
+                                  );
+                              })
+                          ) : null}
+                          {(!currentRoomTypeConfig?.measurements?.some(m => m.status === 'approved')) && (
+                              <div className="text-center py-4 text-xs text-slate-400 border border-dashed rounded-lg bg-slate-50">暂无已归档的复尺信息</div>
                           )}
                       </div>
                   </div>
-              </div>
 
-              <div className="flex-1 overflow-y-auto bg-slate-50 pb-20">
-                  <div className="p-4">
-                    {filteredRooms.length > 0 ? (
-                        // Grid layout: Larger tiles
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {filteredRooms.map(room => (
-                                <button 
-                                    key={room.number}
-                                    onClick={() => openRoomDetail(activeStore.id, room)}
-                                    className={`aspect-square flex flex-col items-center justify-center p-2 rounded-xl border-2 shadow-sm transition-all hover:shadow-md active:scale-95 group relative overflow-hidden
-                                        ${room.type === '样板房' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-400 hover:text-blue-600'}
-                                    `}
-                                >
-                                    {/* Background decoration for Sample Room */}
-                                    {room.type === '样板房' && (
-                                        <div className="absolute top-0 right-0 p-1">
-                                            <Star size={16} className="text-amber-400 fill-amber-400" />
-                                        </div>
-                                    )}
-
-                                    <div className="flex-1 flex flex-col items-center justify-center w-full pt-4">
-                                        <div className="text-4xl font-bold leading-none tracking-tight">{room.number}</div>
-                                    </div>
-                                    
-                                    <div className={`text-xs font-bold px-3 py-1.5 rounded-full mb-2 ${
-                                        room.type === '样板房' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-500 group-hover:bg-blue-50 group-hover:text-blue-600'
-                                    }`}>
-                                        {room.type}
-                                    </div>
-                                </button>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="flex flex-col items-center justify-center h-40 text-slate-400">
-                            <BedDouble size={40} className="mb-2 opacity-20" />
-                            <p className="text-sm">该房型下暂无客房</p>
-                        </div>
-                    )}
-                  </div>
-
-                  {/* Config Section for Schematic Diagrams */}
-                  <div className="px-4 pb-4">
+                  {/* Module 2: Example Images */}
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
                       <h3 className="text-xs font-bold text-slate-500 mb-3 flex items-center gap-1 uppercase">
-                          <ImageIcon size={12} /> 
-                          「{activeRoomTypeName}」标准示意图配置
+                          <ImageIcon size={14} className="text-orange-500" /> 
+                          【示例图模块】
                       </h3>
-                      <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
-                          <div className="grid grid-cols-3 gap-3">
-                              {ROOM_MODULES.map(moduleName => {
-                                  const existingImage = currentRoomTypeConfig?.exampleImages?.[moduleName];
-                                  
-                                  return (
-                                      <div key={moduleName} className="flex flex-col gap-2">
-                                          <div className="text-[10px] font-bold text-slate-600 text-center">{moduleName}</div>
-                                          {existingImage ? (
-                                              <div className="aspect-square rounded-lg border border-slate-200 relative group overflow-hidden bg-slate-50">
-                                                  <img src={existingImage} alt={`${moduleName} example`} className="w-full h-full object-cover" />
-                                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                                      <div className="relative cursor-pointer">
-                                                          <Edit2 size={16} className="text-white" />
-                                                          <input type="file" accept="image/*" onChange={(e) => handleConfigImageUpload(moduleName, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
-                                                      </div>
-                                                      <button onClick={() => removeConfigImage(moduleName)} className="text-white hover:text-red-400">
-                                                          <Trash2 size={16} />
-                                                      </button>
+                      <div className="grid grid-cols-3 gap-3">
+                          {ROOM_MODULES.map(moduleName => {
+                              const existingImage = currentRoomTypeConfig?.exampleImages?.[moduleName];
+                              return (
+                                  <div key={moduleName} className="flex flex-col gap-2">
+                                      <div className="text-[10px] font-bold text-slate-600 text-center">{moduleName}</div>
+                                      {existingImage ? (
+                                          <div className="aspect-square rounded-lg border border-slate-200 relative group overflow-hidden bg-slate-50">
+                                              <img src={existingImage} alt={`${moduleName} example`} className="w-full h-full object-cover" />
+                                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                                  <div className="relative cursor-pointer">
+                                                      <Edit2 size={16} className="text-white" />
+                                                      <input type="file" accept="image/*" onChange={(e) => handleConfigImageUpload(moduleName, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
                                                   </div>
+                                                  <button onClick={() => removeConfigImage(moduleName)} className="text-white hover:text-red-400">
+                                                      <Trash2 size={16} />
+                                                  </button>
                                               </div>
-                                          ) : (
-                                              <div className="aspect-square border-2 border-dashed border-slate-200 rounded-lg flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer relative group">
+                                          </div>
+                                      ) : (
+                                          <div className="aspect-square border-2 border-dashed border-slate-200 rounded-lg flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer relative group">
                                                   <input type="file" accept="image/*" onChange={(e) => handleConfigImageUpload(moduleName, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
                                                   <Plus size={20} className="text-slate-300 group-hover:text-blue-400 mb-1" />
                                                   <span className="text-[9px] text-slate-400 font-bold group-hover:text-blue-500">上传</span>
-                                              </div>
-                                          )}
-                                      </div>
-                                  );
-                              })}
-                          </div>
+                                          </div>
+                                      )}
+                                  </div>
+                              );
+                          })}
                       </div>
+                  </div>
+
+                  {/* Module 3: Rooms */}
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
+                        <div className="flex justify-between items-center mb-3">
+                            <h3 className="text-xs font-bold text-slate-500 flex items-center gap-1 uppercase">
+                                <BedDouble size={14} className="text-purple-500" /> 
+                                【客房模块】 ({filteredRooms.length})
+                            </h3>
+                            <div className="relative">
+                                <button 
+                                    onClick={() => setIsAssignOpen(!isAssignOpen)}
+                                    className="flex items-center gap-1 bg-white border border-blue-200 text-blue-600 text-[10px] font-bold px-2 py-1 rounded-lg shadow-sm hover:bg-blue-50 transition-colors"
+                                >
+                                    <Plus size={10} /> 选择客房进行分配
+                                </button>
+                                {isAssignOpen && (
+                                    <>
+                                        <div className="fixed inset-0 z-10" onClick={() => setIsAssignOpen(false)}></div>
+                                        <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 z-20 max-h-60 overflow-y-auto animate-scaleIn origin-top-right">
+                                            <div className="p-2.5 text-[10px] text-slate-400 font-bold bg-slate-50 border-b border-slate-100 sticky top-0 uppercase">
+                                                选择客房移动至「{activeRoomTypeName}」
+                                            </div>
+                                            {assignableRooms.length > 0 ? (
+                                                <div className="divide-y divide-slate-50">
+                                                    {assignableRooms.map(r => (
+                                                        <button
+                                                            key={r.number}
+                                                            onClick={() => handleAssignRoom(r.number)}
+                                                            className="w-full text-left px-4 py-2.5 text-xs text-slate-700 hover:bg-blue-50 flex justify-between items-center transition-colors"
+                                                        >
+                                                            <span className="font-bold">{r.number}</span>
+                                                            <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{r.type}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="p-4 text-center text-xs text-slate-400">无可分配客房</div>
+                                            )}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+
+                        {filteredRooms.length > 0 ? (
+                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                                {filteredRooms.map(room => (
+                                    <button 
+                                        key={room.number}
+                                        onClick={() => openRoomDetail(activeStore.id, room)}
+                                        className="aspect-square flex flex-col items-center justify-center p-2 rounded-xl border bg-slate-50 shadow-sm hover:border-blue-400 hover:text-blue-600 text-slate-600 transition-all"
+                                    >
+                                        <div className="text-xl font-bold">{room.number}</div>
+                                        <div className="text-[9px] text-slate-400 mt-1">{room.type}</div>
+                                    </button>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-20 text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                                <p className="text-xs">该房型下暂无客房</p>
+                            </div>
+                        )}
                   </div>
               </div>
 
@@ -530,12 +507,10 @@ export const RoomArchive: React.FC = () => {
                               <div className="grid grid-cols-2 gap-3">
                                   {availableRoomTypes.map(rt => {
                                       const isSelected = editingRoom.room.type === rt.name;
-                                      const isSample = rt.name === '样板房'; 
-                                      
                                       return (
                                         <label key={rt.id} className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
                                             isSelected 
-                                                ? (isSample ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-blue-500 bg-blue-50 text-blue-700')
+                                                ? 'border-blue-500 bg-blue-50 text-blue-700'
                                                 : 'border-slate-200 bg-white text-slate-500 hover:border-blue-200'
                                         }`}>
                                             <input 
@@ -544,7 +519,7 @@ export const RoomArchive: React.FC = () => {
                                                 checked={isSelected} 
                                                 onChange={() => setEditingRoom({...editingRoom, room: {...editingRoom.room, type: rt.name}})} 
                                             />
-                                            {isSample ? <Star size={24} className="mb-1 fill-current" /> : <BedDouble size={24} className="mb-1" />}
+                                            <BedDouble size={24} className="mb-1" />
                                             <span className="text-xs font-bold">{rt.name}</span>
                                         </label>
                                       )
@@ -552,77 +527,57 @@ export const RoomArchive: React.FC = () => {
                               </div>
                           </div>
 
-                          {/* Room Modules - Images & Measurements */}
+                          {/* Room Modules - SHOWING INSTALLATION DATA ONLY IF APPROVED */}
                           <div className="space-y-4">
-                              <label className="block text-xs font-bold text-slate-500 uppercase px-1">模块详情</label>
-                              {ROOM_MODULES.map(category => {
-                                  const measurement = editingRoom.room.measurements?.find(m => m.category === category);
+                              <label className="block text-xs font-bold text-slate-500 uppercase px-1">安装归档详情</label>
+                              {(() => {
+                                  // Check if Installation Progress is Approved
+                                  const isInstallationApproved = activeStore.installation?.status === 'approved';
                                   
-                                  // ONLY Show modules if measurement is approved.
-                                  // BUT the user wants to see images if approved.
-                                  // If there is no measurement, or not approved, we should check if we should hide it.
-                                  // However, RoomArchive is primarily for viewing existing data.
-                                  // If a measurement is in progress (pending/rejected), it shouldn't be "Filed" yet.
-                                  // So we only show if status === 'approved'.
-                                  
-                                  if (!measurement || measurement.status !== 'approved') return null;
+                                  if (!isInstallationApproved) {
+                                      return (
+                                          <div className="text-center py-8 text-slate-400 text-xs bg-white rounded-xl border border-dashed">
+                                              客房安装进度尚未审核通过，暂无归档数据
+                                          </div>
+                                      );
+                                  }
 
-                                  const catImages = editingRoom.room.images?.filter(img => img.category === category) || [];
-                                  
+                                  // Find the '安装' Node
+                                  const installNode = activeStore.installation?.nodes.find(n => n.name === '安装');
+                                  const roomInstallData = installNode?.data?.[editingRoom.room.number];
+
+                                  if (!roomInstallData) {
+                                       return (
+                                          <div className="text-center py-8 text-slate-400 text-xs bg-white rounded-xl border border-dashed">
+                                              该客房暂无安装图片数据
+                                          </div>
+                                      );
+                                  }
+
                                   return (
-                                      <div key={category} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                                          <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-50">
-                                              <div className="flex items-center gap-2">
-                                                  <div className="w-1.5 h-4 bg-blue-500 rounded-full"></div>
-                                                  <span className="text-sm font-bold text-slate-800">{category}</span>
-                                              </div>
-                                              <button 
-                                                onClick={() => openExample(category)}
-                                                className="flex items-center gap-1 text-[10px] text-blue-500 bg-blue-50 px-2 py-0.5 rounded hover:bg-blue-100 font-bold"
-                                              >
-                                                  <HelpCircle size={10} /> 示例
-                                              </button>
-                                          </div>
-
-                                          {/* Measurement Evaluation Info */}
-                                          <div className="mb-4">
-                                               <div className={`p-3 rounded-lg border flex flex-col gap-1 ${
-                                                   measurement.type === '特殊安装' ? 'bg-orange-50 border-orange-100 text-orange-800' : 'bg-green-50 border-green-100 text-green-800'
-                                               }`}>
-                                                   <div className="flex items-center gap-2">
-                                                       <ClipboardList size={14} />
-                                                       <span className="text-xs font-bold">复尺评估: {measurement.type}</span>
-                                                   </div>
-                                                   {measurement.remark && (
-                                                       <p className="text-[10px] opacity-80 pl-5">{measurement.remark}</p>
-                                                   )}
-                                               </div>
-                                          </div>
-
-                                          {/* Images (Read-only in Archive view mostly, but here allow edit since it's "Room Detail") 
-                                              Actually, prompt says "If agreed... update to Store Filing page". 
-                                              It implies this page is the destination. 
-                                              Let's show images here.
-                                          */}
-                                          <div>
-                                              <p className="text-[10px] font-bold text-slate-400 mb-2 uppercase">现场照片</p>
-                                              <div className="grid grid-cols-4 gap-2">
-                                                  {catImages.map((img, idx) => (
-                                                      <div key={idx} className="aspect-square rounded-lg border border-slate-200 relative group overflow-hidden bg-slate-100">
-                                                          <img src={img.url} alt={`room-${category}-${idx}`} className="w-full h-full object-cover" />
-                                                      </div>
-                                                  ))}
-                                                  {catImages.length === 0 && <span className="text-xs text-slate-400 col-span-4 italic">暂无照片</span>}
-                                              </div>
-                                          </div>
-                                      </div>
+                                      <>
+                                        {ROOM_MODULES.map(category => {
+                                            const catImages: string[] = roomInstallData[category] || [];
+                                            return (
+                                                <div key={category} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                                                    <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-50">
+                                                        <Hammer size={14} className="text-blue-500" />
+                                                        <span className="text-sm font-bold text-slate-800">{category} (安装现场)</span>
+                                                    </div>
+                                                    <div className="grid grid-cols-4 gap-2">
+                                                        {catImages.map((url, idx) => (
+                                                            <div key={idx} className="aspect-square rounded-lg border border-slate-200 relative group overflow-hidden bg-slate-100">
+                                                                <img src={url} alt={`install-${category}-${idx}`} className="w-full h-full object-cover" />
+                                                            </div>
+                                                        ))}
+                                                        {catImages.length === 0 && <span className="text-xs text-slate-400 col-span-4 italic">暂无照片</span>}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                      </>
                                   );
-                              })}
-                              {(!editingRoom.room.measurements || !editingRoom.room.measurements.some(m => m.status === 'approved')) && (
-                                  <div className="text-center py-8 text-slate-400 text-xs bg-white rounded-xl border border-dashed">
-                                      暂无已归档的复尺数据
-                                  </div>
-                              )}
+                              })()}
                           </div>
                       </div>
                       
@@ -681,25 +636,6 @@ export const RoomArchive: React.FC = () => {
                         </div>
                     </div>
                  </div>
-              )}
-
-              {/* Example Image Modal */}
-              {viewingExample && (
-                  <div className="fixed inset-0 z-[70] bg-black/80 flex items-center justify-center p-4 animate-fadeIn" onClick={() => setViewingExample(null)}>
-                      <div className="bg-transparent w-full max-w-lg flex flex-col items-center animate-scaleIn" onClick={e => e.stopPropagation()}>
-                          <div className="bg-white rounded-t-lg px-4 py-2 w-full flex justify-between items-center">
-                              <span className="font-bold text-sm text-slate-800 flex items-center gap-2">
-                                  <ImageIcon size={16} className="text-blue-500"/> {viewingExample.title}
-                              </span>
-                              <button onClick={() => setViewingExample(null)} className="p-1 hover:bg-slate-100 rounded-full">
-                                  <X size={16} className="text-slate-500"/>
-                              </button>
-                          </div>
-                          <div className="bg-black rounded-b-lg overflow-hidden w-full border-t border-slate-100">
-                              <img src={viewingExample.url} alt="Example" className="w-full max-h-[70vh] object-contain" />
-                          </div>
-                      </div>
-                  </div>
               )}
           </div>
       );
