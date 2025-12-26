@@ -1,7 +1,7 @@
 import React, { useState, ChangeEvent } from 'react';
 import { Ruler, Store, ChevronDown, Plus, X, Upload, ClipboardList, Edit3, Check, Save, Filter, BedDouble, HelpCircle, Image as ImageIcon, Send, AlertCircle, CheckCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { RoomImageCategory, RoomImage, RoomMeasurement, MeasurementType } from '../../types';
+import { RoomImageCategory, RoomImage, RoomMeasurement, MeasurementType, RoomMeasurementStatus } from '../../types';
 import { AuditGate } from '../DeviceComponents';
 
 const MODULES: RoomImageCategory[] = ['玄关', '桌面', '床'];
@@ -107,12 +107,11 @@ export const RoomMeasure: React.FC = () => {
     setEditingCategory(null);
   };
 
-  const saveMeasurement = (category: RoomImageCategory, currentStatus?: 'pending' | 'approved' | 'rejected') => {
+  const saveMeasurement = (category: RoomImageCategory, currentStatus?: RoomMeasurementStatus) => {
       if (!currentStore || !currentRoom) return;
 
-      // Keep existing status if updating content, or default to undefined (draft) if new
-      // Unless it was rejected, then maybe keep rejected until resubmitted? 
-      // Requirement 3.3: Update content anytime.
+      // When saving content changes, keep current status if it exists, but usually edits mean re-submission might be needed if it was rejected
+      // For simplicity, keep status as is. If rejected, it stays rejected until re-submitted.
       const status = currentStatus; 
 
       const newMeasurement: RoomMeasurement = {
@@ -143,7 +142,8 @@ export const RoomMeasure: React.FC = () => {
       const measurement = currentRoom.measurements?.find(m => m.category === category);
       if (!measurement) return;
 
-      const newMeasurement = { ...measurement, status: 'pending' as const, rejectReason: undefined };
+      // Reset to Stage 1
+      const newMeasurement: RoomMeasurement = { ...measurement, status: 'pending_stage_1', rejectReason: undefined };
       
       const existingMeasurements = currentRoom.measurements || [];
       const otherMeasurements = existingMeasurements.filter(m => m.category !== category);
@@ -159,12 +159,17 @@ export const RoomMeasure: React.FC = () => {
       updateStore(currentStore.id, { rooms: updatedRooms });
   };
 
-  const handleApprove = (category: RoomImageCategory) => {
+  const handleApprove = (category: RoomImageCategory, currentStatus: RoomMeasurementStatus) => {
       if (!currentStore || !currentRoom) return;
       const measurement = currentRoom.measurements?.find(m => m.category === category);
       if (!measurement) return;
 
-      const newMeasurement = { ...measurement, status: 'approved' as const };
+      // Logic: pending_stage_1 -> pending_stage_2 -> approved
+      let nextStatus: RoomMeasurementStatus = 'approved';
+      if (currentStatus === 'pending_stage_1') nextStatus = 'pending_stage_2';
+      else if (currentStatus === 'pending_stage_2') nextStatus = 'approved';
+
+      const newMeasurement: RoomMeasurement = { ...measurement, status: nextStatus };
       
       const existingMeasurements = currentRoom.measurements || [];
       const otherMeasurements = existingMeasurements.filter(m => m.category !== category);
@@ -185,7 +190,7 @@ export const RoomMeasure: React.FC = () => {
       const measurement = currentRoom.measurements?.find(m => m.category === category);
       if (!measurement) return;
 
-      const newMeasurement = { ...measurement, status: 'rejected' as const, rejectReason };
+      const newMeasurement: RoomMeasurement = { ...measurement, status: 'rejected', rejectReason };
       
       const existingMeasurements = currentRoom.measurements || [];
       const otherMeasurements = existingMeasurements.filter(m => m.category !== category);
@@ -315,7 +320,7 @@ export const RoomMeasure: React.FC = () => {
                                         <div className={`w-2 h-4 rounded-full ${
                                             status === 'approved' ? 'bg-green-500' : 
                                             status === 'rejected' ? 'bg-red-500' : 
-                                            status === 'pending' ? 'bg-orange-500' : 'bg-blue-500'
+                                            (status === 'pending_stage_1' || status === 'pending_stage_2') ? 'bg-orange-500' : 'bg-blue-500'
                                         }`}></div>
                                         {moduleName}
                                     </h4>
@@ -326,7 +331,9 @@ export const RoomMeasure: React.FC = () => {
                                                 status === 'rejected' ? 'bg-red-100 text-red-700' : 
                                                 'bg-orange-100 text-orange-700'
                                             }`}>
-                                                {status === 'pending' ? '待审核' : status === 'approved' ? '已通过' : '已驳回'}
+                                                {status === 'pending_stage_1' ? '待初审' : 
+                                                 status === 'pending_stage_2' ? '待终审' :
+                                                 status === 'approved' ? '已通过' : '已驳回'}
                                             </span>
                                         )}
                                         <span className="text-[10px] bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded font-mono">共 {images.length} 张图</span>
@@ -464,9 +471,9 @@ export const RoomMeasure: React.FC = () => {
                                                             onClick={() => submitAudit(moduleName)}
                                                             className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-1 shadow-sm"
                                                         >
-                                                            <Send size={12} /> {status === 'rejected' ? '重新提交审核' : '提交审核'}
+                                                            <Send size={12} /> {status === 'rejected' ? '重新提交初审' : '提交初审'}
                                                         </button>
-                                                    ) : status === 'pending' ? (
+                                                    ) : (status === 'pending_stage_1' || status === 'pending_stage_2') ? (
                                                         rejectingCategory === moduleName ? (
                                                             <div className="flex-1 flex gap-2 animate-fadeIn">
                                                                 <input 
@@ -481,7 +488,8 @@ export const RoomMeasure: React.FC = () => {
                                                             </div>
                                                         ) : (
                                                             <>
-                                                                <AuditGate type="measurement" className="flex-1">
+                                                                {/* Reject Button: Available to anyone with audit rights at this stage */}
+                                                                <AuditGate type="measurement" stage={status === 'pending_stage_1' ? 1 : 2} className="flex-1">
                                                                     <button 
                                                                         onClick={() => setRejectingCategory(moduleName)}
                                                                         className="w-full py-2 border border-red-200 text-red-600 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors"
@@ -489,12 +497,14 @@ export const RoomMeasure: React.FC = () => {
                                                                         驳回
                                                                     </button>
                                                                 </AuditGate>
-                                                                <AuditGate type="measurement" className="flex-1">
+                                                                
+                                                                {/* Approve Button */}
+                                                                <AuditGate type="measurement" stage={status === 'pending_stage_1' ? 1 : 2} className="flex-1">
                                                                     <button 
-                                                                        onClick={() => handleApprove(moduleName)}
+                                                                        onClick={() => handleApprove(moduleName, status)}
                                                                         className="w-full py-2 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700 transition-colors shadow-sm"
                                                                     >
-                                                                        同意
+                                                                        {status === 'pending_stage_1' ? '初审通过' : '终审通过'}
                                                                     </button>
                                                                 </AuditGate>
                                                             </>

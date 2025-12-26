@@ -60,7 +60,10 @@ export const RoomInstall: React.FC = () => {
   const getStatusConfig = (status: InstallStatus) => {
       switch(status) {
           case 'approved': return { label: '安装完成', color: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle };
-          case 'pending_review': return { label: '待审核', color: 'bg-orange-100 text-orange-700 border-orange-200', icon: ClipboardList };
+          case 'pending_review_1': return { label: '待初审', color: 'bg-orange-100 text-orange-700 border-orange-200', icon: ClipboardList };
+          case 'pending_review_2': return { label: '待二审', color: 'bg-orange-100 text-orange-700 border-orange-200', icon: ClipboardList };
+          case 'pending_review_3': return { label: '待三审', color: 'bg-orange-100 text-orange-700 border-orange-200', icon: ClipboardList };
+          case 'pending_review_4': return { label: '待终审', color: 'bg-orange-100 text-orange-700 border-orange-200', icon: ClipboardList };
           case 'in_progress': return { label: '进行中', color: 'bg-blue-100 text-blue-700 border-blue-200', icon: Hammer };
           case 'rejected': return { label: '已驳回', color: 'bg-red-100 text-red-700 border-red-200', icon: AlertCircle };
           default: return { label: '未开始', color: 'bg-slate-100 text-slate-500 border-slate-200', icon: Clock };
@@ -400,13 +403,23 @@ export const RoomInstall: React.FC = () => {
 
   const handleSubmit = () => {
       if (!activeStore) return;
-      updateStoreInstallation(activeStore.id, { status: 'pending_review' });
+      // Start at stage 1
+      updateStoreInstallation(activeStore.id, { status: 'pending_review_1' });
       setIsDetailModalOpen(false);
   };
 
   const handleAuditApprove = () => {
       if (!activeStore) return;
-      updateStoreInstallation(activeStore.id, { status: 'approved' });
+      
+      let nextStatus: InstallStatus = 'approved';
+      const current = activeStore.installation?.status;
+
+      if (current === 'pending_review_1') nextStatus = 'pending_review_2';
+      else if (current === 'pending_review_2') nextStatus = 'pending_review_3';
+      else if (current === 'pending_review_3') nextStatus = 'pending_review_4';
+      else if (current === 'pending_review_4') nextStatus = 'approved';
+
+      updateStoreInstallation(activeStore.id, { status: nextStatus });
       setIsDetailModalOpen(false);
   };
 
@@ -417,12 +430,11 @@ export const RoomInstall: React.FC = () => {
       setIsDetailModalOpen(false);
   };
 
-  const isAuditMode = activeStore?.installation?.status === 'pending_review';
-  const isApproved = activeStore?.installation?.status === 'approved';
+  const currentStatus = activeStore?.installation?.status;
+  const isAuditMode = currentStatus?.startsWith('pending_review');
+  const isApproved = currentStatus === 'approved';
   
   // Allow edit even if complete/approved/audit, essentially always unlocked unless waiting for audit result
-  // But wait, if pending review, we probably shouldn't allow edits? The prompt says "Installation completed state can edit".
-  // So 'approved' state allows edit. 'pending_review' implies it's in someone else's hands.
   const isLocked = isAuditMode; 
 
   const isRoomCompleted = (roomData: any) => {
@@ -433,6 +445,24 @@ export const RoomInstall: React.FC = () => {
   const isDebugRoomCompleted = (rData: any) => rData?.network && rData?.log;
 
   const currentNode = activeStore?.installation?.nodes[currentStepIndex];
+
+  // Helper to determine stage number
+  const getCurrentStage = () => {
+      if (currentStatus === 'pending_review_1') return 1;
+      if (currentStatus === 'pending_review_2') return 2;
+      if (currentStatus === 'pending_review_3') return 3;
+      if (currentStatus === 'pending_review_4') return 4;
+      return 0;
+  };
+
+  const getApproveLabel = () => {
+      const stage = getCurrentStage();
+      if (stage === 1) return '初审通过';
+      if (stage === 2) return '二审通过';
+      if (stage === 3) return '三审通过';
+      if (stage === 4) return '终审通过';
+      return '审核通过';
+  }
 
   return (
     <div className="h-full flex flex-col">
@@ -475,6 +505,7 @@ export const RoomInstall: React.FC = () => {
                 const statusConfig = getStatusConfig(install.status);
                 const isCompleted = install.status === 'approved';
                 const isRejected = install.status === 'rejected';
+                const isPending = install.status.startsWith('pending');
 
                 return (
                     <div 
@@ -515,8 +546,8 @@ export const RoomInstall: React.FC = () => {
                             </div>
                             
                             {/* Audit Button */}
-                            {install.status === 'pending_review' && (
-                                <AuditGate type="installation">
+                            {isPending && (
+                                <AuditGate type="installation" stage={parseInt(install.status.split('_').pop() || '0')}>
                                     <button 
                                         onClick={(e) => handleOpenAudit(e, store)}
                                         className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1 animate-pulse"
@@ -926,11 +957,13 @@ export const RoomInstall: React.FC = () => {
                             {/* Audit Decision Buttons (Visible only in Audit Mode and NOT reject mode) */}
                             {isAuditMode && (
                                 <div className="flex gap-3 mb-1">
-                                    <AuditGate type="installation" className="flex-1">
+                                    <AuditGate type="installation" stage={getCurrentStage()} className="flex-1">
                                         <button onClick={() => setRejectMode(true)} className="w-full py-2 border border-red-200 bg-red-50 text-red-600 font-bold rounded-lg hover:bg-red-100 transition-colors text-xs">驳回</button>
                                     </AuditGate>
-                                    <AuditGate type="installation" className="flex-1">
-                                        <button onClick={handleAuditApprove} className="w-full py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 shadow-sm transition-colors text-xs">审核通过</button>
+                                    <AuditGate type="installation" stage={getCurrentStage()} className="flex-1">
+                                        <button onClick={handleAuditApprove} className="w-full py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 shadow-sm transition-colors text-xs">
+                                            {getApproveLabel()}
+                                        </button>
                                     </AuditGate>
                                 </div>
                             )}
@@ -968,7 +1001,7 @@ export const RoomInstall: React.FC = () => {
                                             disabled={!activeStore.installation.nodes.every(n => n.completed)}
                                             className="flex-1 py-3 bg-green-600 text-white font-bold rounded-xl shadow-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-700 transition-colors"
                                         >
-                                            提交审核
+                                            提交初审
                                         </button>
                                     ) : (
                                         <button disabled className="flex-1 py-3 bg-slate-100 text-slate-400 font-bold rounded-xl cursor-default">

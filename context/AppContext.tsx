@@ -188,7 +188,7 @@ interface AppContextType {
   userRole: UserRole | null;
   login: (username: string, role: UserRole) => void;
   logout: () => void;
-  checkAuditPermission: (type: AuditPermissionType) => boolean;
+  checkAuditPermission: (type: AuditPermissionType, stage?: number) => boolean;
   regions: Region[];
   stores: Store[];
   deviceTypes: DeviceType[];
@@ -251,16 +251,35 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setUserRole(null);
   };
 
-  const checkAuditPermission = (type: AuditPermissionType) => {
+  const checkAuditPermission = (type: AuditPermissionType, stage?: number) => {
       // 3.1: Admin & Product Director have all permissions
       if (userRole === 'admin' || userRole === 'product_director') return true;
       
       // 3.2: Local (Install Engineer) checks Procurement
       if (type === 'procurement' && userRole === 'local') return true;
       
-      // 3.3 & 3.4: Ops Manager checks Measurement and Installation
-      // Also grouping 'device' audit under Ops Manager as they handle operations
-      if ((type === 'measurement' || type === 'installation' || type === 'device') && userRole === 'ops_manager') return true;
+      // Device audit fallback (Ops Manager)
+      if (type === 'device' && userRole === 'ops_manager') return true;
+
+      // 2.3 & 2.4: Room Measurement Multi-stage
+      if (type === 'measurement') {
+          // Stage 1 (初审): Ops Manager
+          if (stage === 1 && userRole === 'ops_manager') return true;
+          // Stage 2 (终审): Business Manager
+          if (stage === 2 && userRole === 'business_manager') return true;
+      }
+
+      // 3.3 - 3.6: Installation Progress Multi-stage
+      if (type === 'installation') {
+          // Stage 1 (初审): Ops Manager
+          if (stage === 1 && userRole === 'ops_manager') return true;
+          // Stage 2 (二审): Artist
+          if (stage === 2 && userRole === 'artist') return true;
+          // Stage 3 (三审): Business Manager
+          if (stage === 3 && userRole === 'business_manager') return true;
+          // Stage 4 (终审): Area Manager
+          if (stage === 4 && userRole === 'area_manager') return true;
+      }
       
       return false;
   };

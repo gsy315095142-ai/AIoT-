@@ -23,11 +23,13 @@ export type RoomImage = {
 
 export type MeasurementType = '正常安装' | '特殊安装';
 
+export type RoomMeasurementStatus = 'pending_stage_1' | 'pending_stage_2' | 'approved' | 'rejected';
+
 export type RoomMeasurement = {
   category: RoomImageCategory;
   type: MeasurementType;
   remark: string;
-  status?: 'pending' | 'approved' | 'rejected'; // Audit Status
+  status?: RoomMeasurementStatus; // Audit Status
   rejectReason?: string;
 };
 
@@ -39,7 +41,15 @@ export type Room = {
 };
 
 // --- Installation Types ---
-export type InstallStatus = 'unstarted' | 'in_progress' | 'pending_review' | 'approved' | 'rejected';
+export type InstallStatus = 
+  | 'unstarted' 
+  | 'in_progress' 
+  | 'pending_review_1' // 初审
+  | 'pending_review_2' // 二审
+  | 'pending_review_3' // 三审
+  | 'pending_review_4' // 终审
+  | 'approved' 
+  | 'rejected';
 
 export type InstallNode = {
   name: string;

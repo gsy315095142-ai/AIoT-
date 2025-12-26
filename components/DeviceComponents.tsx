@@ -25,9 +25,9 @@ export const SUB_TYPE_MAPPING: Record<string, string[]> = {
 
 // --- Helper Components ---
 
-export const AuditGate: React.FC<{ type: AuditPermissionType, children: React.ReactNode, className?: string }> = ({ type, children, className }) => {
+export const AuditGate: React.FC<{ type: AuditPermissionType, stage?: number, children: React.ReactNode, className?: string }> = ({ type, stage, children, className }) => {
     const { checkAuditPermission } = useApp();
-    const hasPermission = checkAuditPermission(type);
+    const hasPermission = checkAuditPermission(type, stage);
 
     if (hasPermission) return <>{children}</>;
 
