@@ -5,6 +5,8 @@ export type Region = {
   name: string;
 };
 
+export type UserRole = 'admin' | 'hardware' | 'procurement' | 'local';
+
 // New Type for Dynamic Room Configuration
 export type RoomTypeConfig = {
   id: string;
@@ -195,6 +197,11 @@ export type ProcurementOrderItem = {
   imageUrl?: string;
 };
 
+export type ProcurementStepData = {
+    images?: string[];
+    logisticsLink?: string;
+};
+
 // Procurement Process Steps: 
 // 0: Pending Receive (Not started in progress flow yet)
 // 1: Confirmed (确认订单)
@@ -212,4 +219,5 @@ export type ProcurementOrder = {
   status: 'pending_receive' | 'purchasing' | 'completed';
   currentStep: number; // 0 to 5
   createTime: string;
+  stepData?: Record<number, ProcurementStepData>; // Stores images/links for each step
 };

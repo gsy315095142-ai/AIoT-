@@ -1,29 +1,38 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { Cpu, Settings } from 'lucide-react';
+import { Cpu, Settings, UserCircle } from 'lucide-react';
+import { UserRole } from '../types';
 
 export const Login: React.FC = () => {
   const { login } = useApp();
   const navigate = useNavigate();
   const [showInput, setShowInput] = useState(false);
   const [username, setUsername] = useState('');
+  const [selectedRole, setSelectedRole] = useState<UserRole>('admin');
 
   const handleSystemLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (username.trim()) {
-      login(username);
-      navigate('/dashboard');
+      login(username, selectedRole);
+      // Navigation is handled by App.tsx redirect logic based on role
     }
   };
 
   const handleSettingsLogin = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (username.trim()) {
-      login(username);
-      navigate('/settings');
-    }
+    // Shortcut for admin settings access
+    const userToLogin = username.trim() || 'Administrator';
+    login(userToLogin, 'admin');
+    navigate('/settings');
   };
+
+  const ROLES: { value: UserRole; label: string }[] = [
+      { value: 'admin', label: '管理员' },
+      { value: 'hardware', label: '硬件人员' },
+      { value: 'procurement', label: '采购人员' },
+      { value: 'local', label: '当地人员' },
+  ];
 
   return (
     <div className="h-full w-full bg-slate-900 relative overflow-hidden flex flex-col items-center justify-between py-20 px-6">
@@ -31,6 +40,15 @@ export const Login: React.FC = () => {
       <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1534224039826-c7a0eda0e6b3?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-center opacity-20"></div>
       <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-transparent to-slate-900"></div>
       <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.1)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,#000_70%,transparent_100%)]"></div>
+
+      {/* Settings Shortcut Button */}
+      <button 
+        onClick={handleSettingsLogin}
+        className="absolute top-6 right-6 z-50 text-slate-500 hover:text-white flex flex-col items-center gap-1 opacity-50 hover:opacity-100 transition-opacity"
+      >
+        <Settings size={20} />
+        <span className="text-[10px]">进入配置</span>
+      </button>
 
       {/* Content */}
       <div className="z-10 text-center mt-10">
@@ -48,12 +66,7 @@ export const Login: React.FC = () => {
            <div className="absolute inset-0 border border-blue-500/30 rounded-full animate-[spin_10s_linear_infinite]"></div>
            <div className="absolute inset-4 border border-cyan-400/20 rounded-full animate-[spin_15s_linear_infinite_reverse]"></div>
            
-           {/* Replaced broken image with abstract tech icon */}
            <Cpu size={80} className="text-blue-500/50 relative z-10 animate-pulse drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
-           
-           {/* HUD overlay effects simulation */}
-           <div className="absolute top-1/2 -left-4 w-8 h-[2px] bg-blue-400/80"></div>
-           <div className="absolute top-1/2 -right-4 w-8 h-[2px] bg-blue-400/80"></div>
            
            {/* Floating Info Box Simulation */}
            <div className="absolute bottom-4 -right-2 bg-slate-900/80 border border-blue-500/50 p-2 rounded text-[8px] text-blue-200 font-mono backdrop-blur">
@@ -88,14 +101,29 @@ export const Login: React.FC = () => {
 
               <label className="block text-blue-300 text-sm font-bold mb-3 tracking-wider uppercase text-center">用户身份认证</label>
               
-              <input 
-                autoFocus
-                type="text" 
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                className="w-full bg-slate-800/50 border border-blue-500/50 rounded-lg p-3 text-white text-lg focus:outline-none focus:ring-2 focus:ring-cyan-400 mb-4 text-center placeholder-slate-600 transition-all"
-                placeholder="请输入用户名称"
-              />
+              <div className="space-y-3 mb-4">
+                  <input 
+                    autoFocus
+                    type="text" 
+                    value={username}
+                    onChange={e => setUsername(e.target.value)}
+                    className="w-full bg-slate-800/50 border border-blue-500/50 rounded-lg p-3 text-white text-base focus:outline-none focus:ring-2 focus:ring-cyan-400 placeholder-slate-600 transition-all text-center"
+                    placeholder="请输入用户名称"
+                  />
+                  
+                  <div className="relative">
+                      <select 
+                        value={selectedRole}
+                        onChange={(e) => setSelectedRole(e.target.value as UserRole)}
+                        className="w-full bg-slate-800/50 border border-blue-500/50 rounded-lg p-3 text-white text-base focus:outline-none focus:ring-2 focus:ring-cyan-400 appearance-none text-center"
+                      >
+                          {ROLES.map(r => (
+                              <option key={r.value} value={r.value} className="bg-slate-800 text-white">{r.label}</option>
+                          ))}
+                      </select>
+                      <UserCircle className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none" size={20} />
+                  </div>
+              </div>
               
               <div className="space-y-2 mb-3">
                   <button 
@@ -104,16 +132,6 @@ export const Login: React.FC = () => {
                     className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed border border-cyan-400/30 active:scale-95 transition-transform"
                   >
                     进入系统
-                  </button>
-
-                  <button 
-                    type="button"
-                    onClick={handleSettingsLogin}
-                    disabled={!username.trim()}
-                    className="w-full py-3 bg-slate-700/80 hover:bg-slate-700 text-blue-200 font-bold rounded-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed border border-slate-500/30 flex items-center justify-center gap-2 active:scale-95 transition-transform"
-                  >
-                    <Settings size={16} />
-                    进入配置
                   </button>
               </div>
               
@@ -128,7 +146,7 @@ export const Login: React.FC = () => {
           </form>
         )}
         <p className="text-center text-slate-500 text-[10px] mt-6 tracking-widest uppercase">
-            System Version v2.4.0
+            System Version v2.5.0
         </p>
       </div>
     </div>

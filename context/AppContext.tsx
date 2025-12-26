@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent, AuditRecord, AuditStatus, AuditType, StoreInstallation, InstallNode, Product, RoomTypeConfig, ProcurementOrder, ProductSubType } from '../types';
+import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent, AuditRecord, AuditStatus, AuditType, StoreInstallation, InstallNode, Product, RoomTypeConfig, ProcurementOrder, ProductSubType, UserRole } from '../types';
 
 // Initial Mock Data
 const MOCK_REGIONS: Region[] = [
@@ -183,7 +183,8 @@ const MOCK_PRODUCTS: Product[] = [...INITIAL_PRODUCTS];
 
 interface AppContextType {
   currentUser: string | null;
-  login: (username: string) => void;
+  userRole: UserRole | null;
+  login: (username: string, role: UserRole) => void;
   logout: () => void;
   regions: Region[];
   stores: Store[];
@@ -226,6 +227,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [regions, setRegions] = useState<Region[]>(MOCK_REGIONS);
   const [stores, setStores] = useState<Store[]>(MOCK_STORES);
   const [deviceTypes, setDeviceTypes] = useState<DeviceType[]>(MOCK_DEVICE_TYPES);
@@ -235,12 +237,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [procurementOrders, setProcurementOrders] = useState<ProcurementOrder[]>([]);
   const [headerRightAction, setHeaderRightAction] = useState<ReactNode>(null);
 
-  const login = (username: string) => {
+  const login = (username: string, role: UserRole) => {
     setCurrentUser(username);
+    setUserRole(role);
   };
 
   const logout = () => {
     setCurrentUser(null);
+    setUserRole(null);
   };
 
   const addRegion = (name: string) => {
@@ -561,7 +565,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           id: `po-${Date.now()}`,
           status: 'pending_receive',
           currentStep: 0,
-          createTime: new Date().toLocaleString()
+          createTime: new Date().toLocaleString(),
+          stepData: {} // Initialize empty step data
       };
       setProcurementOrders(prev => [newOrder, ...prev]);
   };
@@ -573,6 +578,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   return (
     <AppContext.Provider value={{ 
       currentUser,
+      userRole,
       login,
       logout,
       regions, stores, deviceTypes, devices, auditRecords,

@@ -203,8 +203,8 @@ export const ProcurementOrder: React.FC = () => {
 
         {/* Footer Cart Summary - Fixed at bottom of VIEWPORT (above navigation) */}
         <div className="fixed bottom-16 left-0 right-0 z-30 bg-white border-t border-slate-200 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] flex flex-col">
-            {/* Selected Items Detail List */}
-            {selectedItems.length > 0 && (
+            {/* Selected Items Detail List - Only show when cart has items but not in modal */}
+            {selectedItems.length > 0 && !isCheckoutOpen && (
                 <div className="max-h-36 overflow-y-auto bg-slate-50 border-b border-slate-100 p-3 space-y-2">
                     <div className="flex items-center gap-1 text-[10px] text-slate-400 font-bold uppercase mb-1">
                         <ListFilter size={10} /> 已选商品清单
@@ -283,14 +283,31 @@ export const ProcurementOrder: React.FC = () => {
                              />
                          </div>
 
-                         <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-xs text-slate-600 space-y-1">
-                             <div className="flex justify-between">
-                                 <span>商品数量:</span>
-                                 <span className="font-bold">{totalCount}</span>
-                             </div>
-                             <div className="flex justify-between">
-                                 <span>订单总额:</span>
-                                 <span className="font-bold text-orange-600">¥ {totalPrice.toLocaleString()}</span>
+                         {/* Item Detail List Grouped with Summary */}
+                         <div className="bg-slate-50 rounded-lg border border-slate-100 overflow-hidden">
+                            <div className="p-2 bg-slate-100 border-b border-slate-200 text-[10px] font-bold text-slate-500 flex justify-between">
+                                <span>商品名称</span>
+                                <span>数量</span>
+                            </div>
+                            <div className="divide-y divide-slate-100 max-h-40 overflow-y-auto">
+                                {selectedItems.map(item => (
+                                    <div key={item.id} className="p-2 flex justify-between items-center text-xs bg-white/50">
+                                        <div className="flex items-center gap-2 overflow-hidden">
+                                            <span className="truncate text-slate-700 font-medium">{item.name}</span>
+                                        </div>
+                                        <span className="font-bold text-blue-600">x{item.qty}</span>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="p-3 border-t border-slate-200 bg-slate-100/50 text-xs text-slate-600 space-y-1">
+                                 <div className="flex justify-between">
+                                     <span>商品总数:</span>
+                                     <span className="font-bold">{totalCount}</span>
+                                 </div>
+                                 <div className="flex justify-between">
+                                     <span>订单总额:</span>
+                                     <span className="font-bold text-orange-600">¥ {totalPrice.toLocaleString()}</span>
+                                 </div>
                              </div>
                          </div>
                          

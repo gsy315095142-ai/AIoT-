@@ -258,71 +258,67 @@ export const RoomInstall: React.FC = () => {
       updateNodeData(currentStepIndex, newData);
   };
 
-  // Logic: Mark Step as Complete
-  const handleConfirmStep = () => {
-      if (!activeStore || !activeStore.installation) return;
-      
+  // Logic: Check if current step can be completed
+  const canCompleteStep = useMemo(() => {
+      if (!activeStore || !activeStore.installation) return false;
+      const currentNode = activeStore.installation.nodes[currentStepIndex];
+      if (!currentNode) return false;
+
       // 1. Check Previous Step
       if (currentStepIndex > 0) {
           const prevNode = activeStore.installation.nodes[currentStepIndex - 1];
-          if (!prevNode.completed) {
-              alert('请先完成上一个环节');
-              return;
-          }
+          if (!prevNode.completed) return false;
       }
 
       // 2. Validate Requirements
-      const currentNode = activeStore.installation.nodes[currentStepIndex];
-      let isValid = false;
-
       if (currentStepIndex === 0) { // Appointment
-          isValid = !!currentNode.data;
-          if (!isValid) alert('请选择预约时间');
+          return !!currentNode.data;
       } else if (currentStepIndex === 1) { // Check-in
           const data = currentNode.data as { images: string[], address: string };
           const hasImages = data?.images?.length > 0;
           const hasAddress = !!data?.address;
-          isValid = hasImages && hasAddress;
-          if (!hasImages) alert('请上传打卡照片');
-          else if (!hasAddress) alert('请确认位置');
+          return hasImages && hasAddress;
       } else if (currentStepIndex === 3) { // Installation
           const roomData = currentNode.data || {};
           const rooms = activeStore.rooms;
           const categories: RoomImageCategory[] = ['玄关', '桌面', '床'];
           if (rooms.length > 0) {
-              isValid = rooms.every(room => {
+              return rooms.every(room => {
                   const rData = roomData[room.number] || {};
                   return categories.every(cat => Array.isArray(rData[cat]) && rData[cat].length > 0);
               });
           } else {
-              isValid = true; // No rooms needed
+              return true; // No rooms needed
           }
-          if (!isValid) alert('请完成所有客房的所有模块安装照片上传');
       } else { // Generic Image Upload
-          isValid = Array.isArray(currentNode.data) && currentNode.data.length > 0;
-          if (!isValid) alert('请至少上传一张照片');
+          return Array.isArray(currentNode.data) && currentNode.data.length > 0;
       }
+  }, [activeStore, currentStepIndex]);
 
-      if (isValid) {
-          const newNodes = [...activeStore.installation.nodes];
-          newNodes[currentStepIndex] = { ...currentNode, completed: true };
-          
-          const newStatus = activeStore.installation.status === 'unstarted' ? 'in_progress' : activeStore.installation.status;
+  // Logic: Mark Step as Complete
+  const handleConfirmStep = () => {
+      if (!canCompleteStep) return;
+      if (!activeStore || !activeStore.installation) return;
+      
+      const currentNode = activeStore.installation.nodes[currentStepIndex];
+      const newNodes = [...activeStore.installation.nodes];
+      newNodes[currentStepIndex] = { ...currentNode, completed: true };
+      
+      const newStatus = activeStore.installation.status === 'unstarted' ? 'in_progress' : activeStore.installation.status;
 
-          const updatedStore = {
-              ...activeStore,
-              installation: { 
-                  ...activeStore.installation, 
-                  nodes: newNodes, 
-                  status: newStatus 
-              }
-          };
-          setActiveStore(updatedStore);
-          updateStoreInstallation(activeStore.id, { nodes: newNodes, status: newStatus });
-          
-          // Auto advance if valid
-          goNextStep();
-      }
+      const updatedStore = {
+          ...activeStore,
+          installation: { 
+              ...activeStore.installation, 
+              nodes: newNodes, 
+              status: newStatus 
+          }
+      };
+      setActiveStore(updatedStore);
+      updateStoreInstallation(activeStore.id, { nodes: newNodes, status: newStatus });
+      
+      // Auto advance if valid
+      goNextStep();
   };
 
   const handleSubmit = () => {
@@ -542,9 +538,9 @@ export const RoomInstall: React.FC = () => {
                 <div className="px-6 py-6 bg-slate-50 flex-shrink-0 pb-12">
                     <div className="relative flex items-center justify-between mb-2 px-1">
                         {/* Background Line */}
-                        <div className="absolute top-1/2 left-0 right-0 h-3 bg-slate-200 z-0 rounded-full -translate-y-1/2" />
+                        <div className="absolute top-1/2 left-0 right-0 h-1.5 bg-slate-200 z-0 rounded-full -translate-y-1/2" />
                         
-                        {/* Progress Line */}
+                        {/* Progress Line - Based on Last Completed Step */}
                         {(() => {
                             const total = activeStore.installation.nodes.length;
                             // Find last completed index
@@ -553,13 +549,18 @@ export const RoomInstall: React.FC = () => {
                                 if (activeStore.installation.nodes[i].completed) lastCompletedIdx = i;
                                 else break;
                             }
-                            // Progress width goes to center of current step if selected, or full if completed
-                            const progressWidth = Math.min(100, (Math.max(lastCompletedIdx, currentStepIndex) / (total - 1)) * 100);
+                            // Progress width goes to last completed node. 
+                            // If step 0 is incomplete, width is 0. If step 0 complete, width is partial.
+                            // If all complete, width is 100%.
+                            const progressWidth = Math.min(100, (Math.max(lastCompletedIdx, 0) / (total - 1)) * 100);
                             
+                            // Adjust for unstarted case
+                            const actualWidth = lastCompletedIdx === -1 ? 0 : progressWidth;
+
                             return (
                                 <div 
-                                    className="absolute top-1/2 left-0 h-3 bg-green-500 z-0 transition-all duration-500 rounded-full shadow-sm -translate-y-1/2" 
-                                    style={{ width: `${progressWidth}%` }} 
+                                    className="absolute top-1/2 left-0 h-1.5 bg-green-500 z-0 transition-all duration-500 rounded-full shadow-sm -translate-y-1/2" 
+                                    style={{ width: `${actualWidth}%` }} 
                                 />
                             );
                         })()}
@@ -570,15 +571,13 @@ export const RoomInstall: React.FC = () => {
                             
                             return (
                                 <div key={i} className="z-10 flex flex-col items-center relative">
-                                    <div className="bg-white rounded-full p-0.5 mb-1 shadow-sm">
-                                        <div className={`w-3 h-3 rounded-full flex items-center justify-center transition-all ${
-                                            isCompleted ? 'bg-green-500 scale-110' : 
-                                            isCurrent ? 'bg-white border-2 border-blue-600 scale-125' : 
-                                            'bg-slate-300'
-                                        }`}>
-                                            {isCompleted && <Check size={8} className="text-white" />}
-                                            {isCurrent && <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>}
-                                        </div>
+                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all duration-300 z-10 border-2 shadow-sm ${
+                                        isCompleted ? 'bg-green-500 border-green-500' : 
+                                        isCurrent ? 'bg-white border-blue-600 scale-125' : 
+                                        'bg-white border-slate-300'
+                                    }`}>
+                                        {isCompleted && <Check size={10} className="text-white" strokeWidth={3} />}
+                                        {isCurrent && <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" />}
                                     </div>
                                     {/* Node Label - Always Visible */}
                                     <span className={`absolute top-6 text-[9px] font-bold whitespace-nowrap transition-colors ${
@@ -851,7 +850,12 @@ export const RoomInstall: React.FC = () => {
                                 ) : (
                                     <button 
                                         onClick={handleConfirmStep}
-                                        className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                        disabled={!canCompleteStep}
+                                        className={`w-full py-3 font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${
+                                            canCompleteStep 
+                                                ? 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95' 
+                                                : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                                        }`}
                                     >
                                         <CheckCircle size={18} /> 确认完成此环节
                                     </button>

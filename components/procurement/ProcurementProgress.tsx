@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { TrendingUp, Package, ChevronRight, CheckCircle, Truck, ClipboardList, Box, MapPin, X, ChevronLeft, Check } from 'lucide-react';
+import React, { useState, ChangeEvent } from 'react';
+import { TrendingUp, Package, ChevronRight, CheckCircle, Truck, ClipboardList, Box, MapPin, X, ChevronLeft, Check, Upload, Link, Copy, Clipboard, FileText, Image as ImageIcon } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ProcurementOrder } from '../../types';
 
@@ -12,6 +12,9 @@ export const ProcurementProgress: React.FC = () => {
   // Internal step view for detail page navigation (to review previous steps)
   const [viewingStep, setViewingStep] = useState<number>(1);
 
+  // Example Image State
+  const [exampleImage, setExampleImage] = useState<{ title: string; url: string } | null>(null);
+
   // Constants
   const STEPS = [
       { id: 1, label: '确认订单', icon: ClipboardList },
@@ -20,6 +23,13 @@ export const ProcurementProgress: React.FC = () => {
       { id: 4, label: '物流', icon: Truck },
       { id: 5, label: '签收', icon: CheckCircle },
   ];
+
+  // Example Images Map
+  const EXAMPLE_IMAGES: Record<number, string> = {
+      2: 'https://images.unsplash.com/photo-1553413077-190dd305871c?q=80&w=600&auto=format&fit=crop', // Stocking
+      3: 'https://images.unsplash.com/photo-1586864387967-d02ef85d93e8?q=80&w=600&auto=format&fit=crop', // Packing
+      5: 'https://images.unsplash.com/photo-1623126908029-58cb08a2b272?q=80&w=600&auto=format&fit=crop'  // Signed
+  };
 
   // Helpers
   const openDetail = (order: ProcurementOrder) => {
@@ -35,7 +45,83 @@ export const ProcurementProgress: React.FC = () => {
       if (order) openDetail(order);
   };
 
-  // Detail Page Actions
+  const openExample = (stepId: number) => {
+      const url = EXAMPLE_IMAGES[stepId];
+      if (url) {
+          const stepName = STEPS.find(s => s.id === stepId)?.label || '';
+          setExampleImage({ title: `${stepName} - 示例图`, url });
+      }
+  };
+
+  // --- Step Data Handlers ---
+
+  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>, stepId: number) => {
+      if (!selectedOrder) return;
+      if (e.target.files && e.target.files[0]) {
+          const url = URL.createObjectURL(e.target.files[0]);
+          const currentStepData = selectedOrder.stepData?.[stepId] || {};
+          const currentImages = currentStepData.images || [];
+          
+          const newStepData = {
+              ...selectedOrder.stepData,
+              [stepId]: {
+                  ...currentStepData,
+                  images: [...currentImages, url]
+              }
+          };
+
+          updateProcurementOrder(selectedOrder.id, { stepData: newStepData });
+          setSelectedOrder({ ...selectedOrder, stepData: newStepData });
+          e.target.value = '';
+      }
+  };
+
+  const handleRemoveImage = (stepId: number, imageIndex: number) => {
+      if (!selectedOrder) return;
+      const currentStepData = selectedOrder.stepData?.[stepId] || {};
+      const currentImages = currentStepData.images || [];
+      
+      const newStepData = {
+          ...selectedOrder.stepData,
+          [stepId]: {
+              ...currentStepData,
+              images: currentImages.filter((_, i) => i !== imageIndex)
+          }
+      };
+
+      updateProcurementOrder(selectedOrder.id, { stepData: newStepData });
+      setSelectedOrder({ ...selectedOrder, stepData: newStepData });
+  };
+
+  const handleLogisticsLinkChange = (value: string) => {
+      if (!selectedOrder) return;
+      const stepId = 4;
+      const currentStepData = selectedOrder.stepData?.[stepId] || {};
+      
+      const newStepData = {
+          ...selectedOrder.stepData,
+          [stepId]: {
+              ...currentStepData,
+              logisticsLink: value
+          }
+      };
+
+      updateProcurementOrder(selectedOrder.id, { stepData: newStepData });
+      setSelectedOrder({ ...selectedOrder, stepData: newStepData });
+  };
+
+  const handlePasteLogistics = async () => {
+      try {
+          const text = await navigator.clipboard.readText();
+          if (text) handleLogisticsLinkChange(text);
+      } catch (err) {
+          console.error('Failed to read clipboard contents: ', err);
+          alert('无法读取剪贴板内容，请手动输入');
+      }
+  };
+
+  // --- Actions ---
+
   const handleConfirmOrderStart = () => {
       if (!selectedOrder) return;
       // Change status to purchasing, set step to 1 (Confirmed)
@@ -46,9 +132,41 @@ export const ProcurementProgress: React.FC = () => {
 
   const handleCompleteCurrentStep = () => {
       if (!selectedOrder) return;
+
+      // Validation
+      const currentData = selectedOrder.stepData?.[selectedOrder.currentStep] || {};
+      
+      if (selectedOrder.currentStep === 2) { // Stocking
+          if (!currentData.images || currentData.images.length === 0) {
+              alert('请上传备货清单照片');
+              return;
+          }
+      }
+      if (selectedOrder.currentStep === 3) { // Packing
+          if (!currentData.images || currentData.images.length === 0) {
+              alert('请上传出库打包照片');
+              return;
+          }
+      }
+      if (selectedOrder.currentStep === 4) { // Logistics
+          if (!currentData.logisticsLink || !currentData.logisticsLink.trim()) {
+              alert('请输入物流链接');
+              return;
+          }
+      }
+      if (selectedOrder.currentStep === 5) { // Signed
+          if (!currentData.images || currentData.images.length === 0) {
+              alert('请上传签收照片');
+              return;
+          }
+      }
+
+      // Proceed
       if (selectedOrder.currentStep < 5) {
           const nextStep = selectedOrder.currentStep + 1;
-          const status = nextStep === 5 ? 'completed' : 'purchasing';
+          // IMPORTANT: Status stays 'purchasing' when moving to step 5 (Signed). 
+          // Only completing step 5 marks the order as 'completed'.
+          const status = 'purchasing';
           
           updateProcurementOrder(selectedOrder.id, { currentStep: nextStep, status });
           setSelectedOrder(prev => prev ? ({ ...prev, currentStep: nextStep, status }) : null);
@@ -66,6 +184,10 @@ export const ProcurementProgress: React.FC = () => {
   };
 
   const getStepLabel = (stepId: number) => STEPS.find(s => s.id === stepId)?.label || '';
+
+  // Derived state for view
+  // Allow editing any step as long as the order is in purchasing status
+  const isEditable = selectedOrder && selectedOrder.status === 'purchasing';
 
   return (
     <div className="h-full flex flex-col p-4 space-y-3">
@@ -97,6 +219,12 @@ export const ProcurementProgress: React.FC = () => {
                             <div className="text-xs text-slate-500 mt-0.5">
                                 共 {order.items.reduce((sum, item) => sum + item.quantity, 0)} 件商品
                             </div>
+                            {order.remark && (
+                                <div className="text-[10px] text-slate-500 mt-1.5 bg-slate-50 px-2 py-1 rounded flex items-start gap-1">
+                                    <FileText size={10} className="mt-0.5 shrink-0 text-slate-400" />
+                                    <span className="line-clamp-1">{order.remark}</span>
+                                </div>
+                            )}
                         </div>
                         <div className="text-right">
                              <div className="font-bold text-orange-600 text-sm">¥ {order.totalPrice.toLocaleString()}</div>
@@ -232,52 +360,117 @@ export const ProcurementProgress: React.FC = () => {
 
                          {/* Content based on state */}
                          <div className="flex-1 space-y-4">
-                             {/* Order Details (Always visible as context) */}
-                             <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 space-y-3">
-                                 <div className="flex justify-between text-xs">
-                                     <span className="text-slate-500">归属门店</span>
-                                     <span className="font-bold text-slate-700">{selectedOrder.storeName}</span>
-                                 </div>
-                                 <div className="flex justify-between text-xs">
-                                     <span className="text-slate-500">下单时间</span>
-                                     <span className="font-bold text-slate-700">{selectedOrder.createTime}</span>
-                                 </div>
-                                 <div className="border-t border-slate-200 pt-2">
-                                     <p className="text-xs font-bold text-slate-500 mb-2">商品清单</p>
-                                     <div className="space-y-2">
-                                         {selectedOrder.items.map((item, idx) => (
-                                             <div key={idx} className="flex items-center gap-2 bg-white p-2 rounded border border-slate-100">
-                                                 <div className="w-8 h-8 bg-slate-100 rounded flex-shrink-0 overflow-hidden">
-                                                     {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover" /> : <Package size={16} className="m-auto mt-2 text-slate-300" />}
+                             {/* Context Info */}
+                             {viewingStep === 1 && (
+                                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 space-y-3">
+                                    <div className="flex justify-between text-xs">
+                                        <span className="text-slate-500">归属门店</span>
+                                        <span className="font-bold text-slate-700">{selectedOrder.storeName}</span>
+                                    </div>
+                                    <div className="flex justify-between text-xs">
+                                        <span className="text-slate-500">下单时间</span>
+                                        <span className="font-bold text-slate-700">{selectedOrder.createTime}</span>
+                                    </div>
+                                    <div className="border-t border-slate-200 pt-2">
+                                        <p className="text-xs font-bold text-slate-500 mb-2">商品清单</p>
+                                        <div className="space-y-2">
+                                            {selectedOrder.items.map((item, idx) => (
+                                                <div key={idx} className="flex items-center gap-2 bg-white p-2 rounded border border-slate-100">
+                                                    <div className="w-8 h-8 bg-slate-100 rounded flex-shrink-0 overflow-hidden">
+                                                        {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover" /> : <Package size={16} className="m-auto mt-2 text-slate-300" />}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-xs font-bold truncate">{item.productName}</p>
+                                                        <p className="text-[10px] text-slate-500">x {item.quantity}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                             )}
+
+                             {/* Step Specific Inputs */}
+                             
+                             {/* Step 2 (Stocking) & Step 3 (Packing) & Step 5 (Signed) - Image Upload */}
+                             {(viewingStep === 2 || viewingStep === 3 || viewingStep === 5) && (
+                                 <div className="space-y-4">
+                                     <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-center">
+                                         <div className="flex justify-center items-center gap-2 mb-1">
+                                             <p className="text-sm font-bold text-blue-800">
+                                                 {viewingStep === 2 ? '备货清单拍照' : viewingStep === 3 ? '打包现场拍照' : '签收现场拍照'}
+                                             </p>
+                                             <button 
+                                                onClick={() => openExample(viewingStep)}
+                                                className="text-[10px] text-blue-500 bg-white border border-blue-200 px-1.5 py-0.5 rounded hover:bg-blue-50 flex items-center gap-0.5 transition-colors"
+                                             >
+                                                 <ImageIcon size={10} /> 示例
+                                             </button>
+                                         </div>
+                                         <p className="text-xs text-blue-600/70 mb-3">
+                                             {isEditable ? '请上传照片以确认完成' : '已上传照片凭证'}
+                                         </p>
+                                         
+                                         <div className="grid grid-cols-3 gap-3">
+                                             {isEditable && (
+                                                 <div className="aspect-square border-2 border-dashed border-blue-300 rounded-lg bg-white flex flex-col items-center justify-center relative hover:bg-blue-50 transition-colors cursor-pointer group">
+                                                     <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, viewingStep)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                                     <Upload size={20} className="text-blue-400 group-hover:scale-110 transition-transform" />
+                                                     <span className="text-[9px] text-blue-500 font-bold mt-1">上传</span>
                                                  </div>
-                                                 <div className="flex-1 min-w-0">
-                                                     <p className="text-xs font-bold truncate">{item.productName}</p>
-                                                     <p className="text-[10px] text-slate-500">x {item.quantity}</p>
+                                             )}
+                                             {selectedOrder.stepData?.[viewingStep]?.images?.map((url, idx) => (
+                                                 <div key={idx} className="aspect-square rounded-lg border border-slate-200 overflow-hidden relative group bg-white">
+                                                     <img src={url} className="w-full h-full object-cover" />
+                                                     {isEditable && (
+                                                         <button 
+                                                             onClick={() => handleRemoveImage(viewingStep, idx)} 
+                                                             className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                         >
+                                                             <X size={12} />
+                                                         </button>
+                                                     )}
                                                  </div>
-                                             </div>
-                                         ))}
+                                             ))}
+                                         </div>
                                      </div>
                                  </div>
-                             </div>
+                             )}
 
-                             {/* Specific Step Instructions (Mock) */}
-                             {selectedOrder.status === 'pending_receive' ? (
-                                 <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 text-center">
-                                     <p className="text-sm font-bold text-orange-700 mb-2">订单待接收</p>
-                                     <p className="text-xs text-orange-600/80">请确认订单信息无误后点击下方按钮接收，开始采购流程。</p>
-                                 </div>
-                             ) : (
-                                 <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
-                                     <p className="text-sm font-bold text-blue-800 mb-2">当前环节任务</p>
-                                     <p className="text-xs text-blue-600/80">
-                                         {viewingStep === 1 && "核对订单详细信息，确认无误。"}
-                                         {viewingStep === 2 && "联系供应商备货，确认货期。"}
-                                         {viewingStep === 3 && "清点货物，打包出库。"}
-                                         {viewingStep === 4 && "安排物流运输，跟踪单号。"}
-                                         {viewingStep === 5 && "门店签收确认，流程结束。"}
-                                     </p>
+                             {/* Step 4: Logistics */}
+                             {viewingStep === 4 && (
+                                 <div className="space-y-4">
+                                     <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-1">
+                                             <Link size={12} /> 物流链接/单号
+                                         </label>
+                                         <div className="flex gap-2">
+                                             <input 
+                                                 type="text" 
+                                                 className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500"
+                                                 placeholder="输入或粘贴物流链接"
+                                                 value={selectedOrder.stepData?.[4]?.logisticsLink || ''}
+                                                 onChange={(e) => handleLogisticsLinkChange(e.target.value)}
+                                                 disabled={!isEditable}
+                                             />
+                                             {isEditable && (
+                                                 <button 
+                                                     onClick={handlePasteLogistics}
+                                                     className="bg-slate-100 text-slate-600 px-3 py-2 rounded-lg font-bold text-xs hover:bg-slate-200 transition-colors flex items-center gap-1"
+                                                 >
+                                                     <Clipboard size={14} /> 粘贴
+                                                 </button>
+                                             )}
+                                         </div>
+                                         {selectedOrder.stepData?.[4]?.logisticsLink && (
+                                             <div className="mt-2 text-xs text-blue-600 bg-blue-50 p-2 rounded break-all">
+                                                 已录入: {selectedOrder.stepData[4].logisticsLink}
+                                             </div>
+                                         )}
+                                     </div>
                                  </div>
                              )}
+
                          </div>
                      </div>
                  </div>
@@ -344,6 +537,25 @@ export const ProcurementProgress: React.FC = () => {
                      </div>
                  </div>
              </div>
+        )}
+
+        {/* Example Image Modal */}
+        {exampleImage && (
+            <div className="fixed inset-0 z-[70] bg-black/80 flex items-center justify-center p-4 animate-fadeIn" onClick={() => setExampleImage(null)}>
+                <div className="bg-transparent w-full max-w-lg flex flex-col items-center animate-scaleIn" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white rounded-t-lg px-4 py-2 w-full flex justify-between items-center">
+                        <span className="font-bold text-sm text-slate-800 flex items-center gap-2">
+                            <ImageIcon size={16} className="text-blue-500"/> {exampleImage.title}
+                        </span>
+                        <button onClick={() => setExampleImage(null)} className="p-1 hover:bg-slate-100 rounded-full">
+                            <X size={16} className="text-slate-500"/>
+                        </button>
+                    </div>
+                    <div className="bg-black rounded-b-lg overflow-hidden w-full border-t border-slate-100">
+                         <img src={exampleImage.url} alt="Example" className="w-full max-h-[70vh] object-contain" />
+                    </div>
+                </div>
+            </div>
         )}
     </div>
   );
