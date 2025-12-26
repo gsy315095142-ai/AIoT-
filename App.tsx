@@ -1,4 +1,4 @@
-// 标记：本次更新优化了安装进度详情页的交互（按钮置灰逻辑及进度条显示固定），并在采购进度详情中增加了查看示例图片的功能
+// 标记：本次更新优化了安装进度详情页：支持已完成节点修改、新增调试环节的客房检测逻辑（同步/打勾）、安装环节按客房折叠展示、交付环节支持视频上传
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

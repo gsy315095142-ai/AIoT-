@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent, useMemo } from 'react';
-import { Hammer, Store, ChevronDown, Clock, CheckCircle, Upload, X, Calendar, ClipboardList, AlertCircle, ArrowRight, Gavel, BedDouble, Info, Image as ImageIcon, MapPin, ChevronLeft, ChevronRight, Navigation, Plus, Check } from 'lucide-react';
+import { Hammer, Store, ChevronDown, Clock, CheckCircle, Upload, X, Calendar, ClipboardList, AlertCircle, ArrowRight, Gavel, BedDouble, Info, Image as ImageIcon, MapPin, ChevronLeft, ChevronRight, Navigation, Plus, Check, RefreshCw, PlayCircle, Video, ChevronUp, Wifi, FileText } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Store as StoreType, InstallNode, InstallStatus, RoomImageCategory } from '../../types';
 
@@ -17,6 +17,12 @@ export const RoomInstall: React.FC = () => {
   
   // Progress Navigation State
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
+
+  // Accordion State for Install(3) and Debug(4) steps
+  const [expandedRoomNumber, setExpandedRoomNumber] = useState<string | null>(null);
+
+  // Debug Step Loading State
+  const [debugLoading, setDebugLoading] = useState<Record<string, boolean>>({});
 
   // Rejection Reason Popup State
   const [viewingRejectReason, setViewingRejectReason] = useState<string | null>(null);
@@ -52,19 +58,6 @@ export const RoomInstall: React.FC = () => {
       return node ? node.name : '等待交付';
   };
 
-  // Example Images Map (Updated keys and added modules)
-  const EXAMPLE_IMAGES: Record<string, string> = {
-      '打卡': 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=600&auto=format&fit=crop', 
-      '清点货物': 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?q=80&w=600&auto=format&fit=crop', 
-      '安装': 'https://images.unsplash.com/photo-1540518614846-7eded433c457?q=80&w=600&auto=format&fit=crop', 
-      '调试': 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?q=80&w=600&auto=format&fit=crop',
-      '交付': 'https://images.unsplash.com/photo-1556155092-490a1ba16284?q=80&w=600&auto=format&fit=crop',
-      // Modules
-      '玄关': 'https://images.unsplash.com/photo-1554995207-c18c203602cb?q=80&w=600&auto=format&fit=crop',
-      '桌面': 'https://images.unsplash.com/photo-1593640408182-31c70c8268f5?q=80&w=600&auto=format&fit=crop',
-      '床': 'https://images.unsplash.com/photo-1505693416388-b0346ef4174d?q=80&w=600&auto=format&fit=crop'
-  };
-
   const openExample = (nodeName: string, roomType?: string) => {
       // Try to get dynamic example from store config first if roomType is provided
       let url = null;
@@ -74,15 +67,13 @@ export const RoomInstall: React.FC = () => {
               url = config.exampleImages[nodeName];
           }
       }
-
-      // Fallback to static
-      if (!url) {
-          url = EXAMPLE_IMAGES[nodeName];
-      }
-
       if (url) {
           setExampleImage({ title: `${nodeName} - 示例图`, url });
       }
+  };
+
+  const toggleRoomAccordion = (roomNumber: string) => {
+      setExpandedRoomNumber(prev => prev === roomNumber ? null : roomNumber);
   };
 
   // Actions
@@ -91,6 +82,7 @@ export const RoomInstall: React.FC = () => {
       setIsDetailModalOpen(true);
       setRejectMode(false);
       setRejectReason('');
+      setExpandedRoomNumber(null);
       
       // Default to the first incomplete step, or the last step if all complete
       if (store.installation?.nodes) {
@@ -115,12 +107,14 @@ export const RoomInstall: React.FC = () => {
   const goNextStep = () => {
       if (activeStore?.installation && currentStepIndex < activeStore.installation.nodes.length - 1) {
           setCurrentStepIndex(prev => prev + 1);
+          setExpandedRoomNumber(null);
       }
   };
 
   const goPrevStep = () => {
       if (currentStepIndex > 0) {
           setCurrentStepIndex(prev => prev - 1);
+          setExpandedRoomNumber(null);
       }
   };
 
@@ -129,7 +123,6 @@ export const RoomInstall: React.FC = () => {
       if (!activeStore || !activeStore.installation) return;
       const newNodes = [...activeStore.installation.nodes];
       
-      // Only update data, DO NOT auto-complete. Completion is now explicit.
       newNodes[targetIndex] = { ...newNodes[targetIndex], data: newData };
 
       // Update local state and global state
@@ -155,12 +148,11 @@ export const RoomInstall: React.FC = () => {
       updateNodeData(currentStepIndex, e.target.value);
   };
 
-  // Check-in (Node 1) specific: Data structure { images: [], address: string }
+  // Check-in (Node 1)
   const handleCheckInImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files[0]) {
           const url = URL.createObjectURL(e.target.files[0]);
           const currentNode = activeStore?.installation?.nodes[1];
-          // Ensure data structure
           const currentData = (currentNode?.data && typeof currentNode.data === 'object' && !Array.isArray(currentNode.data)) 
               ? currentNode.data 
               : { images: [], address: '' };
@@ -185,21 +177,17 @@ export const RoomInstall: React.FC = () => {
   };
 
   const handleLocationConfirm = () => {
-      // Mock Location
       const mockAddress = "上海市南京东路888号 (31.2304° N, 121.4737° E)";
       const currentNode = activeStore?.installation?.nodes[1];
       const currentData = (currentNode?.data && typeof currentNode.data === 'object' && !Array.isArray(currentNode.data)) 
           ? currentNode.data 
           : { images: [], address: '' };
       
-      const newData = {
-          ...currentData,
-          address: mockAddress
-      };
+      const newData = { ...currentData, address: mockAddress };
       updateNodeData(1, newData);
   };
 
-  // Generic Image Upload (Nodes 2, 4, 5)
+  // Generic Image Upload (Nodes 2)
   const handleSimpleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files[0]) {
           const url = URL.createObjectURL(e.target.files[0]);
@@ -218,7 +206,7 @@ export const RoomInstall: React.FC = () => {
       updateNodeData(currentStepIndex, newImages);
   };
 
-  // Complex Node: Install Complete (Room -> Module -> Images)
+  // Complex Node: Install Complete (Step 3)
   const handleRoomImageUpload = (roomNumber: string, category: RoomImageCategory, e: ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files[0]) {
           const url = URL.createObjectURL(e.target.files[0]);
@@ -235,7 +223,6 @@ export const RoomInstall: React.FC = () => {
                   [category]: [...categoryImages, url]
               }
           };
-          
           updateNodeData(currentStepIndex, newData);
           e.target.value = '';
       }
@@ -254,11 +241,60 @@ export const RoomInstall: React.FC = () => {
               [category]: categoryImages.filter((_: string, i: number) => i !== imgIndex)
           }
       };
-      
       updateNodeData(currentStepIndex, newData);
   };
 
-  // Logic: Check if current step can be completed
+  // Debug Sync Logic (Step 4)
+  const handleDebugSync = (roomNumber: string, type: 'network' | 'log') => {
+      const key = `${roomNumber}-${type}`;
+      setDebugLoading(prev => ({ ...prev, [key]: true }));
+
+      // Mock Async Detection
+      setTimeout(() => {
+          setDebugLoading(prev => ({ ...prev, [key]: false }));
+          
+          const currentNode = activeStore?.installation?.nodes[currentStepIndex];
+          const currentData = (currentNode?.data && typeof currentNode.data === 'object' && !Array.isArray(currentNode.data)) ? currentNode.data : {};
+          const roomData = currentData[roomNumber] || {};
+          
+          const newData = {
+              ...currentData,
+              [roomNumber]: {
+                  ...roomData,
+                  [type]: true
+              }
+          };
+          updateNodeData(currentStepIndex, newData);
+      }, 1500);
+  };
+
+  // Delivery Upload (Step 5 - Video/Image)
+  const handleDeliveryUpload = (e: ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          const file = e.target.files[0];
+          const url = URL.createObjectURL(file);
+          const type = file.type.startsWith('video/') ? 'video' : 'image';
+          
+          const currentNode = activeStore?.installation?.nodes[currentStepIndex];
+          // Ensure structure: Array<{url, type}>
+          const currentItems = Array.isArray(currentNode?.data) ? currentNode.data : [];
+          // Handle legacy string[] data
+          const normalizeItems = currentItems.map((item: any) => typeof item === 'string' ? { url: item, type: 'image' } : item);
+          
+          const newItems = [...normalizeItems, { url, type }];
+          updateNodeData(currentStepIndex, newItems);
+          e.target.value = '';
+      }
+  };
+
+  const removeDeliveryItem = (index: number) => {
+      const currentNode = activeStore?.installation?.nodes[currentStepIndex];
+      const currentItems = Array.isArray(currentNode?.data) ? currentNode.data : [];
+      const newItems = currentItems.filter((_: any, i: number) => i !== index);
+      updateNodeData(currentStepIndex, newItems);
+  };
+
+  // Validation Logic
   const canCompleteStep = useMemo(() => {
       if (!activeStore || !activeStore.installation) return false;
       const currentNode = activeStore.installation.nodes[currentStepIndex];
@@ -288,9 +324,20 @@ export const RoomInstall: React.FC = () => {
                   return categories.every(cat => Array.isArray(rData[cat]) && rData[cat].length > 0);
               });
           } else {
-              return true; // No rooms needed
+              return true; 
           }
-      } else { // Generic Image Upload
+      } else if (currentStepIndex === 4) { // Debug
+          const roomData = currentNode.data || {};
+          const rooms = activeStore.rooms;
+          if (rooms.length > 0) {
+              return rooms.every(room => {
+                  const rData = roomData[room.number] || {};
+                  return rData.network && rData.log;
+              });
+          } else {
+              return true;
+          }
+      } else { // Generic or Delivery
           return Array.isArray(currentNode.data) && currentNode.data.length > 0;
       }
   }, [activeStore, currentStepIndex]);
@@ -317,7 +364,6 @@ export const RoomInstall: React.FC = () => {
       setActiveStore(updatedStore);
       updateStoreInstallation(activeStore.id, { nodes: newNodes, status: newStatus });
       
-      // Auto advance if valid
       goNextStep();
   };
 
@@ -327,7 +373,6 @@ export const RoomInstall: React.FC = () => {
       setIsDetailModalOpen(false);
   };
 
-  // Audit Actions
   const handleAuditApprove = () => {
       if (!activeStore) return;
       updateStoreInstallation(activeStore.id, { status: 'approved' });
@@ -336,24 +381,22 @@ export const RoomInstall: React.FC = () => {
 
   const handleAuditReject = () => {
       if (!activeStore) return;
-      if (!rejectReason.trim()) {
-          alert('请输入驳回原因');
-          return;
-      }
+      if (!rejectReason.trim()) { alert('请输入驳回原因'); return; }
       updateStoreInstallation(activeStore.id, { status: 'rejected', rejectReason }); 
       setIsDetailModalOpen(false);
   };
 
   const isAuditMode = activeStore?.installation?.status === 'pending_review';
   const isApproved = activeStore?.installation?.status === 'approved';
-  // Allow edit if not approved and not pending review (or if we want to allow edits during rejection)
-  // Logic: Locked if Approved or Pending Review. Open if Unstarted, In Progress, Rejected.
+  // Allow edit even if complete, unless locked by Audit/Approval status
   const isLocked = isApproved || isAuditMode; 
 
   const isRoomCompleted = (roomData: any) => {
       const categories: RoomImageCategory[] = ['玄关', '桌面', '床'];
       return categories.every(cat => Array.isArray(roomData[cat]) && roomData[cat].length > 0);
   };
+
+  const isDebugRoomCompleted = (rData: any) => rData?.network && rData?.log;
 
   const currentNode = activeStore?.installation?.nodes[currentStepIndex];
 
@@ -465,7 +508,6 @@ export const RoomInstall: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Arrow hint */}
                         <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-300">
                             <ArrowRight size={20} />
                         </div>
@@ -477,137 +519,78 @@ export const RoomInstall: React.FC = () => {
             )}
         </div>
 
-        {/* Reject Reason Modal */}
+        {/* Modal Components */}
         {viewingRejectReason && (
             <div className="fixed inset-0 z-[70] bg-black/20 flex items-center justify-center p-6 animate-fadeIn" onClick={() => setViewingRejectReason(null)}>
                 <div className="bg-white rounded-xl shadow-lg p-5 max-w-xs w-full animate-scaleIn" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center gap-2 mb-3 text-red-600 font-bold">
-                        <AlertCircle size={20} />
-                        驳回原因
+                        <AlertCircle size={20} /> 驳回原因
                     </div>
-                    <p className="text-sm text-slate-700 bg-red-50 p-3 rounded-lg border border-red-100">
-                        {viewingRejectReason}
-                    </p>
-                    <button 
-                        onClick={() => setViewingRejectReason(null)}
-                        className="w-full mt-4 py-2 bg-slate-100 text-slate-600 font-bold rounded-lg hover:bg-slate-200 text-xs"
-                    >
-                        关闭
-                    </button>
+                    <p className="text-sm text-slate-700 bg-red-50 p-3 rounded-lg border border-red-100">{viewingRejectReason}</p>
+                    <button onClick={() => setViewingRejectReason(null)} className="w-full mt-4 py-2 bg-slate-100 text-slate-600 font-bold rounded-lg hover:bg-slate-200 text-xs">关闭</button>
                 </div>
             </div>
         )}
 
-        {/* Example Image Modal */}
         {exampleImage && (
             <div className="fixed inset-0 z-[70] bg-black/80 flex items-center justify-center p-4 animate-fadeIn" onClick={() => setExampleImage(null)}>
                 <div className="bg-transparent w-full max-w-lg flex flex-col items-center animate-scaleIn" onClick={e => e.stopPropagation()}>
                     <div className="bg-white rounded-t-lg px-4 py-2 w-full flex justify-between items-center">
-                        <span className="font-bold text-sm text-slate-800 flex items-center gap-2">
-                            <ImageIcon size={16} className="text-blue-500"/> {exampleImage.title}
-                        </span>
-                        <button onClick={() => setExampleImage(null)} className="p-1 hover:bg-slate-100 rounded-full">
-                            <X size={16} className="text-slate-500"/>
-                        </button>
+                        <span className="font-bold text-sm text-slate-800 flex items-center gap-2"><ImageIcon size={16} className="text-blue-500"/> {exampleImage.title}</span>
+                        <button onClick={() => setExampleImage(null)} className="p-1 hover:bg-slate-100 rounded-full"><X size={16} className="text-slate-500"/></button>
                     </div>
-                    <div className="bg-black rounded-b-lg overflow-hidden w-full border-t border-slate-100">
-                         <img src={exampleImage.url} alt="Example" className="w-full max-h-[70vh] object-contain" />
-                    </div>
+                    <div className="bg-black rounded-b-lg overflow-hidden w-full border-t border-slate-100"><img src={exampleImage.url} alt="Example" className="w-full max-h-[70vh] object-contain" /></div>
                 </div>
             </div>
         )}
 
-        {/* FULL SCREEN PROGRESS PAGE OVERLAY */}
+        {/* FULL SCREEN PROGRESS PAGE */}
         {isDetailModalOpen && activeStore && activeStore.installation && currentNode && (
             <div className="fixed inset-0 z-[60] bg-white flex flex-col animate-slideInRight">
-                {/* Header */}
                 <div className="bg-white p-4 border-b border-slate-100 flex justify-between items-center shadow-sm flex-shrink-0">
                     <div>
-                        <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                            <Hammer size={18} className="text-blue-600" />
-                            {isAuditMode ? '安装审核' : '安装进度'}
-                        </h3>
+                        <h3 className="font-bold text-slate-800 flex items-center gap-2"><Hammer size={18} className="text-blue-600" />{isAuditMode ? '安装审核' : '安装进度'}</h3>
                         <p className="text-[10px] text-slate-500 mt-0.5">{activeStore.name}</p>
                     </div>
-                    <button onClick={() => setIsDetailModalOpen(false)} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors">
-                        <X size={20} className="text-slate-500" />
-                    </button>
+                    <button onClick={() => setIsDetailModalOpen(false)} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"><X size={20} className="text-slate-500" /></button>
                 </div>
 
-                {/* Progress Stepper with Nodes */}
                 <div className="px-6 py-6 bg-slate-50 flex-shrink-0 pb-12">
                     <div className="relative flex items-center justify-between mb-2 px-1">
-                        {/* Background Line */}
                         <div className="absolute top-1/2 left-0 right-0 h-1.5 bg-slate-200 z-0 rounded-full -translate-y-1/2" />
-                        
-                        {/* Progress Line - Based on Last Completed Step */}
                         {(() => {
                             const total = activeStore.installation.nodes.length;
-                            // Find last completed index
                             let lastCompletedIdx = -1;
-                            for (let i = 0; i < total; i++) {
-                                if (activeStore.installation.nodes[i].completed) lastCompletedIdx = i;
-                                else break;
-                            }
-                            // Progress width goes to last completed node. 
-                            // If step 0 is incomplete, width is 0. If step 0 complete, width is partial.
-                            // If all complete, width is 100%.
+                            for (let i = 0; i < total; i++) { if (activeStore.installation.nodes[i].completed) lastCompletedIdx = i; else break; }
                             const progressWidth = Math.min(100, (Math.max(lastCompletedIdx, 0) / (total - 1)) * 100);
-                            
-                            // Adjust for unstarted case
                             const actualWidth = lastCompletedIdx === -1 ? 0 : progressWidth;
-
-                            return (
-                                <div 
-                                    className="absolute top-1/2 left-0 h-1.5 bg-green-500 z-0 transition-all duration-500 rounded-full shadow-sm -translate-y-1/2" 
-                                    style={{ width: `${actualWidth}%` }} 
-                                />
-                            );
+                            return <div className="absolute top-1/2 left-0 h-1.5 bg-green-500 z-0 transition-all duration-500 rounded-full shadow-sm -translate-y-1/2" style={{ width: `${actualWidth}%` }} />;
                         })()}
-
                         {activeStore.installation.nodes.map((node, i) => {
                             const isCompleted = node.completed;
                             const isCurrent = i === currentStepIndex;
-                            
                             return (
                                 <div key={i} className="z-10 flex flex-col items-center relative">
-                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all duration-300 z-10 border-2 shadow-sm ${
-                                        isCompleted ? 'bg-green-500 border-green-500' : 
-                                        isCurrent ? 'bg-white border-blue-600 scale-125' : 
-                                        'bg-white border-slate-300'
-                                    }`}>
+                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all duration-300 z-10 border-2 shadow-sm ${isCompleted ? 'bg-green-500 border-green-500' : isCurrent ? 'bg-white border-blue-600 scale-125' : 'bg-white border-slate-300'}`}>
                                         {isCompleted && <Check size={10} className="text-white" strokeWidth={3} />}
                                         {isCurrent && <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" />}
                                     </div>
-                                    {/* Node Label - Always Visible */}
-                                    <span className={`absolute top-6 text-[9px] font-bold whitespace-nowrap transition-colors ${
-                                        isCurrent ? 'text-blue-600 scale-110' : isCompleted ? 'text-slate-600' : 'text-slate-400'
-                                    }`}>
-                                        {node.name}
-                                    </span>
+                                    <span className={`absolute top-6 text-[9px] font-bold whitespace-nowrap transition-colors ${isCurrent ? 'text-blue-600 scale-110' : isCompleted ? 'text-slate-600' : 'text-slate-400'}`}>{node.name}</span>
                                 </div>
                             );
                         })}
                     </div>
                 </div>
 
-                {/* Main Content Area - Swipeable Look */}
                 <div className="flex-1 overflow-y-auto p-4 bg-white relative">
                     <div className="max-w-md mx-auto h-full flex flex-col">
-                        
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-xl font-bold text-slate-800">{currentNode.name}</h2>
                             {currentStepIndex > 0 && currentStepIndex <= 5 && currentNode.name !== '安装' && (
-                                <button 
-                                    onClick={() => openExample(currentNode.name)}
-                                    className="flex items-center gap-1 bg-blue-50 text-blue-600 px-2 py-1 rounded text-xs font-bold hover:bg-blue-100 transition-colors"
-                                >
-                                    <ImageIcon size={12} /> 查看示例
-                                </button>
+                                <button onClick={() => openExample(currentNode.name)} className="flex items-center gap-1 bg-blue-50 text-blue-600 px-2 py-1 rounded text-xs font-bold hover:bg-blue-100 transition-colors"><ImageIcon size={12} /> 查看示例</button>
                             )}
                         </div>
 
-                        {/* Step Content based on Index */}
                         <div className="flex-1 space-y-6">
                             
                             {/* Node 0: Appointment */}
@@ -619,7 +602,7 @@ export const RoomInstall: React.FC = () => {
                                             type="datetime-local" 
                                             value={currentNode.data || ''}
                                             onChange={handleTimeChange}
-                                            disabled={isLocked || currentNode.completed}
+                                            disabled={isLocked}
                                             className="w-full text-sm border border-blue-200 rounded-lg p-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                                         />
                                     </div>
@@ -627,70 +610,37 @@ export const RoomInstall: React.FC = () => {
                                 </div>
                             )}
 
-                            {/* Node 1: Check-in (Location + Photos) */}
+                            {/* Node 1: Check-in */}
                             {currentStepIndex === 1 && (
                                 <div className="space-y-4">
-                                    {/* Location Section */}
                                     <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                                        <h4 className="font-bold text-sm text-slate-700 mb-3 flex items-center gap-2">
-                                            <MapPin size={16} className="text-blue-500" /> 位置确认
-                                        </h4>
-                                        
+                                        <h4 className="font-bold text-sm text-slate-700 mb-3 flex items-center gap-2"><MapPin size={16} className="text-blue-500" /> 位置确认</h4>
                                         {(() => {
-                                            const data = (currentNode.data && typeof currentNode.data === 'object' && !Array.isArray(currentNode.data)) 
-                                                ? currentNode.data as { address: string }
-                                                : { address: '' };
-                                            
+                                            const data = (currentNode.data && typeof currentNode.data === 'object' && !Array.isArray(currentNode.data)) ? currentNode.data as { address: string } : { address: '' };
                                             return data.address ? (
-                                                <div className="bg-green-50 text-green-700 p-3 rounded-lg text-xs font-medium border border-green-100 flex items-start gap-2">
-                                                    <CheckCircle size={14} className="mt-0.5 shrink-0" />
-                                                    {data.address}
-                                                </div>
+                                                <div className="bg-green-50 text-green-700 p-3 rounded-lg text-xs font-medium border border-green-100 flex items-start gap-2"><CheckCircle size={14} className="mt-0.5 shrink-0" />{data.address}</div>
                                             ) : (
-                                                <button 
-                                                    onClick={handleLocationConfirm}
-                                                    disabled={isLocked || currentNode.completed}
-                                                    className="w-full py-3 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors flex items-center justify-center gap-2"
-                                                >
-                                                    <Navigation size={14} /> 点击获取当前位置
-                                                </button>
+                                                <button onClick={handleLocationConfirm} disabled={isLocked} className="w-full py-3 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors flex items-center justify-center gap-2"><Navigation size={14} /> 点击获取当前位置</button>
                                             );
                                         })()}
                                     </div>
-
-                                    {/* Photo Upload Section */}
                                     <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                                        <h4 className="font-bold text-sm text-slate-700 mb-3 flex items-center gap-2">
-                                            <ImageIcon size={16} className="text-blue-500" /> 现场照片
-                                        </h4>
+                                        <h4 className="font-bold text-sm text-slate-700 mb-3 flex items-center gap-2"><ImageIcon size={16} className="text-blue-500" /> 现场照片</h4>
                                         <div className="grid grid-cols-3 gap-3">
-                                            {!isLocked && !currentNode.completed && (
+                                            {!isLocked && (
                                                 <div className="aspect-square border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 hover:border-blue-300 relative group transition-all">
-                                                    <input 
-                                                        type="file" 
-                                                        accept="image/*" 
-                                                        onChange={handleCheckInImageUpload}
-                                                        className="absolute inset-0 opacity-0 cursor-pointer"
-                                                    />
+                                                    <input type="file" accept="image/*" onChange={handleCheckInImageUpload} className="absolute inset-0 opacity-0 cursor-pointer"/>
                                                     <Upload size={20} className="text-slate-300 group-hover:text-blue-400 mb-1" />
                                                     <span className="text-[10px] text-slate-400 group-hover:text-blue-500 font-bold">上传</span>
                                                 </div>
                                             )}
                                             {(() => {
-                                                const data = (currentNode.data && typeof currentNode.data === 'object' && !Array.isArray(currentNode.data)) 
-                                                    ? currentNode.data as { images: string[] }
-                                                    : { images: [] };
-                                                
+                                                const data = (currentNode.data && typeof currentNode.data === 'object' && !Array.isArray(currentNode.data)) ? currentNode.data as { images: string[] } : { images: [] };
                                                 return data.images?.map((url: string, imgIdx: number) => (
                                                     <div key={imgIdx} className="aspect-square rounded-xl border border-slate-200 overflow-hidden relative group">
                                                         <img src={url} alt={`checkin-${imgIdx}`} className="w-full h-full object-cover" />
-                                                        {!isLocked && !currentNode.completed && (
-                                                            <button 
-                                                                onClick={() => removeCheckInImage(imgIdx)}
-                                                                className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                                            >
-                                                                <X size={12} />
-                                                            </button>
+                                                        {!isLocked && (
+                                                            <button onClick={() => removeCheckInImage(imgIdx)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><X size={12} /></button>
                                                         )}
                                                     </div>
                                                 ));
@@ -700,93 +650,203 @@ export const RoomInstall: React.FC = () => {
                                 </div>
                             )}
 
-                            {/* Node 3: Room Installation (Complex) */}
+                            {/* Node 3: Room Installation (Expanded Accordion) */}
                             {currentStepIndex === 3 && (
                                 <div className="space-y-4">
                                     {activeStore.rooms.map((room) => {
                                         const roomData = (currentNode.data && typeof currentNode.data === 'object') ? currentNode.data[room.number] || {} : {};
                                         const categories: RoomImageCategory[] = ['玄关', '桌面', '床'];
                                         const roomCompleted = isRoomCompleted(roomData);
+                                        const isExpanded = expandedRoomNumber === room.number;
                                         
                                         return (
                                             <div key={room.number} className={`bg-white border rounded-xl overflow-hidden shadow-sm transition-all ${roomCompleted ? 'border-green-200' : 'border-slate-200'}`}>
-                                                <div className="bg-slate-50 px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                                                <div 
+                                                    onClick={() => toggleRoomAccordion(room.number)}
+                                                    className="bg-slate-50 px-4 py-3 border-b border-slate-100 flex items-center justify-between cursor-pointer hover:bg-slate-100 transition-colors"
+                                                >
                                                     <div className="flex items-center gap-2">
                                                         <BedDouble size={16} className="text-slate-500" />
                                                         <span className="text-sm font-bold text-slate-700">{room.number} ({room.type})</span>
                                                     </div>
-                                                    {roomCompleted && <CheckCircle size={16} className="text-green-500" />}
+                                                    <div className="flex items-center gap-2">
+                                                        {roomCompleted && <CheckCircle size={16} className="text-green-500" />}
+                                                        {isExpanded ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+                                                    </div>
                                                 </div>
-                                                <div className="p-4 space-y-4">
-                                                    {categories.map(cat => {
-                                                        const images = roomData[cat] || [];
-                                                        return (
-                                                            <div key={cat}>
-                                                                <div className="flex justify-between items-center mb-2">
-                                                                    <p className="text-xs font-bold text-slate-500 flex items-center gap-1">
-                                                                        <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div> {cat}
-                                                                    </p>
-                                                                    <button 
-                                                                        onClick={() => openExample(cat, room.type)}
-                                                                        className="flex items-center gap-1 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[10px] hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                                                                    >
-                                                                        <ImageIcon size={10} /> 查看示例
-                                                                    </button>
+                                                
+                                                {/* Accordion Content */}
+                                                {isExpanded && (
+                                                    <div className="p-4 space-y-4 animate-fadeIn">
+                                                        {categories.map(cat => {
+                                                            const images = roomData[cat] || [];
+                                                            return (
+                                                                <div key={cat} className="bg-slate-50/50 p-3 rounded-lg border border-slate-100">
+                                                                    <div className="flex justify-between items-center mb-2">
+                                                                        <p className="text-xs font-bold text-slate-600 flex items-center gap-1">
+                                                                            <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div> {cat}
+                                                                        </p>
+                                                                        <button onClick={() => openExample(cat, room.type)} className="flex items-center gap-1 bg-white border border-slate-200 text-slate-500 px-2 py-0.5 rounded text-[10px] hover:text-blue-600"><ImageIcon size={10} /> 示例</button>
+                                                                    </div>
+                                                                    <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                                                                        {!isLocked && (
+                                                                            <div className="w-16 h-16 border-2 border-dashed border-blue-200 rounded-lg bg-white flex-shrink-0 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50 relative group">
+                                                                                <input type="file" accept="image/*" onChange={(e) => handleRoomImageUpload(room.number, cat, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                                                                <Plus size={16} className="text-blue-400 mb-1 group-hover:scale-110 transition-transform" />
+                                                                                <span className="text-[8px] text-blue-500 font-bold">上传</span>
+                                                                            </div>
+                                                                        )}
+                                                                        {images.map((url: string, imgIdx: number) => (
+                                                                            <div key={imgIdx} className="w-16 h-16 rounded-lg border border-slate-200 overflow-hidden relative group flex-shrink-0 bg-white">
+                                                                                <img src={url} alt={`${room.number}-${cat}`} className="w-full h-full object-cover" />
+                                                                                {!isLocked && (
+                                                                                    <button onClick={() => removeRoomImage(room.number, cat, imgIdx)} className="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl opacity-0 group-hover:opacity-100"><X size={10} /></button>
+                                                                                )}
+                                                                            </div>
+                                                                        ))}
+                                                                        {images.length === 0 && isLocked && <span className="text-[10px] text-slate-300 self-center">无图片</span>}
+                                                                    </div>
                                                                 </div>
-                                                                
-                                                                <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-                                                                    {!isLocked && !currentNode.completed && (
-                                                                        <div className="w-16 h-16 border border-dashed border-blue-200 rounded-lg bg-blue-50 flex-shrink-0 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-100 relative">
-                                                                            <input 
-                                                                                type="file" 
-                                                                                accept="image/*" 
-                                                                                onChange={(e) => handleRoomImageUpload(room.number, cat, e)}
-                                                                                className="absolute inset-0 opacity-0 cursor-pointer"
-                                                                            />
-                                                                            <Plus size={16} className="text-blue-400" />
-                                                                        </div>
-                                                                    )}
-                                                                    {images.map((url: string, imgIdx: number) => (
-                                                                        <div key={imgIdx} className="w-16 h-16 rounded-lg border border-slate-200 overflow-hidden relative group flex-shrink-0">
-                                                                            <img src={url} alt={`${room.number}-${cat}`} className="w-full h-full object-cover" />
-                                                                            {!isLocked && !currentNode.completed && (
-                                                                                <button 
-                                                                                    onClick={() => removeRoomImage(room.number, cat, imgIdx)}
-                                                                                    className="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl opacity-0 group-hover:opacity-100"
-                                                                                >
-                                                                                    <X size={10} />
-                                                                                </button>
-                                                                            )}
-                                                                        </div>
-                                                                    ))}
-                                                                    {images.length === 0 && (isLocked || currentNode.completed) && <span className="text-[10px] text-slate-300 self-center">无图片</span>}
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
                                             </div>
                                         );
                                     })}
-                                    {activeStore.rooms.length === 0 && (
-                                        <div className="p-6 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed">无客房需安装</div>
-                                    )}
+                                    {activeStore.rooms.length === 0 && <div className="p-6 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed">无客房需安装</div>}
                                 </div>
                             )}
 
-                            {/* Generic Image Steps (2, 4, 5) */}
-                            {(currentStepIndex === 2 || currentStepIndex === 4 || currentStepIndex === 5) && (
+                            {/* Node 4: Debug (New Logic) */}
+                            {currentStepIndex === 4 && (
+                                <div className="space-y-4">
+                                    {activeStore.rooms.map((room) => {
+                                        const roomData = (currentNode.data && typeof currentNode.data === 'object') ? currentNode.data[room.number] || {} : {};
+                                        const isRoomDone = isDebugRoomCompleted(roomData);
+                                        const isExpanded = expandedRoomNumber === room.number;
+
+                                        return (
+                                            <div key={room.number} className={`bg-white border rounded-xl overflow-hidden shadow-sm transition-all ${isRoomDone ? 'border-green-200' : 'border-slate-200'}`}>
+                                                <div 
+                                                    onClick={() => toggleRoomAccordion(room.number)}
+                                                    className="bg-slate-50 px-4 py-3 border-b border-slate-100 flex items-center justify-between cursor-pointer hover:bg-slate-100"
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        <BedDouble size={16} className="text-slate-500" />
+                                                        <span className="text-sm font-bold text-slate-700">{room.number} 调试检测</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {isRoomDone && <CheckCircle size={16} className="text-green-500" />}
+                                                        {isExpanded ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+                                                    </div>
+                                                </div>
+
+                                                {isExpanded && (
+                                                    <div className="p-4 space-y-3 animate-fadeIn bg-white">
+                                                        {/* Check Item 1: Network */}
+                                                        <div className="flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50">
+                                                            <div className="flex items-center gap-2">
+                                                                <Wifi size={16} className="text-blue-500" />
+                                                                <span className="text-xs font-bold text-slate-700">网络情况检测</span>
+                                                            </div>
+                                                            {roomData.network ? (
+                                                                <span className="flex items-center gap-1 text-green-600 text-xs font-bold bg-green-50 px-2 py-1 rounded"><Check size={12} /> 检测通过</span>
+                                                            ) : debugLoading[`${room.number}-network`] ? (
+                                                                <span className="text-xs text-blue-500 font-bold animate-pulse">检测中...</span>
+                                                            ) : (
+                                                                <button 
+                                                                    onClick={() => handleDebugSync(room.number, 'network')}
+                                                                    disabled={isLocked}
+                                                                    className="flex items-center gap-1 bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
+                                                                >
+                                                                    <RefreshCw size={12} /> 同步
+                                                                </button>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Check Item 2: Logs */}
+                                                        <div className="flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50">
+                                                            <div className="flex items-center gap-2">
+                                                                <FileText size={16} className="text-orange-500" />
+                                                                <span className="text-xs font-bold text-slate-700">Log记录检测</span>
+                                                            </div>
+                                                            {roomData.log ? (
+                                                                <span className="flex items-center gap-1 text-green-600 text-xs font-bold bg-green-50 px-2 py-1 rounded"><Check size={12} /> 检测通过</span>
+                                                            ) : debugLoading[`${room.number}-log`] ? (
+                                                                <span className="text-xs text-blue-500 font-bold animate-pulse">检测中...</span>
+                                                            ) : (
+                                                                <button 
+                                                                    onClick={() => handleDebugSync(room.number, 'log')}
+                                                                    disabled={isLocked}
+                                                                    className="flex items-center gap-1 bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
+                                                                >
+                                                                    <RefreshCw size={12} /> 同步
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                    {activeStore.rooms.length === 0 && <div className="p-6 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed">无客房需调试</div>}
+                                </div>
+                            )}
+
+                            {/* Node 5: Delivery (Video Support) */}
+                            {currentStepIndex === 5 && (
                                 <div className="space-y-4">
                                     <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
                                         <div className="grid grid-cols-3 gap-3">
-                                            {!isLocked && !currentNode.completed && (
+                                            {!isLocked && (
                                                 <div className="aspect-square border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 hover:border-blue-300 relative group transition-all">
-                                                    <input 
-                                                        type="file" 
-                                                        accept="image/*" 
-                                                        onChange={handleSimpleImageUpload}
-                                                        className="absolute inset-0 opacity-0 cursor-pointer"
-                                                    />
+                                                    <input type="file" accept="image/*,video/*" onChange={handleDeliveryUpload} className="absolute inset-0 opacity-0 cursor-pointer"/>
+                                                    <Upload size={20} className="text-slate-300 group-hover:text-blue-400 mb-1" />
+                                                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 font-bold text-center leading-tight">上传图片<br/>或视频</span>
+                                                </div>
+                                            )}
+                                            {(() => {
+                                                const rawData = currentNode.data;
+                                                const items = Array.isArray(rawData) ? rawData : [];
+                                                // Normalize data: some items might be strings (legacy), some objects {url, type}
+                                                return items.map((item: any, idx: number) => {
+                                                    const isObj = typeof item === 'object';
+                                                    const url = isObj ? item.url : item;
+                                                    const isVideo = isObj ? item.type === 'video' : false;
+
+                                                    return (
+                                                        <div key={idx} className="aspect-square rounded-xl border border-slate-200 overflow-hidden relative group bg-black">
+                                                            {isVideo ? (
+                                                                <div className="w-full h-full flex items-center justify-center relative">
+                                                                    <video src={url} className="w-full h-full object-cover opacity-80" />
+                                                                    <PlayCircle size={24} className="text-white absolute opacity-80" />
+                                                                    <Video size={12} className="absolute top-1 left-1 text-white bg-black/50 rounded p-0.5" />
+                                                                </div>
+                                                            ) : (
+                                                                <img src={url} alt={`delivery-${idx}`} className="w-full h-full object-cover" />
+                                                            )}
+                                                            {!isLocked && (
+                                                                <button onClick={() => removeDeliveryItem(idx)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><X size={12} /></button>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                });
+                                            })()}
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-slate-400 text-center">请上传交付相关的照片或演示视频。</p>
+                                </div>
+                            )}
+
+                            {/* Generic Image Steps (2) */}
+                            {currentStepIndex === 2 && (
+                                <div className="space-y-4">
+                                    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                                        <div className="grid grid-cols-3 gap-3">
+                                            {!isLocked && (
+                                                <div className="aspect-square border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 hover:border-blue-300 relative group transition-all">
+                                                    <input type="file" accept="image/*" onChange={handleSimpleImageUpload} className="absolute inset-0 opacity-0 cursor-pointer"/>
                                                     <Upload size={20} className="text-slate-300 group-hover:text-blue-400 mb-1" />
                                                     <span className="text-[10px] text-slate-400 group-hover:text-blue-500 font-bold">上传</span>
                                                 </div>
@@ -794,13 +854,8 @@ export const RoomInstall: React.FC = () => {
                                             {Array.isArray(currentNode.data) && currentNode.data.map((url, imgIdx) => (
                                                 <div key={imgIdx} className="aspect-square rounded-xl border border-slate-200 overflow-hidden relative group bg-white">
                                                     <img src={url} alt={`${currentNode.name}-${imgIdx}`} className="w-full h-full object-cover" />
-                                                    {!isLocked && !currentNode.completed && (
-                                                        <button 
-                                                            onClick={() => removeSimpleImage(imgIdx)}
-                                                            className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                                        >
-                                                            <X size={12} />
-                                                        </button>
+                                                    {!isLocked && (
+                                                        <button onClick={() => removeSimpleImage(imgIdx)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><X size={12} /></button>
                                                     )}
                                                 </div>
                                             ))}
@@ -816,7 +871,6 @@ export const RoomInstall: React.FC = () => {
 
                 {/* Footer Navigation */}
                 <div className="p-4 bg-white border-t border-slate-100 flex-shrink-0">
-                    
                     {isAuditMode && rejectMode ? (
                          <div className="space-y-3 animate-fadeIn">
                             <textarea 
@@ -838,31 +892,20 @@ export const RoomInstall: React.FC = () => {
                         </div>
                     ) : (
                         <div className="flex flex-col gap-3">
-                            {/* Confirmation Action for Current Step */}
                             {!isLocked && (
-                                currentNode.completed ? (
-                                    <button 
-                                        disabled
-                                        className="w-full py-3 bg-green-50 text-green-600 font-bold rounded-xl border border-green-100 flex items-center justify-center gap-2 cursor-default"
-                                    >
-                                        <CheckCircle size={18} /> 已完成
-                                    </button>
-                                ) : (
-                                    <button 
-                                        onClick={handleConfirmStep}
-                                        disabled={!canCompleteStep}
-                                        className={`w-full py-3 font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${
-                                            canCompleteStep 
-                                                ? 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95' 
-                                                : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
-                                        }`}
-                                    >
-                                        <CheckCircle size={18} /> 确认完成此环节
-                                    </button>
-                                )
+                                <button 
+                                    onClick={handleConfirmStep}
+                                    disabled={!canCompleteStep}
+                                    className={`w-full py-3 font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${
+                                        canCompleteStep 
+                                            ? (currentNode.completed ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95')
+                                            : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                                    }`}
+                                >
+                                    {currentNode.completed ? <><CheckCircle size={18} /> 更新并完成</> : <><CheckCircle size={18} /> 确认完成此环节</>}
+                                </button>
                             )}
                             
-                            {/* Just Next/Prev or Submit Final */}
                             <div className="flex gap-3">
                                 <button 
                                     onClick={goPrevStep} 

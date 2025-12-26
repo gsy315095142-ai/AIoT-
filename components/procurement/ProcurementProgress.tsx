@@ -1,4 +1,4 @@
-import React, { useState, ChangeEvent } from 'react';
+import React, { useState, ChangeEvent, useMemo } from 'react';
 import { TrendingUp, Package, ChevronRight, CheckCircle, Truck, ClipboardList, Box, MapPin, X, ChevronLeft, Check, Upload, Link, Copy, Clipboard, FileText, Image as ImageIcon } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ProcurementOrder } from '../../types';
@@ -124,10 +124,12 @@ export const ProcurementProgress: React.FC = () => {
 
   const handleConfirmOrderStart = () => {
       if (!selectedOrder) return;
-      // Change status to purchasing, set step to 1 (Confirmed)
-      updateProcurementOrder(selectedOrder.id, { status: 'purchasing', currentStep: 1 });
-      setSelectedOrder(prev => prev ? ({ ...prev, status: 'purchasing', currentStep: 1 }) : null);
-      setViewingStep(1);
+      // Change status to purchasing.
+      // Automatically skip Step 1 (Confirm Order) as "completed" and move to Step 2 (Stocking)
+      const nextStep = 2;
+      updateProcurementOrder(selectedOrder.id, { status: 'purchasing', currentStep: nextStep });
+      setSelectedOrder(prev => prev ? ({ ...prev, status: 'purchasing', currentStep: nextStep }) : null);
+      setViewingStep(nextStep);
   };
 
   const handleCompleteCurrentStep = () => {
@@ -177,6 +179,26 @@ export const ProcurementProgress: React.FC = () => {
           setSelectedOrder(prev => prev ? ({ ...prev, status: 'completed' }) : null);
       }
   };
+
+  const canCompleteCurrentStep = useMemo(() => {
+        if (!selectedOrder) return false;
+        
+        const currentData = selectedOrder.stepData?.[selectedOrder.currentStep] || {};
+
+        if (selectedOrder.currentStep === 2) { // Stocking
+            return currentData.images && currentData.images.length > 0;
+        }
+        if (selectedOrder.currentStep === 3) { // Packing
+            return currentData.images && currentData.images.length > 0;
+        }
+        if (selectedOrder.currentStep === 4) { // Logistics
+            return !!currentData.logisticsLink && currentData.logisticsLink.trim() !== '';
+        }
+        if (selectedOrder.currentStep === 5) { // Signed
+            return currentData.images && currentData.images.length > 0;
+        }
+        return true;
+  }, [selectedOrder]);
 
   const navigateStep = (direction: 'prev' | 'next') => {
       if (direction === 'prev' && viewingStep > 1) setViewingStep(viewingStep - 1);
@@ -500,7 +522,12 @@ export const ProcurementProgress: React.FC = () => {
                              ) : selectedOrder.currentStep === viewingStep ? (
                                  <button 
                                     onClick={handleCompleteCurrentStep}
-                                    className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                    disabled={!canCompleteCurrentStep}
+                                    className={`w-full py-3 font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${
+                                        canCompleteCurrentStep 
+                                            ? 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95' 
+                                            : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                                    }`}
                                  >
                                     <CheckCircle size={18} /> 确认完成此环节
                                  </button>
