@@ -3,9 +3,9 @@ import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent
 
 // Initial Mock Data
 const MOCK_REGIONS: Region[] = [
-  { id: 'r1', name: '华东大区' },
-  { id: 'r2', name: '华北大区' },
-  { id: 'r3', name: '华南大区' },
+  { id: 'r1', name: '鲲鹏大区' },
+  { id: 'r2', name: '腾龙大区' },
+  { id: 'r3', name: '麒麟大区' },
 ];
 
 const DEFAULT_NODES: InstallNode[] = [
@@ -207,6 +207,7 @@ interface AppContextType {
   setHeaderRightAction: (node: ReactNode) => void;
 
   addRegion: (name: string) => void;
+  updateRegion: (id: string, name: string) => void;
   removeRegion: (id: string) => void;
   addStore: (store: Store) => void;
   updateStore: (id: string, data: Partial<Store>) => void;
@@ -249,6 +250,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const addRegion = (name: string) => {
     setRegions([...regions, { id: `r${Date.now()}`, name }]);
+  };
+
+  const updateRegion = (id: string, name: string) => {
+    setRegions(prev => prev.map(r => r.id === id ? { ...r, name } : r));
   };
 
   const removeRegion = (id: string) => {
@@ -585,7 +590,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       procurementProducts, addProcurementProduct, updateProcurementProduct, removeProcurementProduct,
       procurementOrders, addProcurementOrder, updateProcurementOrder,
       headerRightAction, setHeaderRightAction,
-      addRegion, removeRegion, 
+      addRegion, updateRegion, removeRegion, 
       addStore, updateStore, updateStoreInstallation, removeStore, 
       addDeviceType, removeDeviceType, 
       addDevice, updateDevice, deleteDeviceEvent,

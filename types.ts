@@ -225,4 +225,6 @@ export type ProcurementOrder = {
   currentStep: number; // 0 to 5
   createTime: string;
   stepData?: Record<number, ProcurementStepData>; // Stores images/links for each step
+  auditStatus?: 'pending' | 'approved' | 'rejected'; // New: Audit after signing
+  rejectReason?: string; // New: Reason for rejection
 };

@@ -51,16 +51,17 @@ export const ProcurementOrder: React.FC = () => {
       const orders = procurementOrders.filter(o => o.storeId === storeId);
       
       // Calculate total completed items
+      // Only count items from 'completed' orders (which implies audit passed)
       const inventoryCount = orders
         .filter(o => o.status === 'completed')
         .reduce((sum, o) => sum + o.items.reduce((s, i) => s + i.quantity, 0), 0);
 
-      // Find active order (latest pending/purchasing)
-      const activeOrder = orders
-        .filter(o => o.status !== 'completed')
-        .sort((a, b) => new Date(b.createTime).getTime() - new Date(a.createTime).getTime())[0];
+      // Show ALL orders, sorted by createTime descending (Recent first)
+      // This includes completed orders as per requirement
+      const activeOrders = orders
+        .sort((a, b) => new Date(b.createTime).getTime() - new Date(a.createTime).getTime());
 
-      return { inventoryCount, activeOrder };
+      return { inventoryCount, activeOrders };
   };
 
   const handleSelectStore = (storeId: string) => {
@@ -189,7 +190,7 @@ export const ProcurementOrder: React.FC = () => {
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {filteredStores.map(store => {
                     const regionName = regions.find(r => r.id === store.regionId)?.name;
-                    const { inventoryCount, activeOrder } = getStoreOrderInfo(store.id);
+                    const { inventoryCount, activeOrders } = getStoreOrderInfo(store.id);
                     
                     return (
                         <div 
@@ -211,29 +212,68 @@ export const ProcurementOrder: React.FC = () => {
                                 </div>
                             </div>
 
-                            {activeOrder ? (
-                                <div className="bg-blue-50 rounded-lg p-2 flex items-center gap-3 border border-blue-100">
-                                    <div className="bg-blue-200 p-1.5 rounded-full text-blue-700">
-                                        <TrendingUp size={14} />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex justify-between items-center mb-1">
-                                            <span className="text-[10px] font-bold text-blue-800">采购进行中</span>
-                                            <span className="text-[9px] text-blue-600 font-mono">
-                                                {activeOrder.status === 'pending_receive' ? '待接收' : STEPS[activeOrder.currentStep - 1]}
-                                            </span>
-                                        </div>
-                                        <div className="w-full bg-blue-200 h-1 rounded-full overflow-hidden">
-                                            <div 
-                                                className="h-full bg-blue-600 rounded-full transition-all duration-500" 
-                                                style={{ width: `${activeOrder.status === 'pending_receive' ? 5 : (activeOrder.currentStep / 5) * 100}%` }}
-                                            ></div>
-                                        </div>
-                                    </div>
+                            {activeOrders.length > 0 ? (
+                                <div className="space-y-2">
+                                    {activeOrders.map(activeOrder => {
+                                        const isCompleted = activeOrder.status === 'completed';
+                                        const isAuditPending = activeOrder.auditStatus === 'pending';
+                                        const isAuditRejected = activeOrder.auditStatus === 'rejected';
+                                        
+                                        return (
+                                            <div key={activeOrder.id} className={`rounded-lg p-2 flex items-center gap-3 border ${
+                                                isCompleted ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-100'
+                                            }`}>
+                                                <div className={`p-1.5 rounded-full shrink-0 ${
+                                                    isCompleted ? 'bg-green-200 text-green-700' : 'bg-blue-200 text-blue-700'
+                                                }`}>
+                                                    {isCompleted ? <CheckCircle size={14} /> : <TrendingUp size={14} />}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <span className={`text-[10px] font-bold flex items-center gap-1 ${
+                                                            isCompleted ? 'text-green-800' : 'text-blue-800'
+                                                        }`}>
+                                                            <span>{isCompleted ? '采购已完成' : '采购进行中'}</span>
+                                                            <span className={`${isCompleted ? 'text-green-500' : 'text-blue-400'} font-normal`}>
+                                                                ({activeOrder.items.length}种商品)
+                                                            </span>
+                                                        </span>
+                                                        <span className={`text-[9px] font-mono ${
+                                                            isCompleted ? 'text-green-600' : 'text-blue-600'
+                                                        }`}>
+                                                            {activeOrder.status === 'pending_receive' 
+                                                                ? '待接收' 
+                                                                : isAuditPending
+                                                                    ? '待审核'
+                                                                    : isAuditRejected
+                                                                        ? '已驳回'
+                                                                        : isCompleted 
+                                                                            ? '已入库' 
+                                                                            : STEPS[activeOrder.currentStep - 1]
+                                                            }
+                                                        </span>
+                                                    </div>
+                                                    <div className={`w-full h-1 rounded-full overflow-hidden ${
+                                                        isCompleted ? 'bg-green-200' : 'bg-blue-200'
+                                                    }`}>
+                                                        <div 
+                                                            className={`h-full rounded-full transition-all duration-500 ${
+                                                                isAuditRejected ? 'bg-red-500' :
+                                                                isAuditPending ? 'bg-orange-500' :
+                                                                isCompleted ? 'bg-green-500' :
+                                                                'bg-blue-600'
+                                                            }`}
+                                                            style={{ width: `${activeOrder.status === 'pending_receive' ? 5 : isCompleted ? 100 : (activeOrder.currentStep / 5) * 100}%` }}
+                                                        ></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             ) : (
                                 <div className="text-[10px] text-slate-400 flex items-center gap-1 opacity-60">
-                                    <CheckCircle size={12} /> 当前无进行中订单
+                                    <CheckCircle size={12} /> 当前无订单
                                 </div>
                             )}
                         </div>

@@ -7,7 +7,7 @@ export const Settings: React.FC = () => {
   const { 
       currentUser, logout,
       regions, deviceTypes,
-      newRegion, setNewRegion, handleAddRegion, removeRegion,
+      newRegion, setNewRegion, handleAddRegion, updateRegion, removeRegion,
       newType, setNewType, handleAddType, removeDeviceType,
   } = useSettingsLogic();
 
@@ -31,7 +31,12 @@ export const Settings: React.FC = () => {
             </div>
             <ul className="space-y-2 max-h-40 overflow-y-auto no-scrollbar">
                 {regions.map(r => (
-                    <ListItem key={r.id} label={r.name} onDelete={() => removeRegion(r.id)} />
+                    <ListItem 
+                        key={r.id} 
+                        label={r.name} 
+                        onDelete={() => removeRegion(r.id)} 
+                        onUpdate={(newName) => updateRegion(r.id, newName)}
+                    />
                 ))}
             </ul>
         </ManagementSection>

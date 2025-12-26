@@ -5,7 +5,7 @@ export const useSettingsLogic = () => {
     const { 
         currentUser, logout,
         regions, stores, deviceTypes,
-        addRegion, removeRegion, 
+        addRegion, updateRegion, removeRegion, 
         addDeviceType, removeDeviceType,
     } = useApp();
   
@@ -29,7 +29,7 @@ export const useSettingsLogic = () => {
     return {
         currentUser, logout,
         regions, stores, deviceTypes,
-        newRegion, setNewRegion, handleAddRegion, removeRegion,
+        newRegion, setNewRegion, handleAddRegion, updateRegion, removeRegion,
         newType, setNewType, handleAddType, removeDeviceType,
     };
 };

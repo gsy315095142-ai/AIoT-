@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent, useMemo } from 'react';
-import { TrendingUp, Package, ChevronRight, CheckCircle, Truck, ClipboardList, Box, MapPin, X, ChevronLeft, Check, Upload, Link, Copy, Clipboard, FileText, Image as ImageIcon, ExternalLink, Calendar } from 'lucide-react';
+import { TrendingUp, Package, ChevronRight, CheckCircle, Truck, ClipboardList, Box, MapPin, X, ChevronLeft, Check, Upload, Link, Copy, Clipboard, FileText, Image as ImageIcon, ExternalLink, Calendar, AlertCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ProcurementOrder } from '../../types';
 
@@ -14,6 +14,10 @@ export const ProcurementProgress: React.FC = () => {
 
   // Example Image State
   const [exampleImage, setExampleImage] = useState<{ title: string; url: string } | null>(null);
+
+  // Audit State
+  const [rejectMode, setRejectMode] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
 
   // Constants
   const STEPS = [
@@ -36,6 +40,8 @@ export const ProcurementProgress: React.FC = () => {
       setSelectedOrder(order);
       // If pending, default to step 1 (Confirm Receive view). If active, go to current step.
       setViewingStep(order.status === 'pending_receive' ? 1 : Math.max(1, order.currentStep));
+      setRejectMode(false);
+      setRejectReason('');
   };
 
   const handleConfirmReceive = (e: React.MouseEvent, orderId: string) => {
@@ -151,56 +157,84 @@ export const ProcurementProgress: React.FC = () => {
       setViewingStep(nextStep);
   };
 
-  const handleCompleteCurrentStep = () => {
+  const handleUpdateStep = () => {
       if (!selectedOrder) return;
 
       const completionTime = new Date().toLocaleString();
-      const currentStepId = selectedOrder.currentStep;
       
-      // Update completion time for CURRENT step
-      const currentStepData = selectedOrder.stepData?.[currentStepId] || {};
+      // Update completion time for VIEWING step
+      const currentStepData = selectedOrder.stepData?.[viewingStep] || {};
       const newStepData = {
           ...selectedOrder.stepData,
-          [currentStepId]: {
+          [viewingStep]: {
               ...currentStepData,
               completionTime: completionTime
           }
       };
 
-      // Proceed
-      if (currentStepId < 5) {
-          const nextStep = currentStepId + 1;
-          const status = 'purchasing';
-          
-          updateProcurementOrder(selectedOrder.id, { currentStep: nextStep, status, stepData: newStepData });
-          setSelectedOrder(prev => prev ? ({ ...prev, currentStep: nextStep, status, stepData: newStepData }) : null);
-          setViewingStep(nextStep);
-      } else if (currentStepId === 5) {
-          // If on step 5 and completing it
-          updateProcurementOrder(selectedOrder.id, { status: 'completed', stepData: newStepData });
-          setSelectedOrder(prev => prev ? ({ ...prev, status: 'completed', stepData: newStepData }) : null);
+      // Determine flow
+      const currentOrderId = selectedOrder.id;
+      let nextState: Partial<ProcurementOrder> = { stepData: newStepData };
+
+      // If we are at the "current" step (not completed yet), move forward unless it's step 5
+      if (viewingStep === selectedOrder.currentStep && selectedOrder.status !== 'completed' && viewingStep < 5) {
+          nextState.currentStep = selectedOrder.currentStep + 1;
+      }
+      
+      // If we are editing Step 5 (Signed) and audit was rejected, resetting completion time effectively allows re-submit (handled by UI logic)
+      
+      updateProcurementOrder(currentOrderId, nextState);
+      setSelectedOrder(prev => prev ? ({ ...prev, ...nextState }) : null);
+      
+      // If advancing, optionally move view
+      if (nextState.currentStep && nextState.currentStep !== selectedOrder.currentStep) {
+          setViewingStep(nextState.currentStep);
       }
   };
 
-  const canCompleteCurrentStep = useMemo(() => {
+  // Audit Actions
+  const handleAuditSubmit = () => {
+      if (!selectedOrder) return;
+      updateProcurementOrder(selectedOrder.id, { auditStatus: 'pending' });
+      setSelectedOrder(prev => prev ? ({ ...prev, auditStatus: 'pending' }) : null);
+  };
+
+  const handleAuditApprove = () => {
+      if (!selectedOrder) return;
+      updateProcurementOrder(selectedOrder.id, { auditStatus: 'approved', status: 'completed' });
+      setSelectedOrder(prev => prev ? ({ ...prev, auditStatus: 'approved', status: 'completed' }) : null);
+  };
+
+  const handleAuditReject = () => {
+      if (!selectedOrder) return;
+      if (!rejectReason.trim()) {
+          alert('请输入驳回原因');
+          return;
+      }
+      updateProcurementOrder(selectedOrder.id, { auditStatus: 'rejected', rejectReason: rejectReason });
+      setSelectedOrder(prev => prev ? ({ ...prev, auditStatus: 'rejected', rejectReason: rejectReason }) : null);
+      setRejectMode(false);
+  };
+
+  const canCompleteViewingStep = useMemo(() => {
         if (!selectedOrder) return false;
         
-        const currentData = selectedOrder.stepData?.[selectedOrder.currentStep] || {};
+        const stepData = selectedOrder.stepData?.[viewingStep] || {};
 
-        if (selectedOrder.currentStep === 2) { // Stocking
-            return currentData.images && currentData.images.length > 0;
+        if (viewingStep === 2) { // Stocking
+            return stepData.images && stepData.images.length > 0;
         }
-        if (selectedOrder.currentStep === 3) { // Packing
-            return currentData.images && currentData.images.length > 0;
+        if (viewingStep === 3) { // Packing
+            return stepData.images && stepData.images.length > 0;
         }
-        if (selectedOrder.currentStep === 4) { // Logistics
-            return !!currentData.logisticsLink && currentData.logisticsLink.trim() !== '';
+        if (viewingStep === 4) { // Logistics
+            return !!stepData.logisticsLink && stepData.logisticsLink.trim() !== '';
         }
-        if (selectedOrder.currentStep === 5) { // Signed
-            return currentData.images && currentData.images.length > 0;
+        if (viewingStep === 5) { // Signed
+            return stepData.images && stepData.images.length > 0;
         }
         return true;
-  }, [selectedOrder]);
+  }, [selectedOrder, viewingStep]);
 
   const navigateStep = (direction: 'prev' | 'next') => {
       if (direction === 'prev' && viewingStep > 1) setViewingStep(viewingStep - 1);
@@ -209,9 +243,14 @@ export const ProcurementProgress: React.FC = () => {
 
   const getStepLabel = (stepId: number) => STEPS.find(s => s.id === stepId)?.label || '';
 
-  // Derived state for view
-  // Allow editing any step as long as the order is in purchasing status
-  const isEditable = selectedOrder && selectedOrder.status === 'purchasing';
+  // Is Step 5 completed in data?
+  const isStep5Completed = !!selectedOrder?.stepData?.[5]?.completionTime;
+  
+  // Is Viewing Step completed?
+  const isViewingStepCompleted = !!selectedOrder?.stepData?.[viewingStep]?.completionTime;
+
+  // We allow editing always except strictly read-only views if any (requirement says editable)
+  const isEditable = selectedOrder?.status !== 'pending_receive'; 
 
   return (
     <div className="h-full flex flex-col p-4 space-y-3">
@@ -225,14 +264,22 @@ export const ProcurementProgress: React.FC = () => {
 
         {procurementOrders.map(order => {
             const isPending = order.status === 'pending_receive';
-            const isCompleted = order.status === 'completed';
-            const currentStepLabel = isPending ? '待接收' : isCompleted ? '已完成' : getStepLabel(order.currentStep);
+            const isCompleted = order.status === 'completed'; // Means Audit Approved
+            const isAuditPending = order.auditStatus === 'pending';
+            const isAuditRejected = order.auditStatus === 'rejected';
             
+            let currentStepLabel = isPending ? '待接收' : getStepLabel(order.currentStep);
+            if (isCompleted) currentStepLabel = '已完成';
+            else if (isAuditPending) currentStepLabel = '待审核';
+            else if (isAuditRejected) currentStepLabel = '已驳回';
+
             return (
                 <div 
                     key={order.id} 
                     onClick={() => openDetail(order)}
-                    className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 cursor-pointer hover:shadow-md transition-all relative overflow-hidden group"
+                    className={`bg-white rounded-xl shadow-sm border p-4 cursor-pointer hover:shadow-md transition-all relative overflow-hidden group 
+                        ${isAuditRejected ? 'border-red-200' : isCompleted ? 'border-green-200' : 'border-slate-100'}
+                    `}
                 >
                     <div className="flex justify-between items-start mb-2">
                         <div>
@@ -265,6 +312,8 @@ export const ProcurementProgress: React.FC = () => {
                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
                                      isPending ? 'bg-slate-50 text-slate-500 border-slate-200' :
                                      isCompleted ? 'bg-green-50 text-green-600 border-green-200' :
+                                     isAuditPending ? 'bg-orange-50 text-orange-600 border-orange-200' :
+                                     isAuditRejected ? 'bg-red-50 text-red-600 border-red-200' :
                                      'bg-blue-50 text-blue-600 border-blue-200'
                                  }`}>
                                      当前: {currentStepLabel}
@@ -289,8 +338,8 @@ export const ProcurementProgress: React.FC = () => {
                             <div className="flex items-center gap-1">
                                 {STEPS.map((step) => (
                                     <div key={step.id} className={`h-1.5 flex-1 rounded-full ${
-                                        order.currentStep > step.id || order.status === 'completed' ? 'bg-green-500' : 
-                                        order.currentStep === step.id ? 'bg-blue-500' : 'bg-slate-100'
+                                        order.currentStep > step.id || isCompleted ? 'bg-green-500' : 
+                                        order.currentStep === step.id ? (isAuditRejected ? 'bg-red-500' : isAuditPending ? 'bg-orange-500' : 'bg-blue-500') : 'bg-slate-100'
                                     }`}></div>
                                 ))}
                             </div>
@@ -398,6 +447,17 @@ export const ProcurementProgress: React.FC = () => {
                                  )}
                              </div>
                          </div>
+
+                         {/* Audit Status Banner (If Rejected) */}
+                         {selectedOrder.auditStatus === 'rejected' && selectedOrder.rejectReason && (
+                             <div className="mb-4 bg-red-50 border border-red-100 rounded-lg p-3 text-red-800 text-xs flex items-start gap-2">
+                                 <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                                 <div>
+                                     <span className="font-bold">审核驳回:</span> {selectedOrder.rejectReason}
+                                     <div className="mt-1 opacity-70">请修改相关信息后重新提交审核</div>
+                                 </div>
+                             </div>
+                         )}
 
                          {/* Content based on state */}
                          <div className="flex-1 space-y-4">
@@ -536,69 +596,105 @@ export const ProcurementProgress: React.FC = () => {
 
                  {/* Footer Navigation & Actions */}
                  <div className="p-4 bg-white border-t border-slate-100 flex-shrink-0">
-                     <div className="max-w-md mx-auto flex flex-col gap-3">
-                         {/* Primary Action Button */}
-                         {selectedOrder.status === 'pending_receive' ? (
-                             <button 
-                                onClick={handleConfirmOrderStart}
-                                className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-2"
-                             >
-                                <CheckCircle size={18} /> 确认接收订单
-                             </button>
-                         ) : (
-                             // Logic: 
-                             // If completed fully OR current step has passed viewing step -> Show Completed.
-                             // Else if viewing step IS current step -> Show Confirm.
-                             (selectedOrder.status === 'completed' || selectedOrder.currentStep > viewingStep) ? (
-                                <button 
-                                    disabled
-                                    className="w-full py-3 bg-green-50 text-green-600 font-bold rounded-xl border border-green-100 flex items-center justify-center gap-2 cursor-default"
-                                 >
-                                    <CheckCircle size={18} /> 已完成
-                                 </button>
-                             ) : selectedOrder.currentStep === viewingStep ? (
+                     
+                     {/* Audit UI Logic */}
+                     {(selectedOrder.auditStatus as string) === 'pending' ? (
+                         <div className="max-w-md mx-auto">
+                             {rejectMode ? (
+                                 <div className="animate-fadeIn space-y-3">
+                                     <textarea 
+                                        autoFocus
+                                        placeholder="请输入驳回原因..."
+                                        className="w-full p-2 text-xs border border-red-200 rounded bg-red-50 focus:outline-none focus:ring-1 focus:ring-red-300 min-h-[60px]"
+                                        value={rejectReason}
+                                        onChange={(e) => setRejectReason(e.target.value)}
+                                     />
+                                     <div className="flex gap-2">
+                                         <button onClick={() => setRejectMode(false)} className="flex-1 py-3 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl text-sm">取消</button>
+                                         <button onClick={handleAuditReject} className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl text-sm shadow-md">确认驳回</button>
+                                     </div>
+                                 </div>
+                             ) : (
+                                 <div className="flex gap-3 mb-4">
+                                     <button onClick={() => setRejectMode(true)} className="flex-1 py-3 border border-red-200 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition-colors text-sm">驳回订单</button>
+                                     <button onClick={handleAuditApprove} className="flex-1 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-sm transition-colors text-sm">审核通过</button>
+                                 </div>
+                             )}
+                         </div>
+                     ) : (
+                         <div className="max-w-md mx-auto flex flex-col gap-3">
+                             {/* Primary Action Button */}
+                             {selectedOrder.status === 'pending_receive' ? (
                                  <button 
-                                    onClick={handleCompleteCurrentStep}
-                                    disabled={!canCompleteCurrentStep}
-                                    className={`w-full py-3 font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${
-                                        canCompleteCurrentStep 
-                                            ? 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95' 
-                                            : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
-                                    }`}
+                                    onClick={handleConfirmOrderStart}
+                                    className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-2"
                                  >
-                                    <CheckCircle size={18} /> 确认完成此环节
+                                    <CheckCircle size={18} /> 确认接收订单
                                  </button>
                              ) : (
-                                 // Viewing future step
-                                 <button 
-                                    disabled
-                                    className="w-full py-3 bg-slate-100 text-slate-400 font-bold rounded-xl flex items-center justify-center gap-2 cursor-default"
-                                 >
-                                    等待进行
-                                 </button>
-                             )
-                         )}
+                                 // Logic Handling for Step Actions
+                                 // Step 5 Special Logic: Audit
+                                 (viewingStep === 5 && isStep5Completed && selectedOrder.auditStatus !== 'pending') ? (
+                                     <div className="flex gap-2">
+                                         {/* Allow updating data always */}
+                                         <button 
+                                            onClick={handleUpdateStep}
+                                            className="flex-1 py-3 bg-slate-100 text-blue-600 font-bold rounded-xl hover:bg-blue-50 transition-all border border-blue-200"
+                                         >
+                                            更新签收信息
+                                         </button>
+                                         <button 
+                                            onClick={handleAuditSubmit}
+                                            className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                         >
+                                            <ClipboardList size={18} /> {selectedOrder.auditStatus === 'rejected' ? '重新提交审核' : '提交审核'}
+                                         </button>
+                                     </div>
+                                 ) : (
+                                     // Steps 1-4 or Step 5 not yet done
+                                     // If viewing future step (beyond current progress), just show Waiting
+                                     (viewingStep > selectedOrder.currentStep && selectedOrder.status !== 'completed') ? (
+                                         <button disabled className="w-full py-3 bg-slate-100 text-slate-400 font-bold rounded-xl flex items-center justify-center gap-2 cursor-default">
+                                             等待进行
+                                         </button>
+                                     ) : (
+                                         // Viewing active or past step
+                                         <button 
+                                            onClick={handleUpdateStep}
+                                            disabled={!canCompleteViewingStep}
+                                            className={`w-full py-3 font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${
+                                                canCompleteViewingStep 
+                                                    ? 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95' 
+                                                    : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                                            }`}
+                                         >
+                                            <CheckCircle size={18} /> {isViewingStepCompleted ? '更新此环节信息' : '确认完成此环节'}
+                                         </button>
+                                     )
+                                 )
+                             )}
 
-                         {/* Navigation Buttons */}
-                         {selectedOrder.status !== 'pending_receive' && (
-                             <div className="flex gap-3">
-                                 <button 
-                                    onClick={() => navigateStep('prev')}
-                                    disabled={viewingStep <= 1}
-                                    className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl disabled:opacity-50 flex items-center justify-center gap-1 hover:bg-slate-200 transition-colors"
-                                 >
-                                     <ChevronLeft size={16} /> 上一环节
-                                 </button>
-                                 <button 
-                                    onClick={() => navigateStep('next')}
-                                    disabled={viewingStep >= 5} 
-                                    className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl disabled:opacity-50 flex items-center justify-center gap-1 hover:bg-slate-200 transition-colors"
-                                 >
-                                     下一环节 <ChevronRight size={16} />
-                                 </button>
-                             </div>
-                         )}
-                     </div>
+                             {/* Navigation Buttons */}
+                             {selectedOrder.status !== 'pending_receive' && (
+                                 <div className="flex gap-3">
+                                     <button 
+                                        onClick={() => navigateStep('prev')}
+                                        disabled={viewingStep <= 1}
+                                        className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl disabled:opacity-50 flex items-center justify-center gap-1 hover:bg-slate-200 transition-colors"
+                                     >
+                                         <ChevronLeft size={16} /> 上一环节
+                                     </button>
+                                     <button 
+                                        onClick={() => navigateStep('next')}
+                                        disabled={viewingStep >= 5} 
+                                        className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl disabled:opacity-50 flex items-center justify-center gap-1 hover:bg-slate-200 transition-colors"
+                                     >
+                                         下一环节 <ChevronRight size={16} />
+                                     </button>
+                                 </div>
+                             )}
+                         </div>
+                     )}
                  </div>
              </div>
         )}
