@@ -181,11 +181,14 @@ const INITIAL_PRODUCTS: Product[] = MOCK_DEVICE_TYPES.map(dt => ({
 
 const MOCK_PRODUCTS: Product[] = [...INITIAL_PRODUCTS];
 
+export type AuditPermissionType = 'procurement' | 'measurement' | 'installation' | 'device';
+
 interface AppContextType {
   currentUser: string | null;
   userRole: UserRole | null;
   login: (username: string, role: UserRole) => void;
   logout: () => void;
+  checkAuditPermission: (type: AuditPermissionType) => boolean;
   regions: Region[];
   stores: Store[];
   deviceTypes: DeviceType[];
@@ -246,6 +249,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const logout = () => {
     setCurrentUser(null);
     setUserRole(null);
+  };
+
+  const checkAuditPermission = (type: AuditPermissionType) => {
+      // 3.1: Admin & Product Director have all permissions
+      if (userRole === 'admin' || userRole === 'product_director') return true;
+      
+      // 3.2: Local (Install Engineer) checks Procurement
+      if (type === 'procurement' && userRole === 'local') return true;
+      
+      // 3.3 & 3.4: Ops Manager checks Measurement and Installation
+      // Also grouping 'device' audit under Ops Manager as they handle operations
+      if ((type === 'measurement' || type === 'installation' || type === 'device') && userRole === 'ops_manager') return true;
+      
+      return false;
   };
 
   const addRegion = (name: string) => {
@@ -586,6 +603,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       userRole,
       login,
       logout,
+      checkAuditPermission,
       regions, stores, deviceTypes, devices, auditRecords,
       procurementProducts, addProcurementProduct, updateProcurementProduct, removeProcurementProduct,
       procurementOrders, addProcurementOrder, updateProcurementOrder,

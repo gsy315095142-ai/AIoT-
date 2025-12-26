@@ -1,7 +1,7 @@
 import React from 'react';
 import { useDeviceLogic } from '../hooks/useDeviceLogic';
 import { DeviceStatus, OpsStatus, AuditStatus, AuditType } from '../types';
-import { STATUS_MAP, SUB_TYPE_MAPPING, ImageManagerModal, ReportDetailModal, EventDetailModal, AuditManagementModal, DeviceDetailCard } from '../components/DeviceComponents';
+import { STATUS_MAP, SUB_TYPE_MAPPING, ImageManagerModal, ReportDetailModal, EventDetailModal, AuditManagementModal, DeviceDetailCard, AuditGate } from '../components/DeviceComponents';
 import { ChevronDown, ChevronUp, Plus, Search, CheckSquare, Square, X, Settings2, Play, Moon, RotateCcw, Wrench, ClipboardCheck, Check, X as XIcon, ImageIcon, ClipboardList } from 'lucide-react';
 
 export const DeviceManagement: React.FC = () => {
@@ -61,17 +61,19 @@ export const DeviceManagement: React.FC = () => {
                         <Plus size={20} />
                     </button>
                     
-                    <button 
-                        onClick={() => setIsAuditModalOpen(true)}
-                        className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-lg backdrop-blur-sm transition-all border border-white/10 relative"
-                    >
-                        <ClipboardCheck size={20} />
-                        {pendingAuditCount > 0 && (
-                            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] flex items-center justify-center rounded-full font-bold border-2 border-blue-600">
-                                {pendingAuditCount}
-                            </span>
-                        )}
-                    </button>
+                    <AuditGate type="device">
+                        <button 
+                            onClick={() => setIsAuditModalOpen(true)}
+                            className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-lg backdrop-blur-sm transition-all border border-white/10 relative"
+                        >
+                            <ClipboardCheck size={20} />
+                            {pendingAuditCount > 0 && (
+                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] flex items-center justify-center rounded-full font-bold border-2 border-blue-600">
+                                    {pendingAuditCount}
+                                </span>
+                            )}
+                        </button>
+                    </AuditGate>
                 </div>
 
                 <div className="bg-white/10 backdrop-blur-md rounded-lg p-1 flex items-center mb-3 border border-white/20">

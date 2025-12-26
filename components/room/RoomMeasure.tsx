@@ -2,6 +2,7 @@ import React, { useState, ChangeEvent } from 'react';
 import { Ruler, Store, ChevronDown, Plus, X, Upload, ClipboardList, Edit3, Check, Save, Filter, BedDouble, HelpCircle, Image as ImageIcon, Send, AlertCircle, CheckCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { RoomImageCategory, RoomImage, RoomMeasurement, MeasurementType } from '../../types';
+import { AuditGate } from '../DeviceComponents';
 
 const MODULES: RoomImageCategory[] = ['玄关', '桌面', '床'];
 
@@ -480,18 +481,22 @@ export const RoomMeasure: React.FC = () => {
                                                             </div>
                                                         ) : (
                                                             <>
-                                                                <button 
-                                                                    onClick={() => setRejectingCategory(moduleName)}
-                                                                    className="flex-1 py-2 border border-red-200 text-red-600 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors"
-                                                                >
-                                                                    驳回
-                                                                </button>
-                                                                <button 
-                                                                    onClick={() => handleApprove(moduleName)}
-                                                                    className="flex-1 py-2 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700 transition-colors shadow-sm"
-                                                                >
-                                                                    同意
-                                                                </button>
+                                                                <AuditGate type="measurement" className="flex-1">
+                                                                    <button 
+                                                                        onClick={() => setRejectingCategory(moduleName)}
+                                                                        className="w-full py-2 border border-red-200 text-red-600 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors"
+                                                                    >
+                                                                        驳回
+                                                                    </button>
+                                                                </AuditGate>
+                                                                <AuditGate type="measurement" className="flex-1">
+                                                                    <button 
+                                                                        onClick={() => handleApprove(moduleName)}
+                                                                        className="w-full py-2 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700 transition-colors shadow-sm"
+                                                                    >
+                                                                        同意
+                                                                    </button>
+                                                                </AuditGate>
                                                             </>
                                                         )
                                                     ) : (

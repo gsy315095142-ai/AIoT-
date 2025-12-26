@@ -28,10 +28,16 @@ export const Login: React.FC = () => {
   };
 
   const ROLES: { value: UserRole; label: string }[] = [
-      { value: 'admin', label: '管理员' },
-      { value: 'hardware', label: '硬件人员' },
+      { value: 'admin', label: '总经理（管理员）' },
+      { value: 'product_director', label: '硬件产品总监' },
+      { value: 'hardware', label: '项目经理' }, // Was Hardware
+      { value: 'local', label: '安装实施工程师' }, // Was Local
       { value: 'procurement', label: '采购人员' },
-      { value: 'local', label: '当地人员' },
+      { value: 'ops_manager', label: '安装运维经理' },
+      { value: 'business_manager', label: '驻地业务经理' },
+      { value: 'artist', label: '美术人员' },
+      { value: 'area_manager', label: '区大总' },
+      { value: 'area_assistant', label: '区小蜜' },
   ];
 
   return (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, ChangeEvent } from 'react';
 import { Device, DeviceStatus, OpsStatus, DeviceImage, AuditRecord, AuditStatus, AuditType, DeviceEvent } from '../types';
-import { useApp } from '../context/AppContext';
+import { useApp, AuditPermissionType } from '../context/AppContext';
 import { Check, X as XIcon, FilePenLine, X, Upload, ClipboardCheck, Clock, Wrench, Trash2, History, Info, ImageIcon, MapPin, Activity, Wifi, Moon, AlertCircle, Eye, ClipboardList } from 'lucide-react';
 
 // --- Constants ---
@@ -24,6 +24,24 @@ export const SUB_TYPE_MAPPING: Record<string, string[]> = {
 };
 
 // --- Helper Components ---
+
+export const AuditGate: React.FC<{ type: AuditPermissionType, children: React.ReactNode, className?: string }> = ({ type, children, className }) => {
+    const { checkAuditPermission } = useApp();
+    const hasPermission = checkAuditPermission(type);
+
+    if (hasPermission) return <>{children}</>;
+
+    return (
+        <div className={`relative ${className || ''}`}>
+            <div className="absolute inset-0 bg-slate-100/80 z-20 flex items-center justify-center rounded border border-slate-200 cursor-not-allowed overflow-hidden">
+                <div className="bg-slate-200 px-1 rounded text-[9px] font-bold text-slate-500 transform -rotate-12 whitespace-nowrap select-none">暂无权限</div>
+            </div>
+            <div className="opacity-40 pointer-events-none filter grayscale w-full h-full flex">
+                {children}
+            </div>
+        </div>
+    );
+};
 
 interface EditableFieldProps {
   value: string;
@@ -545,18 +563,22 @@ export const AuditManagementModal: React.FC<{ onClose: () => void }> = ({ onClos
                                         </div>
                                     ) : (
                                         <>
-                                            <button 
-                                                onClick={() => handleRejectClick(record.id)}
-                                                className="flex-1 py-1.5 border border-red-200 text-red-600 rounded hover:bg-red-50 text-xs font-bold transition-colors"
-                                            >
-                                                拒绝
-                                            </button>
-                                            <button 
-                                                onClick={() => approveAudit(record.id)}
-                                                className="flex-1 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-bold transition-colors shadow-sm"
-                                            >
-                                                通过
-                                            </button>
+                                            <AuditGate type="device" className="flex-1">
+                                                <button 
+                                                    onClick={() => handleRejectClick(record.id)}
+                                                    className="w-full py-1.5 border border-red-200 text-red-600 rounded hover:bg-red-50 text-xs font-bold transition-colors"
+                                                >
+                                                    拒绝
+                                                </button>
+                                            </AuditGate>
+                                            <AuditGate type="device" className="flex-1">
+                                                <button 
+                                                    onClick={() => approveAudit(record.id)}
+                                                    className="w-full py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-bold transition-colors shadow-sm"
+                                                >
+                                                    通过
+                                                </button>
+                                            </AuditGate>
                                         </>
                                     )}
                                 </div>

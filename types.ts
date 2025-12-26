@@ -5,7 +5,7 @@ export type Region = {
   name: string;
 };
 
-export type UserRole = 'admin' | 'hardware' | 'procurement' | 'local';
+export type UserRole = 'admin' | 'product_director' | 'hardware' | 'procurement' | 'local' | 'ops_manager' | 'business_manager' | 'artist' | 'area_manager' | 'area_assistant';
 
 // New Type for Dynamic Room Configuration
 export type RoomTypeConfig = {

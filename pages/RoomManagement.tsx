@@ -10,12 +10,31 @@ export const RoomManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'archive' | 'measure' | 'install'>('archive');
 
   // Define available tabs based on role
-  // Hardware: all
-  // Local: measure, install
-  // Admin: all
+  // Hardware (Project Manager): all
+  // Local (Install Engineer): measure, install
+  // Ops Manager: measure, install
+  // Business Manager: measure, install
+  // Artist: install
+  // Area Manager / Assistant: archive, install
+  // Admin / Product Director: all
   const availableTabs = React.useMemo(() => {
-      if (userRole === 'local') return ['measure', 'install'];
-      return ['archive', 'measure', 'install'];
+      switch (userRole) {
+          case 'local': // Install Engineer
+          case 'ops_manager':
+          case 'business_manager':
+              return ['measure', 'install'];
+          case 'artist':
+              return ['install'];
+          case 'area_manager':
+          case 'area_assistant':
+              return ['archive', 'install'];
+          case 'admin':
+          case 'product_director':
+          case 'hardware': // Project Manager
+              return ['archive', 'measure', 'install'];
+          default:
+              return ['archive', 'measure', 'install'];
+      }
   }, [userRole]);
 
   // Ensure active tab is valid for role

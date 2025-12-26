@@ -1,4 +1,4 @@
-// 标记：本次更新优化采购流程，允许重新编辑已完成的采购环节并更新状态，且内部下单页面保留显示已完成的采购订单
+// 标记：本次更新调整了权限，允许安装实施工程师查看采购进度页面
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -15,13 +15,22 @@ import { UserRole } from './types';
 const getAccessibleRoutes = (role: UserRole | null): string[] => {
     switch (role) {
         case 'admin':
+        case 'product_director':
             return ['/dashboard', '/devices', '/rooms', '/procurement', '/settings'];
-        case 'hardware':
+        case 'hardware': // Project Manager
             return ['/dashboard', '/devices', '/rooms', '/procurement'];
         case 'procurement':
             return ['/procurement'];
-        case 'local':
-            return ['/rooms'];
+        case 'local': // Install Engineer
+            return ['/rooms', '/procurement'];
+        case 'ops_manager':
+        case 'business_manager':
+            return ['/devices', '/rooms', '/procurement'];
+        case 'artist':
+            return ['/rooms', '/procurement'];
+        case 'area_manager':
+        case 'area_assistant':
+            return ['/dashboard', '/rooms', '/procurement'];
         default:
             return [];
     }

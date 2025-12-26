@@ -10,13 +10,31 @@ export const ProcurementManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'product' | 'order' | 'progress'>('product');
 
   // Define available tabs based on role
-  // Hardware: order, progress
+  // Hardware (Project Manager): order, progress
   // Procurement: product, progress
-  // Admin: all
+  // Business Manager: order, progress
+  // Ops Manager / Artist / Area Manager / Assistant / Local (Install Engineer): progress
+  // Admin / Product Director: all
   const availableTabs = React.useMemo(() => {
-      if (userRole === 'hardware') return ['order', 'progress'];
-      if (userRole === 'procurement') return ['product', 'progress'];
-      return ['product', 'order', 'progress'];
+      switch (userRole) {
+          case 'hardware': // Project Manager
+              return ['order', 'progress'];
+          case 'procurement':
+              return ['product', 'progress'];
+          case 'business_manager':
+              return ['order', 'progress'];
+          case 'ops_manager':
+          case 'artist':
+          case 'area_manager':
+          case 'area_assistant':
+          case 'local':
+              return ['progress'];
+          case 'admin':
+          case 'product_director':
+              return ['product', 'order', 'progress'];
+          default:
+              return ['product', 'order', 'progress'];
+      }
   }, [userRole]);
 
   // Ensure active tab is valid for role

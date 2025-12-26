@@ -2,6 +2,7 @@ import React, { useState, ChangeEvent, useMemo } from 'react';
 import { Hammer, Store, ChevronDown, Clock, CheckCircle, Upload, X, Calendar, ClipboardList, AlertCircle, ArrowRight, Gavel, BedDouble, Info, Image as ImageIcon, MapPin, ChevronLeft, ChevronRight, Navigation, Plus, Check, RefreshCw, PlayCircle, Video, ChevronUp, Wifi, FileText } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Store as StoreType, InstallNode, InstallStatus, RoomImageCategory } from '../../types';
+import { AuditGate } from '../DeviceComponents';
 
 // Moved outside component to avoid scope/re-creation issues
 const EXAMPLE_IMAGES: Record<string, string> = {
@@ -515,12 +516,14 @@ export const RoomInstall: React.FC = () => {
                             
                             {/* Audit Button */}
                             {install.status === 'pending_review' && (
-                                <button 
-                                    onClick={(e) => handleOpenAudit(e, store)}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1 animate-pulse"
-                                >
-                                    <Gavel size={14} /> 审核
-                                </button>
+                                <AuditGate type="installation">
+                                    <button 
+                                        onClick={(e) => handleOpenAudit(e, store)}
+                                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1 animate-pulse"
+                                    >
+                                        <Gavel size={14} /> 审核
+                                    </button>
+                                </AuditGate>
                             )}
                         </div>
 
@@ -923,8 +926,12 @@ export const RoomInstall: React.FC = () => {
                             {/* Audit Decision Buttons (Visible only in Audit Mode and NOT reject mode) */}
                             {isAuditMode && (
                                 <div className="flex gap-3 mb-1">
-                                    <button onClick={() => setRejectMode(true)} className="flex-1 py-2 border border-red-200 bg-red-50 text-red-600 font-bold rounded-lg hover:bg-red-100 transition-colors text-xs">驳回</button>
-                                    <button onClick={handleAuditApprove} className="flex-1 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 shadow-sm transition-colors text-xs">审核通过</button>
+                                    <AuditGate type="installation" className="flex-1">
+                                        <button onClick={() => setRejectMode(true)} className="w-full py-2 border border-red-200 bg-red-50 text-red-600 font-bold rounded-lg hover:bg-red-100 transition-colors text-xs">驳回</button>
+                                    </AuditGate>
+                                    <AuditGate type="installation" className="flex-1">
+                                        <button onClick={handleAuditApprove} className="w-full py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 shadow-sm transition-colors text-xs">审核通过</button>
+                                    </AuditGate>
                                 </div>
                             )}
 

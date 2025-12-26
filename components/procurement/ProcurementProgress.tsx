@@ -2,6 +2,7 @@ import React, { useState, ChangeEvent, useMemo } from 'react';
 import { TrendingUp, Package, ChevronRight, CheckCircle, Truck, ClipboardList, Box, MapPin, X, ChevronLeft, Check, Upload, Link, Copy, Clipboard, FileText, Image as ImageIcon, ExternalLink, Calendar, AlertCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ProcurementOrder } from '../../types';
+import { AuditGate } from '../DeviceComponents';
 
 export const ProcurementProgress: React.FC = () => {
   const { procurementOrders, updateProcurementOrder } = useApp();
@@ -616,8 +617,12 @@ export const ProcurementProgress: React.FC = () => {
                                  </div>
                              ) : (
                                  <div className="flex gap-3 mb-4">
-                                     <button onClick={() => setRejectMode(true)} className="flex-1 py-3 border border-red-200 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition-colors text-sm">驳回订单</button>
-                                     <button onClick={handleAuditApprove} className="flex-1 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-sm transition-colors text-sm">审核通过</button>
+                                     <AuditGate type="procurement" className="flex-1">
+                                        <button onClick={() => setRejectMode(true)} className="w-full py-3 border border-red-200 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition-colors text-sm">驳回订单</button>
+                                     </AuditGate>
+                                     <AuditGate type="procurement" className="flex-1">
+                                        <button onClick={handleAuditApprove} className="w-full py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-sm transition-colors text-sm">审核通过</button>
+                                     </AuditGate>
                                  </div>
                              )}
                          </div>
