@@ -1,4 +1,4 @@
-// 标记：本次更新调整了设备管理页面结构，采用门店-客房-设备的三级层级展示，并简化了顶部筛选栏
+// 标记：本次更新优化了设备管理页面的筛选框显示逻辑，仅在门店列表层级显示筛选框
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

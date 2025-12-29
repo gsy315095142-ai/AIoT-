@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useDeviceLogic } from '../hooks/useDeviceLogic';
 import { DeviceStatus, OpsStatus, AuditStatus, AuditType, Device } from '../types';
 import { STATUS_MAP, SUB_TYPE_MAPPING, ImageManagerModal, ReportDetailModal, EventDetailModal, AuditManagementModal, DeviceDetailCard, AuditGate } from '../components/DeviceComponents';
-import { ChevronDown, ChevronUp, Plus, Search, CheckSquare, Square, X, Settings2, Play, Moon, RotateCcw, Wrench, ClipboardCheck, Check, X as XIcon, ImageIcon, ClipboardList, LayoutDashboard, Monitor, BookOpen, Store, BedDouble } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Search, CheckSquare, Square, X, Settings2, Play, Moon, RotateCcw, Wrench, ClipboardCheck, Check, X as XIcon, ImageIcon, ClipboardList, LayoutDashboard, Monitor, BookOpen, Store, BedDouble, ArrowLeft, ArrowRight } from 'lucide-react';
 import { Dashboard } from './Dashboard';
 
 // --- Sub-Components ---
@@ -16,11 +16,19 @@ const ContentManagement: React.FC = () => (
     </div>
 );
 
-// The original DeviceManagement content, now named DeviceList
+type ViewLevel = 'stores' | 'rooms' | 'devices';
+
+interface ViewState {
+    level: ViewLevel;
+    storeId?: string;
+    roomNumber?: string;
+}
+
+// The original DeviceManagement content, now named DeviceList with hierarchical navigation
 const DeviceList: React.FC = () => {
   const {
     // Data
-    regions, stores, deviceTypes, filteredDevices, pendingAuditCount, imageCounts, CATEGORY_LIMITS,
+    regions, stores, deviceTypes, filteredDevices, availableStores, pendingAuditCount, imageCounts, CATEGORY_LIMITS,
     // States
     selectedRegion, setSelectedRegion, searchQuery, setSearchQuery,
     expandedDeviceId, selectedDeviceIds,
@@ -39,52 +47,81 @@ const DeviceList: React.FC = () => {
     openAddModal, handleAddFormImage, handleRemoveFormImage, handleFormImageCategoryChange, handleAddSubmit
   } = useDeviceLogic();
 
-  // --- Hierarchy Grouping Logic ---
-  const storeGroups = useMemo(() => {
-      const groups: Record<string, Record<string, Device[]>> = {};
-      filteredDevices.forEach(d => {
-          if (!groups[d.storeId]) groups[d.storeId] = {};
-          const room = d.roomNumber || '公共区域';
-          if (!groups[d.storeId][room]) groups[d.storeId][room] = [];
-          groups[d.storeId][room].push(d);
+  // Navigation State
+  const [viewState, setViewState] = useState<ViewState>({ level: 'stores' });
+
+  // --- Derived Data for Hierarchy ---
+
+  // LEVEL 1: Stores (Use availableStores which respects Region filter)
+  // We need to attach device counts to these stores based on filteredDevices (which respects search)
+  const storesWithCounts = useMemo(() => {
+      return availableStores.map(store => {
+          const devicesInStore = filteredDevices.filter(d => d.storeId === store.id);
+          const onlineCount = devicesInStore.filter(d => d.status === DeviceStatus.ONLINE).length;
+          return {
+              ...store,
+              deviceCount: devicesInStore.length,
+              onlineCount
+          };
       });
-      return groups;
-  }, [filteredDevices]);
+  }, [availableStores, filteredDevices]);
 
-  // Determine which stores to show (only those containing filtered devices)
-  const displayStoreIds = Object.keys(storeGroups);
-  const displayStores = stores.filter(s => displayStoreIds.includes(s.id));
+  // LEVEL 2: Rooms in Active Store
+  const activeStoreData = useMemo(() => {
+      if (!viewState.storeId) return null;
+      const store = stores.find(s => s.id === viewState.storeId);
+      if (!store) return null;
 
-  // Hierarchy Expansion State
-  const [expandedStoreIds, setExpandedStoreIds] = useState<Set<string>>(new Set());
-  const [expandedRoomKeys, setExpandedRoomKeys] = useState<Set<string>>(new Set()); // Key: `${storeId}-${roomNumber}`
+      // Get rooms defined in store
+      const definedRooms = store.rooms || [];
+      // Get rooms from devices (in case unconfigured rooms have devices)
+      const devicesInStore = filteredDevices.filter(d => d.storeId === store.id);
+      const deviceRoomNumbers = new Set(devicesInStore.map(d => d.roomNumber));
+      
+      // Merge unique room numbers
+      const allRoomNumbers = Array.from(new Set([
+          ...definedRooms.map(r => r.number),
+          ...Array.from(deviceRoomNumbers)
+      ])).sort();
 
-  const toggleStoreExpanded = (storeId: string) => {
-      setExpandedStoreIds(prev => {
-          const newSet = new Set(prev);
-          if (newSet.has(storeId)) newSet.delete(storeId);
-          else newSet.add(storeId);
-          return newSet;
+      const roomsData = allRoomNumbers.map(num => {
+          const devicesInRoom = devicesInStore.filter(d => d.roomNumber === num);
+          const definedType = definedRooms.find(r => r.number === num)?.type || '未知房型';
+          return {
+              number: num,
+              type: definedType,
+              devices: devicesInRoom,
+              onlineCount: devicesInRoom.filter(d => d.status === DeviceStatus.ONLINE).length
+          };
       });
+
+      return { store, roomsData };
+  }, [viewState.storeId, stores, filteredDevices]);
+
+  // LEVEL 3: Devices in Active Room
+  const activeRoomDevices = useMemo(() => {
+      if (!viewState.storeId || !viewState.roomNumber) return [];
+      return filteredDevices.filter(d => d.storeId === viewState.storeId && d.roomNumber === viewState.roomNumber);
+  }, [viewState, filteredDevices]);
+
+
+  // Navigation Handlers
+  const goBack = () => {
+      if (viewState.level === 'devices') {
+          setViewState({ level: 'rooms', storeId: viewState.storeId });
+          // Clear selections when leaving device list
+          if (selectedDeviceIds.size > 0) toggleSelectAll(); 
+      } else if (viewState.level === 'rooms') {
+          setViewState({ level: 'stores' });
+      }
   };
 
-  const toggleRoomExpanded = (key: string) => {
-      setExpandedRoomKeys(prev => {
-          const newSet = new Set(prev);
-          if (newSet.has(key)) newSet.delete(key);
-          else newSet.add(key);
-          return newSet;
-      });
+  const handleStoreClick = (storeId: string) => {
+      setViewState({ level: 'rooms', storeId });
   };
 
-  const getStoreName = (id: string) => stores.find(s => s.id === id)?.name || '-';
-  const calculateDuration = (dateStr: string) => {
-    if (!dateStr) return '-';
-    const start = new Date(dateStr).getTime();
-    const now = new Date().getTime();
-    if (isNaN(start)) return '-';
-    const days = Math.floor((now - start) / (1000 * 60 * 60 * 24));
-    return days > 0 ? `${days}d` : '1d';
+  const handleRoomClick = (roomNumber: string) => {
+      setViewState({ level: 'devices', storeId: viewState.storeId, roomNumber });
   };
 
   const getRowStyle = (d: any) => {
@@ -97,208 +134,225 @@ const DeviceList: React.FC = () => {
   };
 
   return (
-    <div className="p-4 pb-20"> 
+    <div className="p-4 pb-20 h-full flex flex-col"> 
         {/* Header Controls */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-4 rounded-xl shadow-lg mb-4 relative overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-4 rounded-xl shadow-lg mb-4 relative overflow-hidden shrink-0">
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
             
             <div className="relative z-10">
-                <div className="flex justify-between items-center mb-4">
-                    <button 
-                        onClick={openAddModal}
-                        className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-lg backdrop-blur-sm transition-all border border-white/10"
-                    >
-                        <Plus size={20} />
-                    </button>
+                <div className={`flex justify-between items-center ${viewState.level === 'stores' ? 'mb-4' : ''}`}>
+                    <div className="flex items-center gap-2">
+                        {viewState.level !== 'stores' && (
+                            <button onClick={goBack} className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg backdrop-blur-sm transition-all border border-white/10">
+                                <ArrowLeft size={18} />
+                            </button>
+                        )}
+                        <h2 className="text-white font-bold text-lg">
+                            {viewState.level === 'stores' ? '门店列表' : 
+                             viewState.level === 'rooms' ? activeStoreData?.store.name : 
+                             `${activeStoreData?.store.name} - ${viewState.roomNumber}`}
+                        </h2>
+                    </div>
                     
-                    <AuditGate type="device">
+                    <div className="flex gap-2">
                         <button 
-                            onClick={() => setIsAuditModalOpen(true)}
-                            className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-lg backdrop-blur-sm transition-all border border-white/10 relative"
+                            onClick={openAddModal}
+                            className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-lg backdrop-blur-sm transition-all border border-white/10"
                         >
-                            <ClipboardCheck size={20} />
-                            {pendingAuditCount > 0 && (
-                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] flex items-center justify-center rounded-full font-bold border-2 border-blue-600">
-                                    {pendingAuditCount}
-                                </span>
-                            )}
+                            <Plus size={20} />
                         </button>
-                    </AuditGate>
+                        
+                        <AuditGate type="device">
+                            <button 
+                                onClick={() => setIsAuditModalOpen(true)}
+                                className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-lg backdrop-blur-sm transition-all border border-white/10 relative"
+                            >
+                                <ClipboardCheck size={20} />
+                                {pendingAuditCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] flex items-center justify-center rounded-full font-bold border-2 border-blue-600">
+                                        {pendingAuditCount}
+                                    </span>
+                                )}
+                            </button>
+                        </AuditGate>
+                    </div>
                 </div>
 
-                <div className="bg-white/10 backdrop-blur-md rounded-lg p-1 flex items-center mb-3 border border-white/20">
-                    <Search className="text-blue-100 ml-2" size={16} />
-                    <input 
-                        type="text" 
-                        placeholder="请输入设备SN号、MAC地址或者名称" 
-                        className="bg-transparent border-none text-white placeholder-blue-200 text-xs w-full focus:ring-0 px-2"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                    <button className="bg-blue-800/50 text-white text-xs px-3 py-1.5 rounded-md hover:bg-blue-800/70 transition-colors font-bold">
-                        搜索
-                    </button>
-                </div>
+                {/* Show Filters ONLY at Stores Level */}
+                {viewState.level === 'stores' && (
+                    <>
+                        <div className="bg-white/10 backdrop-blur-md rounded-lg p-1 flex items-center mb-3 border border-white/20">
+                            <Search className="text-blue-100 ml-2" size={16} />
+                            <input 
+                                type="text" 
+                                placeholder="请输入设备SN号、MAC地址或者名称" 
+                                className="bg-transparent border-none text-white placeholder-blue-200 text-xs w-full focus:ring-0 px-2"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                            <button className="bg-blue-800/50 text-white text-xs px-3 py-1.5 rounded-md hover:bg-blue-800/70 transition-colors font-bold">
+                                搜索
+                            </button>
+                        </div>
 
-                {/* Simplified Filters: Only Region */}
-                <div className="relative">
-                    <select 
-                        className="w-full appearance-none bg-white text-blue-900 text-[10px] font-bold py-2 px-3 rounded-lg focus:outline-none"
-                        value={selectedRegion}
-                        onChange={(e) => setSelectedRegion(e.target.value)}
-                    >
-                        <option value="">全部大区</option>
-                        {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-900 pointer-events-none" size={14} />
-                </div>
+                        {/* Simplified Filters: Only Region */}
+                        <div className="relative">
+                            <select 
+                                className="w-full appearance-none bg-white text-blue-900 text-[10px] font-bold py-2 px-3 rounded-lg focus:outline-none"
+                                value={selectedRegion}
+                                onChange={(e) => { setSelectedRegion(e.target.value); setViewState({ level: 'stores' }); }}
+                            >
+                                <option value="">全部大区</option>
+                                {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                            </select>
+                            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-900 pointer-events-none" size={14} />
+                        </div>
+                    </>
+                )}
             </div>
         </div>
 
-        {/* --- Hierarchy List --- */}
-        <div className="space-y-3">
-            {displayStores.map(store => {
-                const isStoreExpanded = expandedStoreIds.has(store.id);
-                const roomsInStore = storeGroups[store.id] || {};
-                const roomKeys = Object.keys(roomsInStore);
-                
-                // Store Summary
-                const totalDevicesInStore = roomKeys.reduce((acc, room) => acc + roomsInStore[room].length, 0);
-                const onlineCount = roomKeys.reduce((acc, room) => acc + roomsInStore[room].filter(d => d.status === DeviceStatus.ONLINE).length, 0);
-
-                return (
-                    <div key={store.id} className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden transition-all">
-                        {/* Level 1: Store Header */}
+        {/* --- CONTENT AREA --- */}
+        <div className="flex-1 overflow-y-auto space-y-3 relative">
+            
+            {/* LEVEL 1: Stores List */}
+            {viewState.level === 'stores' && (
+                <div className="space-y-3 animate-fadeIn">
+                    {storesWithCounts.map(store => (
                         <div 
-                            onClick={() => toggleStoreExpanded(store.id)}
-                            className="p-4 flex items-center justify-between cursor-pointer bg-white hover:bg-slate-50 transition-colors"
+                            key={store.id} 
+                            onClick={() => handleStoreClick(store.id)}
+                            className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 cursor-pointer hover:shadow-md transition-all active:scale-[0.99] flex justify-between items-center"
                         >
                             <div className="flex items-center gap-3">
-                                <div className="bg-blue-100 p-2 rounded-lg text-blue-600">
-                                    <Store size={18} />
+                                <div className="bg-blue-100 p-2.5 rounded-lg text-blue-600">
+                                    <Store size={20} />
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-slate-800 text-sm">{store.name}</h4>
                                     <p className="text-[10px] text-slate-500 mt-0.5 flex gap-2">
-                                        <span>共 {totalDevicesInStore} 台设备</span>
-                                        <span className="text-green-600 font-bold">在线 {onlineCount}</span>
+                                        <span>共 {store.deviceCount} 台设备</span>
+                                        {store.deviceCount > 0 && <span className="text-green-600 font-bold">在线 {store.onlineCount}</span>}
                                     </p>
                                 </div>
                             </div>
-                            <div className="text-slate-400">
-                                {isStoreExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                            </div>
+                            <ArrowRight size={18} className="text-slate-300" />
                         </div>
+                    ))}
+                    {storesWithCounts.length === 0 && (
+                        <div className="text-center py-20 text-slate-400 text-xs">
+                            未找到符合条件的门店
+                        </div>
+                    )}
+                </div>
+            )}
 
-                        {/* Level 2: Rooms List */}
-                        {isStoreExpanded && (
-                            <div className="bg-slate-50 border-t border-slate-100 p-2 space-y-2">
-                                {roomKeys.map(roomNum => {
-                                    const devicesInRoom = roomsInStore[roomNum];
-                                    const roomKey = `${store.id}-${roomNum}`;
-                                    const isRoomExpanded = expandedRoomKeys.has(roomKey);
-
-                                    return (
-                                        <div key={roomKey} className="rounded-lg border border-slate-200 bg-white overflow-hidden">
-                                            {/* Room Header */}
-                                            <div 
-                                                onClick={() => toggleRoomExpanded(roomKey)}
-                                                className="px-3 py-2 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
-                                            >
-                                                <div className="flex items-center gap-2">
-                                                    <BedDouble size={14} className="text-purple-500" />
-                                                    <span className="text-xs font-bold text-slate-700">{roomNum}</span>
-                                                    <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 rounded-full">{devicesInRoom.length}</span>
-                                                </div>
-                                                <div className="text-slate-300">
-                                                    {isRoomExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                                                </div>
-                                            </div>
-
-                                            {/* Level 3: Devices List */}
-                                            {isRoomExpanded && (
-                                                <div className="border-t border-slate-100">
-                                                    {devicesInRoom.map(device => {
-                                                        const rowStyle = getRowStyle(device);
-                                                        const isDetailExpanded = expandedDeviceId === device.id;
-                                                        const isSelected = selectedDeviceIds.has(device.id);
-                                                        const isPending = hasPendingAudit(device.id);
-
-                                                        return (
-                                                            <div key={device.id} className="border-b border-slate-50 last:border-0">
-                                                                <div 
-                                                                    className={`flex items-center px-3 py-3 transition-colors cursor-pointer ${rowStyle}`}
-                                                                    onClick={() => toggleExpand(device.id)}
-                                                                >
-                                                                    <div onClick={(e) => { e.stopPropagation(); toggleSelection(device.id); }} className="mr-2 cursor-pointer opacity-60 hover:opacity-100">
-                                                                        {isSelected ? <CheckSquare size={14} /> : <Square size={14} />}
-                                                                    </div>
-                                                                    <div className="w-16 truncate font-bold text-xs">{device.name}</div>
-                                                                    <div className="flex-1 text-center truncate text-[10px] px-1 opacity-80">{device.subType || deviceTypes.find(t=>t.id===device.typeId)?.name}</div>
-                                                                    <div className="w-12 text-center text-[10px] font-bold opacity-90">{STATUS_MAP[device.status]}</div>
-                                                                    <div className="w-20 text-right text-[10px] font-bold flex flex-col items-end justify-center leading-tight">
-                                                                        <span className="truncate">{device.opsStatus}</span>
-                                                                        <span className="text-[8px] opacity-70 scale-90 origin-right">({calculateDuration(device.lastTestTime)})</span>
-                                                                    </div>
-                                                                    <div className="ml-1 opacity-50 flex-shrink-0">
-                                                                        {isDetailExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                                                                    </div>
-                                                                </div>
-                                                                
-                                                                {isPending && (
-                                                                    <div className="bg-red-50 text-red-600 text-[9px] px-2 py-0.5 text-right font-bold border-t border-red-100">
-                                                                        待审核
-                                                                    </div>
-                                                                )}
-
-                                                                {/* Expanded Device Detail */}
-                                                                {isDetailExpanded && (
-                                                                    <div className="p-2 bg-white">
-                                                                        <DeviceDetailCard 
-                                                                            device={device} 
-                                                                            onEditImage={setEditingImageDevice}
-                                                                            onViewReport={setViewingReportDevice}
-                                                                            onViewEvent={(event, deviceId) => setViewingEventData({ event, deviceId })}
-                                                                            onOpenInspection={openInspectionModal}
-                                                                        />
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
+            {/* LEVEL 2: Room Grid */}
+            {viewState.level === 'rooms' && activeStoreData && (
+                <div className="animate-fadeIn">
+                    <div className="grid grid-cols-3 gap-3">
+                        {activeStoreData.roomsData.map(room => (
+                            <div 
+                                key={room.number}
+                                onClick={() => handleRoomClick(room.number)}
+                                className={`aspect-[4/3] rounded-xl border flex flex-col items-center justify-center cursor-pointer transition-all hover:shadow-md active:scale-95 bg-white
+                                    ${room.devices.length > 0 ? 'border-blue-200' : 'border-slate-200 border-dashed'}
+                                `}
+                            >
+                                <div className="text-lg font-bold text-slate-800">{room.number}</div>
+                                <div className="text-[9px] text-slate-400 mt-1">{room.type}</div>
+                                {room.devices.length > 0 && (
+                                    <div className="mt-2 text-[9px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded font-bold border border-blue-100">
+                                        {room.devices.length} 台设备
+                                    </div>
+                                )}
                             </div>
-                        )}
+                        ))}
                     </div>
-                );
-            })}
-            
-            {displayStores.length === 0 && (
-                <div className="text-center py-20 text-slate-400 text-xs">
-                    未找到符合条件的设备或门店
+                    {activeStoreData.roomsData.length === 0 && (
+                        <div className="text-center py-20 text-slate-400 text-xs">
+                            该门店暂无客房数据
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* LEVEL 3: Device List */}
+            {viewState.level === 'devices' && (
+                <div className="animate-fadeIn pb-16">
+                    {activeRoomDevices.map(device => {
+                        const rowStyle = getRowStyle(device);
+                        const isDetailExpanded = expandedDeviceId === device.id;
+                        const isSelected = selectedDeviceIds.has(device.id);
+                        const isPending = hasPendingAudit(device.id);
+
+                        return (
+                            <div key={device.id} className="mb-2 rounded-lg overflow-hidden shadow-sm border border-slate-100 relative">
+                                <div 
+                                    className={`flex items-center px-3 py-3 transition-colors cursor-pointer ${rowStyle}`}
+                                    onClick={() => toggleExpand(device.id)}
+                                >
+                                    <div onClick={(e) => { e.stopPropagation(); toggleSelection(device.id); }} className="mr-2 cursor-pointer opacity-60 hover:opacity-100">
+                                        {isSelected ? <CheckSquare size={14} /> : <Square size={14} />}
+                                    </div>
+                                    <div className="w-20 truncate font-bold text-xs">{device.name}</div>
+                                    <div className="flex-1 text-center truncate text-[10px] px-1 opacity-80">{device.subType || deviceTypes.find(t=>t.id===device.typeId)?.name}</div>
+                                    <div className="w-12 text-center text-[10px] font-bold opacity-90">{STATUS_MAP[device.status]}</div>
+                                    <div className="w-16 text-right text-[10px] font-bold flex flex-col items-end justify-center leading-tight">
+                                        <span className="truncate">{device.opsStatus}</span>
+                                    </div>
+                                    <div className="ml-1 opacity-50 flex-shrink-0">
+                                        {isDetailExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                    </div>
+                                </div>
+                                
+                                {isPending && (
+                                    <div className="bg-red-50 text-red-600 text-[9px] px-2 py-0.5 text-right font-bold border-t border-red-100">
+                                        待审核
+                                    </div>
+                                )}
+
+                                {/* Expanded Device Detail */}
+                                {isDetailExpanded && (
+                                    <div className="p-2 bg-white border-t border-slate-100">
+                                        <DeviceDetailCard 
+                                            device={device} 
+                                            onEditImage={setEditingImageDevice}
+                                            onViewReport={setViewingReportDevice}
+                                            onViewEvent={(event, deviceId) => setViewingEventData({ event, deviceId })}
+                                            onOpenInspection={openInspectionModal}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                    {activeRoomDevices.length === 0 && (
+                        <div className="text-center py-20 text-slate-400 text-xs">
+                            该房间暂无匹配的设备
+                        </div>
+                    )}
                 </div>
             )}
         </div>
 
-        {/* Device Control Button (Fixed at bottom) */}
-        <div className="fixed bottom-[80px] left-1/2 transform -translate-x-1/2 z-40">
-             <button 
-                onClick={() => setIsControlMenuOpen(!isControlMenuOpen)}
-                disabled={selectedDeviceIds.size === 0}
-                className={`px-4 py-2 rounded-full shadow-lg flex items-center gap-2 font-bold text-sm transition-all border 
-                    ${selectedDeviceIds.size > 0 
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white active:scale-95 border-blue-400' 
-                        : 'bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed'
-                    }`}
-             >
-                 <Settings2 size={16} />
-                 设备管控 {selectedDeviceIds.size > 0 ? `(${selectedDeviceIds.size})` : ''}
-             </button>
-        </div>
+        {/* Device Control Button (Fixed at bottom) - ONLY VISIBLE ON DEVICES LEVEL */}
+        {viewState.level === 'devices' && (
+            <div className="fixed bottom-[80px] left-1/2 transform -translate-x-1/2 z-40 animate-slideInUp">
+                 <button 
+                    onClick={() => setIsControlMenuOpen(!isControlMenuOpen)}
+                    disabled={selectedDeviceIds.size === 0}
+                    className={`px-4 py-2 rounded-full shadow-lg flex items-center gap-2 font-bold text-sm transition-all border 
+                        ${selectedDeviceIds.size > 0 
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white active:scale-95 border-blue-400' 
+                            : 'bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed'
+                        }`}
+                 >
+                     <Settings2 size={16} />
+                     设备管控 {selectedDeviceIds.size > 0 ? `(${selectedDeviceIds.size})` : ''}
+                 </button>
+            </div>
+        )}
 
         {/* Control Menu Popup */}
         {isControlMenuOpen && selectedDeviceIds.size > 0 && (
