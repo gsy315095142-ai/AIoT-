@@ -1,4 +1,4 @@
-// 标记：本次更新调整了目录结构，【设备】页面包含数据总览、设备管理、内容管理三个子页面，并隐藏了原总览入口
+// 标记：本次更新调整了设备管理页面结构，采用门店-客房-设备的三级层级展示，并简化了顶部筛选栏
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useDeviceLogic } from '../hooks/useDeviceLogic';
-import { DeviceStatus, OpsStatus, AuditStatus, AuditType } from '../types';
+import { DeviceStatus, OpsStatus, AuditStatus, AuditType, Device } from '../types';
 import { STATUS_MAP, SUB_TYPE_MAPPING, ImageManagerModal, ReportDetailModal, EventDetailModal, AuditManagementModal, DeviceDetailCard, AuditGate } from '../components/DeviceComponents';
-import { ChevronDown, ChevronUp, Plus, Search, CheckSquare, Square, X, Settings2, Play, Moon, RotateCcw, Wrench, ClipboardCheck, Check, X as XIcon, ImageIcon, ClipboardList, LayoutDashboard, Monitor, BookOpen } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Search, CheckSquare, Square, X, Settings2, Play, Moon, RotateCcw, Wrench, ClipboardCheck, Check, X as XIcon, ImageIcon, ClipboardList, LayoutDashboard, Monitor, BookOpen, Store, BedDouble } from 'lucide-react';
 import { Dashboard } from './Dashboard';
 
 // --- Sub-Components ---
@@ -20,10 +20,9 @@ const ContentManagement: React.FC = () => (
 const DeviceList: React.FC = () => {
   const {
     // Data
-    regions, stores, deviceTypes, filteredDevices, availableStores, pendingAuditCount, imageCounts, CATEGORY_LIMITS,
+    regions, stores, deviceTypes, filteredDevices, pendingAuditCount, imageCounts, CATEGORY_LIMITS,
     // States
-    selectedRegion, setSelectedRegion, selectedStore, setSelectedStore, selectedType, setSelectedType,
-    selectedStatus, setSelectedStatus, selectedOpsStatus, setSelectedOpsStatus, searchQuery, setSearchQuery,
+    selectedRegion, setSelectedRegion, searchQuery, setSearchQuery,
     expandedDeviceId, selectedDeviceIds,
     isAddModalOpen, setIsAddModalOpen, editingImageDevice, setEditingImageDevice,
     isControlMenuOpen, setIsControlMenuOpen, isOpsStatusModalOpen, setIsOpsStatusModalOpen,
@@ -39,6 +38,44 @@ const DeviceList: React.FC = () => {
     openInspectionModal, handleInspImageUpload, removeInspImage, handleSubmitInspection,
     openAddModal, handleAddFormImage, handleRemoveFormImage, handleFormImageCategoryChange, handleAddSubmit
   } = useDeviceLogic();
+
+  // --- Hierarchy Grouping Logic ---
+  const storeGroups = useMemo(() => {
+      const groups: Record<string, Record<string, Device[]>> = {};
+      filteredDevices.forEach(d => {
+          if (!groups[d.storeId]) groups[d.storeId] = {};
+          const room = d.roomNumber || '公共区域';
+          if (!groups[d.storeId][room]) groups[d.storeId][room] = [];
+          groups[d.storeId][room].push(d);
+      });
+      return groups;
+  }, [filteredDevices]);
+
+  // Determine which stores to show (only those containing filtered devices)
+  const displayStoreIds = Object.keys(storeGroups);
+  const displayStores = stores.filter(s => displayStoreIds.includes(s.id));
+
+  // Hierarchy Expansion State
+  const [expandedStoreIds, setExpandedStoreIds] = useState<Set<string>>(new Set());
+  const [expandedRoomKeys, setExpandedRoomKeys] = useState<Set<string>>(new Set()); // Key: `${storeId}-${roomNumber}`
+
+  const toggleStoreExpanded = (storeId: string) => {
+      setExpandedStoreIds(prev => {
+          const newSet = new Set(prev);
+          if (newSet.has(storeId)) newSet.delete(storeId);
+          else newSet.add(storeId);
+          return newSet;
+      });
+  };
+
+  const toggleRoomExpanded = (key: string) => {
+      setExpandedRoomKeys(prev => {
+          const newSet = new Set(prev);
+          if (newSet.has(key)) newSet.delete(key);
+          else newSet.add(key);
+          return newSet;
+      });
+  };
 
   const getStoreName = (id: string) => stores.find(s => s.id === id)?.name || '-';
   const calculateDuration = (dateStr: string) => {
@@ -62,7 +99,7 @@ const DeviceList: React.FC = () => {
   return (
     <div className="p-4 pb-20"> 
         {/* Header Controls */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-4 rounded-t-xl shadow-lg mb-0 relative overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-4 rounded-xl shadow-lg mb-4 relative overflow-hidden">
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
             
             <div className="relative z-10">
@@ -103,134 +140,148 @@ const DeviceList: React.FC = () => {
                     </button>
                 </div>
 
-                {/* Filters Grid */}
-                <div className="grid grid-cols-3 gap-2">
-                    <div className="relative">
-                        <select 
-                            className="w-full appearance-none bg-white text-blue-900 text-[10px] font-bold py-1.5 px-2 rounded focus:outline-none"
-                            value={selectedRegion}
-                            onChange={(e) => setSelectedRegion(e.target.value)}
-                        >
-                            <option value="">全部大区</option>
-                            {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                        </select>
-                        <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 text-blue-900 pointer-events-none" size={12} />
-                    </div>
-                    <div className="relative">
-                        <select 
-                            className="w-full appearance-none bg-white text-blue-900 text-[10px] font-bold py-1.5 px-2 rounded focus:outline-none"
-                            value={selectedStore}
-                            onChange={(e) => setSelectedStore(e.target.value)}
-                        >
-                            <option value="">全部门店</option>
-                            {availableStores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                        </select>
-                        <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 text-blue-900 pointer-events-none" size={12} />
-                    </div>
-                    <div className="relative">
-                        <select 
-                            className="w-full appearance-none bg-white text-blue-900 text-[10px] font-bold py-1.5 px-2 rounded focus:outline-none"
-                            value={selectedType}
-                            onChange={(e) => setSelectedType(e.target.value)}
-                        >
-                            <option value="">所有类型</option>
-                            {deviceTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                        </select>
-                        <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 text-blue-900 pointer-events-none" size={12} />
-                    </div>
-                    
-                    {/* New Filter Row */}
-                     <div className="relative">
-                        <select 
-                            className="w-full appearance-none bg-blue-800/40 text-white text-[10px] font-bold py-1.5 px-2 rounded focus:outline-none border border-blue-400/30"
-                            value={selectedStatus}
-                            onChange={(e) => setSelectedStatus(e.target.value)}
-                        >
-                            <option value="">全部状态</option>
-                            <option value={DeviceStatus.ONLINE}>运行中</option>
-                            <option value={DeviceStatus.STANDBY}>待机中</option>
-                            <option value={DeviceStatus.OFFLINE}>未联网</option>
-                        </select>
-                        <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 text-blue-200 pointer-events-none" size={12} />
-                    </div>
-                     <div className="relative col-span-2">
-                        <select 
-                            className="w-full appearance-none bg-blue-800/40 text-white text-[10px] font-bold py-1.5 px-2 rounded focus:outline-none border border-blue-400/30"
-                            value={selectedOpsStatus}
-                            onChange={(e) => setSelectedOpsStatus(e.target.value)}
-                        >
-                            <option value="">全部运维状态</option>
-                            <option value={OpsStatus.INSPECTED}>正常</option>
-                            <option value={OpsStatus.HOTEL_COMPLAINT}>酒店客诉</option>
-                            <option value={OpsStatus.REPAIRING}>维修中</option>
-                        </select>
-                        <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 text-blue-200 pointer-events-none" size={12} />
-                    </div>
+                {/* Simplified Filters: Only Region */}
+                <div className="relative">
+                    <select 
+                        className="w-full appearance-none bg-white text-blue-900 text-[10px] font-bold py-2 px-3 rounded-lg focus:outline-none"
+                        value={selectedRegion}
+                        onChange={(e) => setSelectedRegion(e.target.value)}
+                    >
+                        <option value="">全部大区</option>
+                        {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-900 pointer-events-none" size={14} />
                 </div>
             </div>
         </div>
 
-        {/* Device List Header */}
-        <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-3 py-2 flex items-center text-white text-[10px] font-bold rounded-b-xl shadow-md mb-2">
-            <div onClick={toggleSelectAll} className="mr-2 cursor-pointer">
-                {selectedDeviceIds.size > 0 && selectedDeviceIds.size === filteredDevices.length ? <CheckSquare size={14} /> : <Square size={14} />}
-            </div>
-            <div className="w-16">设备名称</div>
-            <div className="flex-1 text-center">门店</div>
-            <div className="w-12 text-center">状态</div>
-            <div className="w-20 text-right">运维状态</div>
-        </div>
+        {/* --- Hierarchy List --- */}
+        <div className="space-y-3">
+            {displayStores.map(store => {
+                const isStoreExpanded = expandedStoreIds.has(store.id);
+                const roomsInStore = storeGroups[store.id] || {};
+                const roomKeys = Object.keys(roomsInStore);
+                
+                // Store Summary
+                const totalDevicesInStore = roomKeys.reduce((acc, room) => acc + roomsInStore[room].length, 0);
+                const onlineCount = roomKeys.reduce((acc, room) => acc + roomsInStore[room].filter(d => d.status === DeviceStatus.ONLINE).length, 0);
 
-        {/* Device List */}
-        <div className="space-y-2">
-          {filteredDevices.map(device => {
-             const rowStyle = getRowStyle(device);
-             const isExpanded = expandedDeviceId === device.id;
-             const isSelected = selectedDeviceIds.has(device.id);
-             const isPending = hasPendingAudit(device.id);
+                return (
+                    <div key={store.id} className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden transition-all">
+                        {/* Level 1: Store Header */}
+                        <div 
+                            onClick={() => toggleStoreExpanded(store.id)}
+                            className="p-4 flex items-center justify-between cursor-pointer bg-white hover:bg-slate-50 transition-colors"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="bg-blue-100 p-2 rounded-lg text-blue-600">
+                                    <Store size={18} />
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-slate-800 text-sm">{store.name}</h4>
+                                    <p className="text-[10px] text-slate-500 mt-0.5 flex gap-2">
+                                        <span>共 {totalDevicesInStore} 台设备</span>
+                                        <span className="text-green-600 font-bold">在线 {onlineCount}</span>
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="text-slate-400">
+                                {isStoreExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                            </div>
+                        </div>
 
-             return (
-                 <div key={device.id} className="rounded-lg overflow-hidden shadow-sm border border-slate-100 relative">
-                     {/* List Row */}
-                     <div 
-                        className={`flex items-center px-3 py-3 transition-colors cursor-pointer ${rowStyle} ${isExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}
-                        onClick={() => toggleExpand(device.id)}
-                     >
-                         <div onClick={(e) => { e.stopPropagation(); toggleSelection(device.id); }} className="mr-2 cursor-pointer opacity-60 hover:opacity-100">
-                             {isSelected ? <CheckSquare size={14} /> : <Square size={14} />}
-                         </div>
-                         <div className="w-16 truncate font-bold text-xs">{device.name}</div>
-                         <div className="flex-1 text-center truncate text-[10px] px-1 opacity-80">{getStoreName(device.storeId)}</div>
-                         <div className="w-12 text-center text-[10px] font-bold opacity-90">{STATUS_MAP[device.status]}</div>
-                         <div className="w-20 text-right text-[10px] font-bold flex flex-col items-end justify-center leading-tight">
-                            <span className="truncate">{device.opsStatus}</span>
-                            <span className="text-[8px] opacity-70 scale-90 origin-right">({calculateDuration(device.lastTestTime)})</span>
-                         </div>
-                         <div className="ml-1 opacity-50 flex-shrink-0">
-                            {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                         </div>
-                     </div>
-                     
-                     {isPending && (
-                         <div className="absolute top-0 right-0 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-bl-lg font-bold shadow-sm z-10 pointer-events-none">
-                             待审核
-                         </div>
-                     )}
+                        {/* Level 2: Rooms List */}
+                        {isStoreExpanded && (
+                            <div className="bg-slate-50 border-t border-slate-100 p-2 space-y-2">
+                                {roomKeys.map(roomNum => {
+                                    const devicesInRoom = roomsInStore[roomNum];
+                                    const roomKey = `${store.id}-${roomNum}`;
+                                    const isRoomExpanded = expandedRoomKeys.has(roomKey);
 
-                     {/* Expanded Detail */}
-                     {isExpanded && <DeviceDetailCard 
-                        device={device} 
-                        onEditImage={setEditingImageDevice}
-                        onViewReport={setViewingReportDevice}
-                        onViewEvent={(event, deviceId) => setViewingEventData({ event, deviceId })}
-                        onOpenInspection={openInspectionModal}
-                     />}
-                 </div>
-             );
-          })}
-          {filteredDevices.length === 0 && (
-              <div className="text-center py-10 text-slate-400 text-xs">未找到符合条件的设备</div>
-          )}
+                                    return (
+                                        <div key={roomKey} className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+                                            {/* Room Header */}
+                                            <div 
+                                                onClick={() => toggleRoomExpanded(roomKey)}
+                                                className="px-3 py-2 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <BedDouble size={14} className="text-purple-500" />
+                                                    <span className="text-xs font-bold text-slate-700">{roomNum}</span>
+                                                    <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 rounded-full">{devicesInRoom.length}</span>
+                                                </div>
+                                                <div className="text-slate-300">
+                                                    {isRoomExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                                </div>
+                                            </div>
+
+                                            {/* Level 3: Devices List */}
+                                            {isRoomExpanded && (
+                                                <div className="border-t border-slate-100">
+                                                    {devicesInRoom.map(device => {
+                                                        const rowStyle = getRowStyle(device);
+                                                        const isDetailExpanded = expandedDeviceId === device.id;
+                                                        const isSelected = selectedDeviceIds.has(device.id);
+                                                        const isPending = hasPendingAudit(device.id);
+
+                                                        return (
+                                                            <div key={device.id} className="border-b border-slate-50 last:border-0">
+                                                                <div 
+                                                                    className={`flex items-center px-3 py-3 transition-colors cursor-pointer ${rowStyle}`}
+                                                                    onClick={() => toggleExpand(device.id)}
+                                                                >
+                                                                    <div onClick={(e) => { e.stopPropagation(); toggleSelection(device.id); }} className="mr-2 cursor-pointer opacity-60 hover:opacity-100">
+                                                                        {isSelected ? <CheckSquare size={14} /> : <Square size={14} />}
+                                                                    </div>
+                                                                    <div className="w-16 truncate font-bold text-xs">{device.name}</div>
+                                                                    <div className="flex-1 text-center truncate text-[10px] px-1 opacity-80">{device.subType || deviceTypes.find(t=>t.id===device.typeId)?.name}</div>
+                                                                    <div className="w-12 text-center text-[10px] font-bold opacity-90">{STATUS_MAP[device.status]}</div>
+                                                                    <div className="w-20 text-right text-[10px] font-bold flex flex-col items-end justify-center leading-tight">
+                                                                        <span className="truncate">{device.opsStatus}</span>
+                                                                        <span className="text-[8px] opacity-70 scale-90 origin-right">({calculateDuration(device.lastTestTime)})</span>
+                                                                    </div>
+                                                                    <div className="ml-1 opacity-50 flex-shrink-0">
+                                                                        {isDetailExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                {isPending && (
+                                                                    <div className="bg-red-50 text-red-600 text-[9px] px-2 py-0.5 text-right font-bold border-t border-red-100">
+                                                                        待审核
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Expanded Device Detail */}
+                                                                {isDetailExpanded && (
+                                                                    <div className="p-2 bg-white">
+                                                                        <DeviceDetailCard 
+                                                                            device={device} 
+                                                                            onEditImage={setEditingImageDevice}
+                                                                            onViewReport={setViewingReportDevice}
+                                                                            onViewEvent={(event, deviceId) => setViewingEventData({ event, deviceId })}
+                                                                            onOpenInspection={openInspectionModal}
+                                                                        />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
+            
+            {displayStores.length === 0 && (
+                <div className="text-center py-20 text-slate-400 text-xs">
+                    未找到符合条件的设备或门店
+                </div>
+            )}
         </div>
 
         {/* Device Control Button (Fixed at bottom) */}
