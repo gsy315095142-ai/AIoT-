@@ -1,10 +1,23 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useDeviceLogic } from '../hooks/useDeviceLogic';
 import { DeviceStatus, OpsStatus, AuditStatus, AuditType } from '../types';
 import { STATUS_MAP, SUB_TYPE_MAPPING, ImageManagerModal, ReportDetailModal, EventDetailModal, AuditManagementModal, DeviceDetailCard, AuditGate } from '../components/DeviceComponents';
-import { ChevronDown, ChevronUp, Plus, Search, CheckSquare, Square, X, Settings2, Play, Moon, RotateCcw, Wrench, ClipboardCheck, Check, X as XIcon, ImageIcon, ClipboardList } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Search, CheckSquare, Square, X, Settings2, Play, Moon, RotateCcw, Wrench, ClipboardCheck, Check, X as XIcon, ImageIcon, ClipboardList, LayoutDashboard, Monitor, BookOpen } from 'lucide-react';
+import { Dashboard } from './Dashboard';
 
-export const DeviceManagement: React.FC = () => {
+// --- Sub-Components ---
+
+// Placeholder for Content Management
+const ContentManagement: React.FC = () => (
+    <div className="flex flex-col items-center justify-center h-full text-slate-400 p-4">
+        <BookOpen size={48} className="mb-4 opacity-20" />
+        <p className="text-sm font-medium">内容管理</p>
+        <p className="text-xs opacity-60 mt-1">暂未开放敬请期待</p>
+    </div>
+);
+
+// The original DeviceManagement content, now named DeviceList
+const DeviceList: React.FC = () => {
   const {
     // Data
     regions, stores, deviceTypes, filteredDevices, availableStores, pendingAuditCount, imageCounts, CATEGORY_LIMITS,
@@ -506,4 +519,47 @@ export const DeviceManagement: React.FC = () => {
 
     </div>
   );
+};
+
+// --- Main Export with Tabs ---
+
+export const DeviceManagement: React.FC = () => {
+    const [activeTab, setActiveTab] = useState<'overview' | 'devices' | 'content'>('overview');
+
+    return (
+        <div className="flex flex-col h-full">
+            <div className="flex bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+                <button
+                    onClick={() => setActiveTab('overview')}
+                    className={`flex-1 py-3 text-xs font-bold flex flex-col items-center gap-1 transition-colors relative ${activeTab === 'overview' ? 'text-blue-600' : 'text-slate-500'}`}
+                >
+                    <LayoutDashboard size={16} />
+                    数据总览
+                    {activeTab === 'overview' && <div className="absolute bottom-0 w-full h-0.5 bg-blue-600"></div>}
+                </button>
+                <button
+                    onClick={() => setActiveTab('devices')}
+                    className={`flex-1 py-3 text-xs font-bold flex flex-col items-center gap-1 transition-colors relative ${activeTab === 'devices' ? 'text-blue-600' : 'text-slate-500'}`}
+                >
+                    <Monitor size={16} />
+                    设备管理
+                    {activeTab === 'devices' && <div className="absolute bottom-0 w-full h-0.5 bg-blue-600"></div>}
+                </button>
+                <button
+                    onClick={() => setActiveTab('content')}
+                    className={`flex-1 py-3 text-xs font-bold flex flex-col items-center gap-1 transition-colors relative ${activeTab === 'content' ? 'text-blue-600' : 'text-slate-500'}`}
+                >
+                    <BookOpen size={16} />
+                    内容管理
+                    {activeTab === 'content' && <div className="absolute bottom-0 w-full h-0.5 bg-blue-600"></div>}
+                </button>
+            </div>
+            
+            <div className="flex-1 bg-slate-50 overflow-y-auto no-scrollbar relative">
+                {activeTab === 'overview' && <Dashboard />}
+                {activeTab === 'devices' && <DeviceList />}
+                {activeTab === 'content' && <ContentManagement />}
+            </div>
+        </div>
+    );
 };

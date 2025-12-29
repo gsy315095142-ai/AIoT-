@@ -1,4 +1,4 @@
-// 标记：本次更新优化了【客房复尺】页面的代码结构，提取了子组件以提升可读性并彻底修复渲染问题
+// 标记：本次更新调整了目录结构，【设备】页面包含数据总览、设备管理、内容管理三个子页面，并隐藏了原总览入口
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -16,9 +16,10 @@ const getAccessibleRoutes = (role: UserRole | null): string[] => {
     switch (role) {
         case 'admin':
         case 'product_director':
-            return ['/dashboard', '/devices', '/rooms', '/procurement', '/settings'];
+            // Removed /dashboard, merged into /devices
+            return ['/devices', '/rooms', '/procurement', '/settings'];
         case 'hardware': // Project Manager
-            return ['/dashboard', '/devices', '/rooms', '/procurement'];
+            return ['/devices', '/rooms', '/procurement'];
         case 'procurement':
             return ['/procurement'];
         case 'local': // Install Engineer
@@ -30,7 +31,8 @@ const getAccessibleRoutes = (role: UserRole | null): string[] => {
             return ['/rooms', '/procurement'];
         case 'area_manager':
         case 'area_assistant':
-            return ['/dashboard', '/rooms', '/procurement'];
+            // Was ['/dashboard', '/rooms', '/procurement'], now giving access to /devices container
+            return ['/devices', '/rooms', '/procurement'];
         default:
             return [];
     }
@@ -58,7 +60,7 @@ const MobileHeader = () => {
   
   const getTitle = () => {
     switch (location.pathname) {
-      case '/dashboard': return '数据总览';
+      case '/dashboard': return '数据总览'; // Fallback if reached via url
       case '/devices': return '设备管理';
       case '/rooms': return '客房管理';
       case '/procurement': return '采购管理';
@@ -67,12 +69,8 @@ const MobileHeader = () => {
     }
   };
 
-  // Determine if we should show logout button:
-  // Show it on dashboard OR if the user doesn't have dashboard access, show it on their "home" page.
-  // Actually, easiest is to allow logout from any page header if not on settings (Settings has its own).
-  // But let's follow the previous pattern: 
   const accessibleRoutes = getAccessibleRoutes(userRole);
-  const isHomePage = location.pathname === accessibleRoutes[0] || location.pathname === '/dashboard';
+  const isHomePage = location.pathname === accessibleRoutes[0];
 
   return (
     <div className="bg-white border-b border-slate-100 p-4 sticky top-0 z-20 flex items-center justify-center shadow-sm h-14 relative">
@@ -101,11 +99,12 @@ const AuthenticatedApp: React.FC = () => {
 
   // Redirect to first accessible route if current path is root or unauthorized
   if (location.pathname === '/' || !accessibleRoutes.includes(location.pathname)) {
+      // Special handling: if trying to access old /dashboard, redirect to /devices if allowed
+      if (location.pathname === '/dashboard' && accessibleRoutes.includes('/devices')) {
+          return <Navigate to="/devices" replace />;
+      }
+
       if (accessibleRoutes.length > 0) {
-          // If trying to access unauthorized route, redirect to their home
-          // Special case: /settings might be accessed via code but not nav? 
-          // Assuming strict strict based on prompt.
-          // Exception: If current path is NOT in accessible list, redirect.
           return <Navigate to={accessibleRoutes[0]} replace />;
       }
   }
@@ -118,7 +117,7 @@ const AuthenticatedApp: React.FC = () => {
 
         <main className="flex-1 overflow-y-auto no-scrollbar bg-slate-50 relative pb-20">
             <Routes>
-                {accessibleRoutes.includes('/dashboard') && <Route path="/dashboard" element={<Dashboard />} />}
+                {/* Dashboard route removed, now part of Devices */}
                 {accessibleRoutes.includes('/devices') && <Route path="/devices" element={<DeviceManagement />} />}
                 {accessibleRoutes.includes('/rooms') && <Route path="/rooms" element={<RoomManagement />} />}
                 {accessibleRoutes.includes('/procurement') && <Route path="/procurement" element={<ProcurementManagement />} />}
@@ -128,7 +127,7 @@ const AuthenticatedApp: React.FC = () => {
         </main>
 
         <nav className="bg-white border-t border-slate-200 h-16 absolute bottom-0 left-0 right-0 flex justify-around items-center z-20 pb-safe md:pb-2">
-            {accessibleRoutes.includes('/dashboard') && <BottomNavLink to="/dashboard" icon={LayoutDashboard} label="总览" />}
+            {/* Dashboard Link Removed */}
             {accessibleRoutes.includes('/devices') && <BottomNavLink to="/devices" icon={Monitor} label="设备" />}
             {accessibleRoutes.includes('/rooms') && <BottomNavLink to="/rooms" icon={BedDouble} label="客房" />}
             {accessibleRoutes.includes('/procurement') && <BottomNavLink to="/procurement" icon={ShoppingCart} label="采购" />}
