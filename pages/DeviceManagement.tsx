@@ -58,13 +58,27 @@ const DeviceList: React.FC = () => {
       return availableStores.map(store => {
           const devicesInStore = filteredDevices.filter(d => d.storeId === store.id);
           const onlineCount = devicesInStore.filter(d => d.status === DeviceStatus.ONLINE).length;
+          
+          // Breakdown: Group by Type -> Count OpsStatus
+          const breakdown: Record<string, { count: number, statusCounts: Record<string, number> }> = {};
+          devicesInStore.forEach(d => {
+              const typeName = deviceTypes.find(t => t.id === d.typeId)?.name || '其他';
+              if (!breakdown[typeName]) breakdown[typeName] = { count: 0, statusCounts: {} };
+              breakdown[typeName].count++;
+              
+              const st = d.opsStatus;
+              if (!breakdown[typeName].statusCounts[st]) breakdown[typeName].statusCounts[st] = 0;
+              breakdown[typeName].statusCounts[st]++;
+          });
+
           return {
               ...store,
               deviceCount: devicesInStore.length,
-              onlineCount
+              onlineCount,
+              breakdown
           };
       });
-  }, [availableStores, filteredDevices]);
+  }, [availableStores, filteredDevices, deviceTypes]);
 
   // LEVEL 2: Rooms in Active Store
   const activeStoreData = useMemo(() => {
@@ -87,16 +101,30 @@ const DeviceList: React.FC = () => {
       const roomsData = allRoomNumbers.map(num => {
           const devicesInRoom = devicesInStore.filter(d => d.roomNumber === num);
           const definedType = definedRooms.find(r => r.number === num)?.type || '未知房型';
+          
+          // Breakdown
+          const breakdown: Record<string, { count: number, statusCounts: Record<string, number> }> = {};
+          devicesInRoom.forEach(d => {
+              const typeName = deviceTypes.find(t => t.id === d.typeId)?.name || '其他';
+              if (!breakdown[typeName]) breakdown[typeName] = { count: 0, statusCounts: {} };
+              breakdown[typeName].count++;
+              
+              const st = d.opsStatus;
+              if (!breakdown[typeName].statusCounts[st]) breakdown[typeName].statusCounts[st] = 0;
+              breakdown[typeName].statusCounts[st]++;
+          });
+
           return {
               number: num,
               type: definedType,
               devices: devicesInRoom,
-              onlineCount: devicesInRoom.filter(d => d.status === DeviceStatus.ONLINE).length
+              onlineCount: devicesInRoom.filter(d => d.status === DeviceStatus.ONLINE).length,
+              breakdown
           };
       });
 
       return { store, roomsData };
-  }, [viewState.storeId, stores, filteredDevices]);
+  }, [viewState.storeId, stores, filteredDevices, deviceTypes]);
 
   // LEVEL 3: Devices in Active Room
   const activeRoomDevices = useMemo(() => {
@@ -122,6 +150,26 @@ const DeviceList: React.FC = () => {
 
   const handleRoomClick = (roomNumber: string) => {
       setViewState({ level: 'devices', storeId: viewState.storeId, roomNumber });
+  };
+
+  const handleAddDeviceClick = () => {
+      const initialData: any = {};
+      
+      // Context 1: Store is selected (Level 2 or 3)
+      if (viewState.storeId) {
+          const store = stores.find(s => s.id === viewState.storeId);
+          if (store) {
+              initialData.storeId = store.id;
+              initialData.regionId = store.regionId;
+          }
+      }
+      
+      // Context 2: Room is selected (Level 3)
+      if (viewState.roomNumber) {
+          initialData.roomNumber = viewState.roomNumber;
+      }
+
+      openAddModal(initialData);
   };
 
   const getRowStyle = (d: any) => {
@@ -156,7 +204,7 @@ const DeviceList: React.FC = () => {
                     
                     <div className="flex gap-2">
                         <button 
-                            onClick={openAddModal}
+                            onClick={handleAddDeviceClick}
                             className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-lg backdrop-blur-sm transition-all border border-white/10"
                         >
                             <Plus size={20} />
@@ -222,21 +270,48 @@ const DeviceList: React.FC = () => {
                         <div 
                             key={store.id} 
                             onClick={() => handleStoreClick(store.id)}
-                            className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 cursor-pointer hover:shadow-md transition-all active:scale-[0.99] flex justify-between items-center"
+                            className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 cursor-pointer hover:shadow-md transition-all active:scale-[0.99]"
                         >
-                            <div className="flex items-center gap-3">
-                                <div className="bg-blue-100 p-2.5 rounded-lg text-blue-600">
-                                    <Store size={20} />
+                            <div className="flex justify-between items-start mb-2">
+                                <div className="flex items-center gap-3">
+                                    <div className="bg-blue-100 p-2.5 rounded-lg text-blue-600">
+                                        <Store size={20} />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-slate-800 text-sm">{store.name}</h4>
+                                        <p className="text-[10px] text-slate-500 mt-0.5 flex gap-2">
+                                            <span>共 {store.deviceCount} 台</span>
+                                            {store.deviceCount > 0 && <span className="text-green-600 font-bold">在线 {store.onlineCount}</span>}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h4 className="font-bold text-slate-800 text-sm">{store.name}</h4>
-                                    <p className="text-[10px] text-slate-500 mt-0.5 flex gap-2">
-                                        <span>共 {store.deviceCount} 台设备</span>
-                                        {store.deviceCount > 0 && <span className="text-green-600 font-bold">在线 {store.onlineCount}</span>}
-                                    </p>
-                                </div>
+                                <ArrowRight size={18} className="text-slate-300 mt-2" />
                             </div>
-                            <ArrowRight size={18} className="text-slate-300" />
+                            
+                            {/* Breakdown */}
+                            {Object.keys(store.breakdown).length > 0 && (
+                                <div className="bg-slate-50 rounded-lg p-2 space-y-1.5 mt-2 border border-slate-100">
+                                    {Object.entries(store.breakdown).map(([type, stats]) => (
+                                        <div key={type} className="flex justify-between items-center text-[10px]">
+                                            <span className="font-bold text-slate-700">{type} <span className="text-slate-400 font-normal">x{stats.count}</span></span>
+                                            <div className="flex gap-2">
+                                                {Object.entries(stats.statusCounts).map(([status, count]) => {
+                                                    let colorClass = 'text-slate-500';
+                                                    if (status === '正常') colorClass = 'text-green-600';
+                                                    else if (status === '维修中') colorClass = 'text-purple-600';
+                                                    else if (status === '酒店客诉') colorClass = 'text-pink-600';
+                                                    
+                                                    return (
+                                                        <span key={status} className={`${colorClass} font-medium flex items-center gap-0.5`}>
+                                                            {status} {count}
+                                                        </span>
+                                                    )
+                                                })}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     ))}
                     {storesWithCounts.length === 0 && (
@@ -250,20 +325,51 @@ const DeviceList: React.FC = () => {
             {/* LEVEL 2: Room Grid */}
             {viewState.level === 'rooms' && activeStoreData && (
                 <div className="animate-fadeIn">
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 gap-3">
                         {activeStoreData.roomsData.map(room => (
                             <div 
                                 key={room.number}
                                 onClick={() => handleRoomClick(room.number)}
-                                className={`aspect-[4/3] rounded-xl border flex flex-col items-center justify-center cursor-pointer transition-all hover:shadow-md active:scale-95 bg-white
+                                className={`rounded-xl border flex flex-col p-3 cursor-pointer transition-all hover:shadow-md active:scale-95 bg-white min-h-[100px] justify-between
                                     ${room.devices.length > 0 ? 'border-blue-200' : 'border-slate-200 border-dashed'}
                                 `}
                             >
-                                <div className="text-lg font-bold text-slate-800">{room.number}</div>
-                                <div className="text-[9px] text-slate-400 mt-1">{room.type}</div>
-                                {room.devices.length > 0 && (
-                                    <div className="mt-2 text-[9px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded font-bold border border-blue-100">
-                                        {room.devices.length} 台设备
+                                <div className="flex justify-between items-start mb-2">
+                                    <div>
+                                        <div className="text-lg font-bold text-slate-800 leading-none">{room.number}</div>
+                                        <div className="text-[9px] text-slate-400 mt-1">{room.type}</div>
+                                    </div>
+                                    {room.devices.length > 0 && (
+                                        <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 rounded-full">{room.devices.length}</span>
+                                    )}
+                                </div>
+
+                                {/* Device Breakdown */}
+                                {room.devices.length > 0 ? (
+                                    <div className="space-y-1">
+                                        {Object.entries(room.breakdown).map(([type, stats]) => (
+                                            <div key={type} className="text-[9px] bg-slate-50 px-1.5 py-1 rounded flex flex-col gap-0.5">
+                                                <div className="font-bold text-slate-700 flex justify-between">
+                                                    <span>{type}</span>
+                                                    <span>x{stats.count}</span>
+                                                </div>
+                                                <div className="flex flex-wrap gap-x-2 gap-y-0.5 opacity-90">
+                                                    {Object.entries(stats.statusCounts).map(([st, c]) => (
+                                                        <span key={st} className={
+                                                            st === '正常' ? 'text-green-600' : 
+                                                            st === '酒店客诉' ? 'text-pink-600' : 
+                                                            st === '维修中' ? 'text-purple-600' : 'text-slate-500'
+                                                        }>
+                                                            {st}{c}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="flex-1 flex items-center justify-center">
+                                        <span className="text-[10px] text-slate-300">暂无设备</span>
                                     </div>
                                 )}
                             </div>

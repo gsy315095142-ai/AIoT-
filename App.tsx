@@ -1,4 +1,4 @@
-// 标记：本次更新优化了设备管理页面的筛选框显示逻辑，仅在门店列表层级显示筛选框
+// 标记：本次更新优化了设备管理页面的添加设备体验，支持根据当前所处的门店或客房层级，自动预填大区、门店及房号信息
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

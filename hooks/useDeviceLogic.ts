@@ -185,7 +185,10 @@ export const useDeviceLogic = () => {
       setInspectingDeviceId(null);
   }
 
-  const openAddModal = () => { setDeviceForm({ ...initialFormState }); setIsAddModalOpen(true); };
+  const openAddModal = (initialData?: Partial<DeviceFormState>) => { 
+      setDeviceForm({ ...initialFormState, ...initialData }); 
+      setIsAddModalOpen(true); 
+  };
 
   const handleAddFormImage = (e: ChangeEvent<HTMLInputElement>) => {
     const availableCategory = Object.keys(CATEGORY_LIMITS).find(cat => (imageCounts[cat] || 0) < CATEGORY_LIMITS[cat]);
