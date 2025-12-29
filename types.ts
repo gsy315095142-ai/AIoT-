@@ -217,7 +217,8 @@ export type ProcurementOrderItem = {
 
 export type ProcurementStepData = {
     images?: string[];
-    logisticsLink?: string;
+    logisticsLink?: string; // Legacy: Single string support
+    logisticsItems?: { id: string; name: string; url: string; }[]; // New: Multiple links
     completionTime?: string; // New field for step completion timestamp
 };
 

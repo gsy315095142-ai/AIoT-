@@ -1,4 +1,4 @@
-// 标记：本次更新移除了【客房复尺】页面的配置按钮；优化了【安装进度】中安装环节的交互，改为网格化客房展示及独立上传页
+// 标记：本次更新在【客房建档】列表页新增了复尺进度和安装进度的展示
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

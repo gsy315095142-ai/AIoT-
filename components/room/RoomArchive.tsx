@@ -501,32 +501,6 @@ export const RoomArchive: React.FC = () => {
                       </div>
                       
                       <div className="p-5 space-y-6 overflow-y-auto flex-1 bg-slate-50">
-                          {/* Room Type */}
-                          <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                              <label className="block text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-1"><Store size={12} /> 房型选择</label>
-                              <div className="grid grid-cols-2 gap-3">
-                                  {availableRoomTypes.map(rt => {
-                                      const isSelected = editingRoom.room.type === rt.name;
-                                      return (
-                                        <label key={rt.id} className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                                            isSelected 
-                                                ? 'border-blue-500 bg-blue-50 text-blue-700'
-                                                : 'border-slate-200 bg-white text-slate-500 hover:border-blue-200'
-                                        }`}>
-                                            <input 
-                                                type="radio" 
-                                                className="hidden" 
-                                                checked={isSelected} 
-                                                onChange={() => setEditingRoom({...editingRoom, room: {...editingRoom.room, type: rt.name}})} 
-                                            />
-                                            <BedDouble size={24} className="mb-1" />
-                                            <span className="text-xs font-bold">{rt.name}</span>
-                                        </label>
-                                      )
-                                  })}
-                              </div>
-                          </div>
-
                           {/* Room Modules - SHOWING INSTALLATION DATA ONLY IF APPROVED */}
                           <div className="space-y-4">
                               <label className="block text-xs font-bold text-slate-500 uppercase px-1">安装归档详情</label>
@@ -706,6 +680,20 @@ export const RoomArchive: React.FC = () => {
                 const regionName = regions.find(r => r.id === s.regionId)?.name || '未知大区';
                 const roomCount = s.rooms?.length || 0;
                 
+                // Calculate Progress
+                // Measurement
+                const measureConfigs = s.roomTypeConfigs || [];
+                const completedMeasureCount = measureConfigs.filter(config => {
+                    const approvedCount = config.measurements?.filter(m => m.status === 'approved').length || 0;
+                    return approvedCount >= ROOM_MODULES.length;
+                }).length;
+                const measureProgress = measureConfigs.length > 0 ? Math.round((completedMeasureCount / measureConfigs.length) * 100) : 0;
+
+                // Installation
+                const installNodes = s.installation?.nodes || [];
+                const completedInstallNodes = installNodes.filter(n => n.completed).length;
+                const installProgress = installNodes.length > 0 ? Math.round((completedInstallNodes / installNodes.length) * 100) : 0;
+                
                 return (
                     // 1.4 Store Item Layout (Click to Open Detail)
                     <div 
@@ -719,10 +707,19 @@ export const RoomArchive: React.FC = () => {
                     >
                         <div className="flex-1">
                             <h4 className="font-bold text-slate-800 text-sm mb-1 group-hover:text-blue-600 transition-colors">{s.name}</h4>
-                            <div className="flex items-center gap-2 text-xs text-slate-500">
+                            <div className="flex items-center gap-2 text-xs text-slate-500 mb-2">
                                 <span className="bg-slate-100 px-1.5 rounded">{regionName}</span>
                                 <span className="text-slate-300">|</span>
                                 <span className="flex items-center gap-1"><BedDouble size={12}/> {roomCount} 间客房</span>
+                            </div>
+                            
+                            <div className="flex gap-2">
+                                 <div className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded border border-indigo-100 font-bold">
+                                     房型复尺进度: {measureProgress}%
+                                 </div>
+                                 <div className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold">
+                                     安装进度: {installProgress}%
+                                 </div>
                             </div>
                         </div>
 

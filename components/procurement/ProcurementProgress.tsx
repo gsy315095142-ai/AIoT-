@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent, useMemo } from 'react';
-import { TrendingUp, Package, ChevronRight, CheckCircle, Truck, ClipboardList, Box, MapPin, X, ChevronLeft, Check, Upload, Link, Copy, Clipboard, FileText, Image as ImageIcon, ExternalLink, Calendar, AlertCircle } from 'lucide-react';
+import { TrendingUp, Package, ChevronRight, CheckCircle, Truck, ClipboardList, Box, MapPin, X, ChevronLeft, Check, Upload, Link, Copy, Clipboard, FileText, Image as ImageIcon, ExternalLink, Calendar, AlertCircle, Plus, Trash2, Edit2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ProcurementOrder } from '../../types';
 import { AuditGate } from '../DeviceComponents';
@@ -19,6 +19,9 @@ export const ProcurementProgress: React.FC = () => {
   // Audit State
   const [rejectMode, setRejectMode] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+
+  // Logistics Editing State
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
   // Constants
   const STEPS = [
@@ -43,6 +46,7 @@ export const ProcurementProgress: React.FC = () => {
       setViewingStep(order.status === 'pending_receive' ? 1 : Math.max(1, order.currentStep));
       setRejectMode(false);
       setRejectReason('');
+      setEditingItemId(null);
   };
 
   const handleConfirmReceive = (e: React.MouseEvent, orderId: string) => {
@@ -100,37 +104,70 @@ export const ProcurementProgress: React.FC = () => {
       setSelectedOrder({ ...selectedOrder, stepData: newStepData });
   };
 
-  const handleLogisticsLinkChange = (value: string) => {
+  // --- Logistics Handlers (Step 4) ---
+
+  const getLogisticsItems = () => {
+      if (!selectedOrder) return [];
+      const stepData = selectedOrder.stepData?.[4] || {};
+      // Backward compatibility: If legacy string exists and items array is empty, wrap it
+      if ((!stepData.logisticsItems || stepData.logisticsItems.length === 0) && stepData.logisticsLink) {
+          return [{ id: 'legacy', name: '物流链接', url: stepData.logisticsLink }];
+      }
+      return stepData.logisticsItems || [];
+  };
+
+  const updateLogisticsItems = (items: { id: string; name: string; url: string; }[]) => {
       if (!selectedOrder) return;
-      const stepId = 4;
-      const currentStepData = selectedOrder.stepData?.[stepId] || {};
-      
+      const currentStepData = selectedOrder.stepData?.[4] || {};
       const newStepData = {
           ...selectedOrder.stepData,
-          [stepId]: {
+          [4]: {
               ...currentStepData,
-              logisticsLink: value
+              logisticsItems: items,
+              // Keep legacy field synced with first item url if available, or clear it
+              logisticsLink: items.length > 0 ? items[0].url : ''
           }
       };
-
       updateProcurementOrder(selectedOrder.id, { stepData: newStepData });
       setSelectedOrder({ ...selectedOrder, stepData: newStepData });
   };
 
-  const handlePasteLogistics = async () => {
+  const handleAddLogisticsItem = () => {
+      const items = getLogisticsItems();
+      const newItem = { id: `log-${Date.now()}`, name: `物流单号 ${items.length + 1}`, url: '' };
+      updateLogisticsItems([...items, newItem]);
+      setEditingItemId(newItem.id); // Auto-enter edit mode
+  };
+
+  const handleUpdateLogisticsItem = (id: string, field: 'name' | 'url', value: string) => {
+      const items = getLogisticsItems().map(item => 
+          item.id === id ? { ...item, [field]: value } : item
+      );
+      updateLogisticsItems(items);
+  };
+
+  const handleRemoveLogisticsItem = (id: string) => {
+      const items = getLogisticsItems().filter(item => item.id !== id);
+      updateLogisticsItems(items);
+  };
+
+  const handlePasteUrl = async (itemId: string) => {
       try {
           const text = await navigator.clipboard.readText();
-          if (text) handleLogisticsLinkChange(text);
+          if (text) {
+              handleUpdateLogisticsItem(itemId, 'url', text);
+          }
       } catch (err) {
-          console.error('Failed to read clipboard contents: ', err);
-          alert('无法读取剪贴板内容，请手动输入');
+          // Fallback or ignore if permission denied
+          console.debug('Clipboard read failed', err);
       }
   };
 
-  const openLogisticsLink = () => {
-      if (selectedOrder?.stepData?.[4]?.logisticsLink) {
-          window.open(selectedOrder.stepData[4].logisticsLink, '_blank');
-      }
+  const handleOpenLink = (url: string) => {
+      if (!url) return;
+      // Basic check to prepend http if missing
+      const href = url.startsWith('http') ? url : `https://${url}`;
+      window.open(href, '_blank');
   };
 
   // --- Actions ---
@@ -182,8 +219,6 @@ export const ProcurementProgress: React.FC = () => {
           nextState.currentStep = selectedOrder.currentStep + 1;
       }
       
-      // If we are editing Step 5 (Signed) and audit was rejected, resetting completion time effectively allows re-submit (handled by UI logic)
-      
       updateProcurementOrder(currentOrderId, nextState);
       setSelectedOrder(prev => prev ? ({ ...prev, ...nextState }) : null);
       
@@ -229,7 +264,11 @@ export const ProcurementProgress: React.FC = () => {
             return stepData.images && stepData.images.length > 0;
         }
         if (viewingStep === 4) { // Logistics
-            return !!stepData.logisticsLink && stepData.logisticsLink.trim() !== '';
+            const items = stepData.logisticsItems || [];
+            // If legacy link exists and no items, consider it valid
+            if (items.length === 0 && stepData.logisticsLink) return true;
+            // Valid if there is at least one item with a URL
+            return items.length > 0 && items.some(i => i.url.trim() !== '');
         }
         if (viewingStep === 5) { // Signed
             return stepData.images && stepData.images.length > 0;
@@ -252,6 +291,9 @@ export const ProcurementProgress: React.FC = () => {
 
   // We allow editing always except strictly read-only views if any (requirement says editable)
   const isEditable = selectedOrder?.status !== 'pending_receive'; 
+
+  // Logistics Items Helper
+  const logisticsItems = useMemo(() => getLogisticsItems(), [selectedOrder]);
 
   return (
     <div className="h-full flex flex-col p-4 space-y-3">
@@ -548,45 +590,115 @@ export const ProcurementProgress: React.FC = () => {
                                  </div>
                              )}
 
-                             {/* Step 4: Logistics */}
+                             {/* Step 4: Logistics (Multiple Links Support) */}
                              {viewingStep === 4 && (
                                  <div className="space-y-4">
                                      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-1">
-                                             <Link size={12} /> 物流链接/单号
-                                         </label>
-                                         <div className="flex gap-2">
-                                             <input 
-                                                 type="text" 
-                                                 className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500"
-                                                 placeholder="输入或粘贴物流链接"
-                                                 value={selectedOrder.stepData?.[4]?.logisticsLink || ''}
-                                                 onChange={(e) => handleLogisticsLinkChange(e.target.value)}
-                                                 disabled={!isEditable}
-                                             />
+                                         <div className="flex justify-between items-center mb-3">
+                                             <label className="block text-xs font-bold text-slate-500 uppercase flex items-center gap-1">
+                                                 <Link size={12} /> 物流链接/单号
+                                             </label>
                                              {isEditable && (
                                                  <button 
-                                                     onClick={handlePasteLogistics}
-                                                     className="bg-slate-100 text-slate-600 px-3 py-2 rounded-lg font-bold text-xs hover:bg-slate-200 transition-colors flex items-center gap-1"
+                                                     onClick={handleAddLogisticsItem}
+                                                     className="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 flex items-center gap-1"
                                                  >
-                                                     <Clipboard size={14} /> 粘贴
+                                                     <Plus size={10} /> 添加物流
                                                  </button>
                                              )}
                                          </div>
-                                         {selectedOrder.stepData?.[4]?.logisticsLink && (
-                                             <div className="mt-2 flex items-center gap-2">
-                                                 <div className="flex-1 text-xs text-blue-600 bg-blue-50 p-2 rounded break-all">
-                                                     已录入: {selectedOrder.stepData[4].logisticsLink}
-                                                 </div>
-                                                 <button 
-                                                    onClick={openLogisticsLink}
-                                                    className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-                                                    title="跳转链接"
-                                                 >
-                                                     <ExternalLink size={14} />
-                                                 </button>
+                                         
+                                         {logisticsItems.length === 0 && (
+                                             <div className="text-center py-4 bg-slate-50 rounded-lg border border-dashed border-slate-200 text-xs text-slate-400">
+                                                 暂无物流信息
                                              </div>
                                          )}
+
+                                         <div className="space-y-3">
+                                             {logisticsItems.map((item, index) => {
+                                                 const isEditing = editingItemId === item.id;
+                                                 return (
+                                                     <div key={item.id} className="bg-slate-50 rounded-lg border border-slate-200 p-2 space-y-2">
+                                                         {isEditing ? (
+                                                             // Edit Mode
+                                                             <div className="space-y-2">
+                                                                 <div className="flex gap-2">
+                                                                     <div className="w-1/3">
+                                                                         <input 
+                                                                             type="text" 
+                                                                             placeholder="名称 (如: 顺丰)"
+                                                                             className="w-full text-xs border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:border-blue-500 bg-white"
+                                                                             value={item.name}
+                                                                             onChange={(e) => handleUpdateLogisticsItem(item.id, 'name', e.target.value)}
+                                                                             disabled={!isEditable}
+                                                                         />
+                                                                     </div>
+                                                                     <div className="flex-1 flex gap-1">
+                                                                         <input 
+                                                                             type="text" 
+                                                                             placeholder="物流链接或单号"
+                                                                             className="flex-1 text-xs border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:border-blue-500 bg-white"
+                                                                             value={item.url}
+                                                                             onChange={(e) => handleUpdateLogisticsItem(item.id, 'url', e.target.value)}
+                                                                             disabled={!isEditable}
+                                                                         />
+                                                                         <button 
+                                                                            onClick={() => handlePasteUrl(item.id)}
+                                                                            className="bg-white border border-slate-300 rounded px-2 text-slate-500 hover:text-blue-600 hover:border-blue-300 transition-colors"
+                                                                            title="粘贴"
+                                                                         >
+                                                                             <Clipboard size={14} />
+                                                                         </button>
+                                                                     </div>
+                                                                 </div>
+                                                                 <div className="flex justify-end">
+                                                                     <button 
+                                                                        onClick={() => setEditingItemId(null)}
+                                                                        className="text-[10px] bg-blue-600 text-white px-3 py-1 rounded flex items-center gap-1 font-bold hover:bg-blue-700 shadow-sm transition-colors"
+                                                                     >
+                                                                         <Check size={12} /> 完成
+                                                                     </button>
+                                                                 </div>
+                                                             </div>
+                                                         ) : (
+                                                             // Read Mode
+                                                             <div className="flex justify-between items-center px-1">
+                                                                 <div className="flex-1 min-w-0 pr-2">
+                                                                     <div className="text-xs font-bold text-slate-700">{item.name}</div>
+                                                                     <div className="text-[10px] text-slate-500 truncate">{item.url || '暂无链接/单号'}</div>
+                                                                 </div>
+                                                                 <div className="flex gap-2 shrink-0">
+                                                                     {item.url && (
+                                                                         <button 
+                                                                             onClick={() => handleOpenLink(item.url)}
+                                                                             className="text-[10px] text-blue-600 bg-white border border-blue-200 px-2 py-1 rounded hover:bg-blue-50 flex items-center gap-1"
+                                                                         >
+                                                                             <ExternalLink size={10} /> 跳转
+                                                                         </button>
+                                                                     )}
+                                                                     {isEditable && (
+                                                                         <>
+                                                                             <button 
+                                                                                 onClick={() => setEditingItemId(item.id)}
+                                                                                 className="text-[10px] text-slate-600 bg-white border border-slate-200 px-2 py-1 rounded hover:bg-slate-50 flex items-center gap-1"
+                                                                             >
+                                                                                 <Edit2 size={10} /> 编辑
+                                                                             </button>
+                                                                             <button 
+                                                                                 onClick={() => handleRemoveLogisticsItem(item.id)}
+                                                                                 className="text-[10px] text-red-500 bg-white border border-red-200 px-2 py-1 rounded hover:bg-red-50 flex items-center gap-1"
+                                                                             >
+                                                                                 <Trash2 size={10} /> 删除
+                                                                             </button>
+                                                                         </>
+                                                                     )}
+                                                                 </div>
+                                                             </div>
+                                                         )}
+                                                     </div>
+                                                 );
+                                             })}
+                                         </div>
                                      </div>
                                  </div>
                              )}
@@ -621,7 +733,7 @@ export const ProcurementProgress: React.FC = () => {
                                         <button onClick={() => setRejectMode(true)} className="w-full py-3 border border-red-200 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition-colors text-sm">驳回订单</button>
                                      </AuditGate>
                                      <AuditGate type="procurement" className="flex-1">
-                                        <button onClick={handleAuditApprove} className="w-full py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-sm transition-colors text-sm">审核通过</button>
+                                        <button onClick={handleAuditApprove} className="w-full py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-sm transition-colors text-sm">签收通过</button>
                                      </AuditGate>
                                  </div>
                              )}
