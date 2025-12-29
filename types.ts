@@ -39,6 +39,7 @@ export type RoomTypeConfig = {
   id: string;
   name: string;
   exampleImages?: Record<string, string>; // Maps RoomImageCategory to URL
+  exampleRequirements?: Record<string, string>; // Maps RoomImageCategory to Text Requirement
   
   // Moved from Room to RoomTypeConfig
   images?: RoomImage[]; // Actual Measurement Images for this Room Type

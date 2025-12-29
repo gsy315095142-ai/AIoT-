@@ -349,6 +349,7 @@ export const RoomMeasure: React.FC = () => {
                 MODULES.map(moduleName => {
                     const images = currentRoomTypeConfig.images?.filter(img => img.category === moduleName) || [];
                     const measurement = currentRoomTypeConfig.measurements?.find(m => m.category === moduleName);
+                    const requirement = currentRoomTypeConfig.exampleRequirements?.[moduleName];
                     const isEditing = editingCategory === moduleName;
                     const hasImages = images.length > 0;
                     const status = measurement?.status;
@@ -390,6 +391,16 @@ export const RoomMeasure: React.FC = () => {
                                     </button>
                                 </div>
                             </div>
+
+                            {/* Configured Requirement Display */}
+                            {requirement && (
+                                <div className="px-4 pt-3 pb-0">
+                                    <div className="bg-yellow-50 text-yellow-800 text-[10px] p-2 rounded border border-yellow-100 flex items-start gap-1">
+                                        <div className="font-bold shrink-0">需求:</div>
+                                        <div className="whitespace-pre-wrap">{requirement}</div>
+                                    </div>
+                                </div>
+                            )}
                             
                             {/* Part 1: Images */}
                             <div className="p-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 content-start">

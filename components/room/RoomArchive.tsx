@@ -307,6 +307,23 @@ export const RoomArchive: React.FC = () => {
       updateStore(activeStore.id, { roomTypeConfigs: updatedTypeConfigs });
   };
 
+  const handleConfigRequirementChange = (category: string, value: string) => {
+      if (!activeStore || !activeRoomTypeName) return;
+      const updatedTypeConfigs = activeStore.roomTypeConfigs.map(rt => {
+          if (rt.name === activeRoomTypeName) {
+              return {
+                  ...rt,
+                  exampleRequirements: {
+                      ...(rt.exampleRequirements || {}),
+                      [category]: value
+                  }
+              };
+          }
+          return rt;
+      });
+      updateStore(activeStore.id, { roomTypeConfigs: updatedTypeConfigs });
+  };
+
   // --- View Switching ---
 
   if (viewingStoreId && activeStore) {
@@ -400,38 +417,54 @@ export const RoomArchive: React.FC = () => {
                       </div>
                   </div>
 
-                  {/* Module 2: Example Images */}
+                  {/* Module 2: Example Images & Requirements */}
                   <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
                       <h3 className="text-xs font-bold text-slate-500 mb-3 flex items-center gap-1 uppercase">
                           <ImageIcon size={14} className="text-orange-500" /> 
-                          【示例图模块】
+                          【示例图与需求模块】
                       </h3>
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 gap-4">
                           {ROOM_MODULES.map(moduleName => {
                               const existingImage = currentRoomTypeConfig?.exampleImages?.[moduleName];
+                              const existingRequirement = currentRoomTypeConfig?.exampleRequirements?.[moduleName] || '';
+                              
                               return (
-                                  <div key={moduleName} className="flex flex-col gap-2">
-                                      <div className="text-[10px] font-bold text-slate-600 text-center">{moduleName}</div>
-                                      {existingImage ? (
-                                          <div className="aspect-square rounded-lg border border-slate-200 relative group overflow-hidden bg-slate-50">
-                                              <img src={existingImage} alt={`${moduleName} example`} className="w-full h-full object-cover" />
-                                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                                  <div className="relative cursor-pointer">
-                                                      <Edit2 size={16} className="text-white" />
-                                                      <input type="file" accept="image/*" onChange={(e) => handleConfigImageUpload(moduleName, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                  <div key={moduleName} className="flex gap-3 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                      {/* Image Config */}
+                                      <div className="w-20 shrink-0 flex flex-col gap-1">
+                                          {existingImage ? (
+                                              <div className="aspect-square rounded-lg border border-slate-200 relative group overflow-hidden bg-white">
+                                                  <img src={existingImage} alt={`${moduleName} example`} className="w-full h-full object-cover" />
+                                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                                      <div className="relative cursor-pointer">
+                                                          <Edit2 size={12} className="text-white" />
+                                                          <input type="file" accept="image/*" onChange={(e) => handleConfigImageUpload(moduleName, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                                      </div>
+                                                      <button onClick={() => removeConfigImage(moduleName)} className="text-white hover:text-red-400">
+                                                          <Trash2 size={12} />
+                                                      </button>
                                                   </div>
-                                                  <button onClick={() => removeConfigImage(moduleName)} className="text-white hover:text-red-400">
-                                                      <Trash2 size={16} />
-                                                  </button>
                                               </div>
-                                          </div>
-                                      ) : (
-                                          <div className="aspect-square border-2 border-dashed border-slate-200 rounded-lg flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer relative group">
-                                                  <input type="file" accept="image/*" onChange={(e) => handleConfigImageUpload(moduleName, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
-                                                  <Plus size={20} className="text-slate-300 group-hover:text-blue-400 mb-1" />
-                                                  <span className="text-[9px] text-slate-400 font-bold group-hover:text-blue-500">上传</span>
-                                          </div>
-                                      )}
+                                          ) : (
+                                              <div className="aspect-square border-2 border-dashed border-slate-200 rounded-lg flex flex-col items-center justify-center bg-white hover:bg-slate-100 transition-colors cursor-pointer relative group">
+                                                      <input type="file" accept="image/*" onChange={(e) => handleConfigImageUpload(moduleName, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                                      <Plus size={16} className="text-slate-300 group-hover:text-blue-400 mb-1" />
+                                                      <span className="text-[9px] text-slate-400 font-bold group-hover:text-blue-500">上传</span>
+                                              </div>
+                                          )}
+                                          <div className="text-[9px] font-bold text-slate-600 text-center truncate">{moduleName}</div>
+                                      </div>
+
+                                      {/* Requirement Config */}
+                                      <div className="flex-1 flex flex-col">
+                                          <label className="text-[9px] text-slate-400 font-bold uppercase mb-1">拍摄需求 / 备注</label>
+                                          <textarea 
+                                              className="flex-1 w-full bg-white border border-slate-200 rounded p-2 text-xs focus:outline-none focus:border-blue-300 focus:ring-1 focus:ring-blue-200 resize-none text-slate-700 placeholder-slate-300"
+                                              placeholder="请输入此模块的拍照或复尺需求..."
+                                              value={existingRequirement}
+                                              onChange={(e) => handleConfigRequirementChange(moduleName, e.target.value)}
+                                          />
+                                      </div>
                                   </div>
                               );
                           })}
