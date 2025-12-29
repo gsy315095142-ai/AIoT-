@@ -33,7 +33,16 @@ const MOCK_STORES: Store[] = [
     id: 's1', 
     regionId: 'r1', 
     name: '上海南京路店', 
-    roomTypeConfigs: JSON.parse(JSON.stringify(DEFAULT_ROOM_TYPES)),
+    // Special requirements for Shanghai Nanjing Road Store
+    roomTypeConfigs: DEFAULT_ROOM_TYPES.map(rt => ({
+        ...rt,
+        exampleRequirements: {
+            '地投环境': `进入房间，对着门拍一张照片
+1.玄关定位（标记距离门2m处天花板的位置）
+2.图片能看清玄关地板颜色/纹路（确保投影画面清晰）
+3.门两边宽度`
+        }
+    })),
     rooms: [
         { number: '2101', type: '普通房' },
         { number: '2102', type: '普通房' },

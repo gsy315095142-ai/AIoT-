@@ -1,4 +1,4 @@
-// 标记：本次更新在【客房建档】增加了【清单参数】配置，并在【客房复尺】中强制校验：清单参数未录入完成时无法提交初审
+// 标记：本次更新在【客房建档】的【上海南京路店】的【地投环境】模块增加了默认需求文案
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
