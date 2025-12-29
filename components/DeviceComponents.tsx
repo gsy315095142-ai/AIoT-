@@ -679,10 +679,24 @@ export const DeviceDetailCard: React.FC<DeviceDetailCardProps> = ({ device, onEd
                             <div className="space-y-1">
                                 <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">SN码</span><div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0"><EditableField value={device.sn} type="text" onSave={(val) => handleFieldUpdate('sn', val)} className="flex-1 min-w-0" /></div></div>
                                 <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">MAC</span><div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0"><EditableField value={device.mac || ''} type="text" onSave={(val) => handleFieldUpdate('mac', val)} className="flex-1 min-w-0" /></div></div>
-                                <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">类型</span><div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0"><EditableField value={device.typeId} displayValue={getTypeName(device.typeId)} type="select" options={typeOptions} onSave={(val) => handleFieldUpdate('typeId', val)} className="flex-1 min-w-0" /></div></div>
-                                {detailSubTypeOptions && (
-                                    <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">子类型</span><div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0"><EditableField value={device.subType || ''} type="select" options={detailSubTypeOptions} onSave={(val) => handleFieldUpdate('subType', val)} className="flex-1 min-w-0" /></div></div>
-                                )}
+                                
+                                {/* Merged Type and Sub-type */}
+                                <div className="flex text-[10px] items-center gap-2">
+                                    <div className="flex-1 flex items-center min-w-0">
+                                        <span className="text-slate-500 w-8 flex-shrink-0">类型</span>
+                                        <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0">
+                                            <EditableField value={device.typeId} displayValue={getTypeName(device.typeId)} type="select" options={typeOptions} onSave={(val) => handleFieldUpdate('typeId', val)} className="flex-1 min-w-0" />
+                                        </div>
+                                    </div>
+                                    {detailSubTypeOptions && (
+                                        <div className="flex-1 flex items-center min-w-0">
+                                            <span className="text-slate-500 w-10 flex-shrink-0 text-right pr-1">子类型</span>
+                                            <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0">
+                                                <EditableField value={device.subType || ''} type="select" options={detailSubTypeOptions} onSave={(val) => handleFieldUpdate('subType', val)} className="flex-1 min-w-0" />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
@@ -755,10 +769,36 @@ export const DeviceDetailCard: React.FC<DeviceDetailCardProps> = ({ device, onEd
                         <div className="bg-blue-50 p-2 rounded-lg border border-blue-100">
                             <h4 className="text-[10px] font-bold text-blue-800 mb-2 flex items-center gap-1"><MapPin size={10} /> 安装信息</h4>
                             <div className="space-y-1.5">
-                                <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">门店</span><div className="flex-1 flex justify-between items-center border border-blue-200 rounded px-1 py-0.5 bg-white min-w-0"><EditableField value={device.storeId} displayValue={getStoreName(device.storeId)} type="select" options={storeOptions} onSave={(val) => handleFieldUpdate('storeId', val)} className="flex-1 min-w-0" /></div></div>
-                                <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">房间</span><div className="flex-1 flex justify-between items-center border border-blue-200 rounded px-1 py-0.5 bg-white min-w-0"><EditableField value={device.roomNumber || ''} type="text" onSave={(val) => handleFieldUpdate('roomNumber', val)} className="flex-1 min-w-0" /></div></div>
-                                <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">软件</span><div className="flex-1 flex justify-between items-center border border-blue-200 rounded px-1 py-0.5 bg-white min-w-0"><EditableField value={device.softwareName || ''} type="text" onSave={(val) => handleFieldUpdate('softwareName', val)} className="flex-1 min-w-0" /></div></div>
-                                <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">首次启动</span><div className="flex-1 flex justify-between items-center border border-blue-200 rounded px-1 py-0.5 bg-white min-w-0"><EditableField value={toInputDate(device.firstStartTime)} displayValue={device.firstStartTime} type="datetime-local" onSave={(val) => handleFieldUpdate('firstStartTime', val)} className="flex-1 min-w-0" /></div></div>
+                                {/* Merged Store and Room */}
+                                <div className="flex gap-2">
+                                    <div className="flex-1 flex text-[10px] items-center min-w-0">
+                                        <span className="text-slate-500 w-8 flex-shrink-0">门店</span>
+                                        <div className="flex-1 flex justify-between items-center border border-blue-200 rounded px-1 py-0.5 bg-white min-w-0">
+                                            <EditableField value={device.storeId} displayValue={getStoreName(device.storeId)} type="select" options={storeOptions} onSave={(val) => handleFieldUpdate('storeId', val)} className="flex-1 min-w-0" />
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 flex text-[10px] items-center min-w-0">
+                                        <span className="text-slate-500 w-8 flex-shrink-0 text-right pr-1">房间</span>
+                                        <div className="flex-1 flex justify-between items-center border border-blue-200 rounded px-1 py-0.5 bg-white min-w-0">
+                                            <EditableField value={device.roomNumber || ''} type="text" onSave={(val) => handleFieldUpdate('roomNumber', val)} className="flex-1 min-w-0" />
+                                        </div>
+                                    </div>
+                                </div>
+                                {/* Merged Software and First Start */}
+                                <div className="flex gap-2">
+                                    <div className="flex-1 flex text-[10px] items-center min-w-0">
+                                        <span className="text-slate-500 w-8 flex-shrink-0">软件</span>
+                                        <div className="flex-1 flex justify-between items-center border border-blue-200 rounded px-1 py-0.5 bg-white min-w-0">
+                                            <EditableField value={device.softwareName || ''} type="text" onSave={(val) => handleFieldUpdate('softwareName', val)} className="flex-1 min-w-0" />
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 flex text-[10px] items-center min-w-0">
+                                        <span className="text-slate-500 w-8 flex-shrink-0 text-right pr-1">启动</span>
+                                        <div className="flex-1 flex justify-between items-center border border-blue-200 rounded px-1 py-0.5 bg-white min-w-0">
+                                            <EditableField value={toInputDate(device.firstStartTime)} displayValue={device.firstStartTime} type="datetime-local" onSave={(val) => handleFieldUpdate('firstStartTime', val)} className="flex-1 min-w-0" />
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
