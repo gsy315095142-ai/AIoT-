@@ -1,12 +1,15 @@
 import React, { useState, ChangeEvent, useMemo } from 'react';
-import { TrendingUp, Package, ChevronRight, CheckCircle, Truck, ClipboardList, Box, MapPin, X, ChevronLeft, Check, Upload, Link, Copy, Clipboard, FileText, Image as ImageIcon, ExternalLink, Calendar, AlertCircle, Plus, Trash2, Edit2 } from 'lucide-react';
+import { TrendingUp, Package, ChevronRight, CheckCircle, Truck, ClipboardList, Box, MapPin, X, ChevronLeft, Check, Upload, Link, Copy, Clipboard, FileText, Image as ImageIcon, ExternalLink, Calendar, AlertCircle, Plus, Trash2, Edit2, Store, ChevronDown } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ProcurementOrder } from '../../types';
 import { AuditGate } from '../DeviceComponents';
 
 export const ProcurementProgress: React.FC = () => {
-  const { procurementOrders, updateProcurementOrder } = useApp();
+  const { procurementOrders, updateProcurementOrder, regions, stores } = useApp();
   
+  // State for Filters
+  const [regionFilter, setRegionFilter] = useState('');
+
   // State for Detail Modal
   const [selectedOrder, setSelectedOrder] = useState<ProcurementOrder | null>(null);
   
@@ -38,6 +41,17 @@ export const ProcurementProgress: React.FC = () => {
       3: 'https://images.unsplash.com/photo-1586864387967-d02ef85d93e8?q=80&w=600&auto=format&fit=crop', // Packing
       5: 'https://images.unsplash.com/photo-1623126908029-58cb08a2b272?q=80&w=600&auto=format&fit=crop'  // Signed
   };
+
+  // Filter Logic
+  const filteredOrders = useMemo(() => {
+      return procurementOrders.filter(order => {
+          if (regionFilter) {
+              const store = stores.find(s => s.id === order.storeId);
+              if (store?.regionId !== regionFilter) return false;
+          }
+          return true;
+      });
+  }, [procurementOrders, regionFilter, stores]);
 
   // Helpers
   const openDetail = (order: ProcurementOrder) => {
@@ -296,105 +310,126 @@ export const ProcurementProgress: React.FC = () => {
   const logisticsItems = useMemo(() => getLogisticsItems(), [selectedOrder]);
 
   return (
-    <div className="h-full flex flex-col p-4 space-y-3">
-        {procurementOrders.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                <TrendingUp size={48} className="mb-4 opacity-20" />
-                <p className="text-sm font-medium">暂无采购订单</p>
-                <p className="text-xs opacity-60 mt-1">请先在「内部下单」模块提交订单</p>
-            </div>
-        )}
-
-        {procurementOrders.map(order => {
-            const isPending = order.status === 'pending_receive';
-            const isCompleted = order.status === 'completed'; // Means Audit Approved
-            const isAuditPending = order.auditStatus === 'pending';
-            const isAuditRejected = order.auditStatus === 'rejected';
-            
-            let currentStepLabel = isPending ? '待接收' : getStepLabel(order.currentStep);
-            if (isCompleted) currentStepLabel = '已完成';
-            else if (isAuditPending) currentStepLabel = '待审核';
-            else if (isAuditRejected) currentStepLabel = '已驳回';
-
-            return (
-                <div 
-                    key={order.id} 
-                    onClick={() => openDetail(order)}
-                    className={`bg-white rounded-xl shadow-sm border p-4 cursor-pointer hover:shadow-md transition-all relative overflow-hidden group 
-                        ${isAuditRejected ? 'border-red-200' : isCompleted ? 'border-green-200' : 'border-slate-100'}
-                    `}
+    <div className="h-full flex flex-col relative">
+        {/* Header / Filter - Fixed at Top */}
+        <div className="bg-white p-4 shrink-0 shadow-sm border-b border-slate-100 z-10">
+            <h3 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-1">
+                <Store size={12} /> 大区筛选
+            </h3>
+            <div className="relative">
+                <select 
+                    className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={regionFilter}
+                    onChange={(e) => setRegionFilter(e.target.value)}
                 >
-                    <div className="flex justify-between items-start mb-2">
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <h4 className="font-bold text-slate-800 text-sm">{order.storeName}</h4>
-                                <span className="text-[10px] text-slate-400">{order.createTime.split(' ')[0]}</span>
-                            </div>
-                            <div className="text-xs text-slate-500 mt-0.5">
-                                共 {order.items.reduce((sum, item) => sum + item.quantity, 0)} 件商品
-                            </div>
-                            
-                            <div className="mt-1.5 space-y-1">
-                                {order.expectDeliveryDate && (
-                                    <div className="text-[10px] text-slate-500 flex items-center gap-1">
-                                        <Calendar size={10} className="text-blue-500" />
-                                        期望交货: <span className="font-bold text-slate-700">{order.expectDeliveryDate}</span>
-                                    </div>
-                                )}
-                                {order.remark && (
-                                    <div className="text-[10px] text-slate-500 bg-slate-50 px-2 py-1 rounded flex items-start gap-1">
-                                        <FileText size={10} className="mt-0.5 shrink-0 text-slate-400" />
-                                        <span className="line-clamp-1">{order.remark}</span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                        <div className="text-right">
-                             <div className="font-bold text-orange-600 text-sm">¥ {order.totalPrice.toLocaleString()}</div>
-                             <div className="mt-1 text-right">
-                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
-                                     isPending ? 'bg-slate-50 text-slate-500 border-slate-200' :
-                                     isCompleted ? 'bg-green-50 text-green-600 border-green-200' :
-                                     isAuditPending ? 'bg-orange-50 text-orange-600 border-orange-200' :
-                                     isAuditRejected ? 'bg-red-50 text-red-600 border-red-200' :
-                                     'bg-blue-50 text-blue-600 border-blue-200'
-                                 }`}>
-                                     当前: {currentStepLabel}
-                                 </span>
-                             </div>
-                        </div>
-                    </div>
+                    <option value="">全部大区</option>
+                    {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+            </div>
+        </div>
 
-                    {/* Pending Action */}
-                    {isPending ? (
-                        <div className="mt-3 pt-3 border-t border-slate-50 flex justify-end">
-                             <button 
-                                onClick={(e) => handleConfirmReceive(e, order.id)}
-                                className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1 animate-pulse"
-                             >
-                                <CheckCircle size={14} /> 确认接收
-                             </button>
-                        </div>
-                    ) : (
-                        <div className="mt-3 pt-3 border-t border-slate-50">
-                            {/* Simple Progress Bar for List View */}
-                            <div className="flex items-center gap-1">
-                                {STEPS.map((step) => (
-                                    <div key={step.id} className={`h-1.5 flex-1 rounded-full ${
-                                        order.currentStep > step.id || isCompleted ? 'bg-green-500' : 
-                                        order.currentStep === step.id ? (isAuditRejected ? 'bg-red-500' : isAuditPending ? 'bg-orange-500' : 'bg-blue-500') : 'bg-slate-100'
-                                    }`}></div>
-                                ))}
-                            </div>
-                            <div className="flex justify-between items-center mt-1 text-[10px] text-slate-400">
-                                <span>确认订单</span>
-                                <span>签收</span>
-                            </div>
-                        </div>
-                    )}
+        {/* Orders List */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {filteredOrders.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                    <TrendingUp size={48} className="mb-4 opacity-20" />
+                    <p className="text-sm font-medium">暂无采购订单</p>
+                    <p className="text-xs opacity-60 mt-1">请先在「内部下单」模块提交订单</p>
                 </div>
-            );
-        })}
+            )}
+
+            {filteredOrders.map(order => {
+                const isPending = order.status === 'pending_receive';
+                const isCompleted = order.status === 'completed'; // Means Audit Approved
+                const isAuditPending = order.auditStatus === 'pending';
+                const isAuditRejected = order.auditStatus === 'rejected';
+                
+                let currentStepLabel = isPending ? '待接收' : getStepLabel(order.currentStep);
+                if (isCompleted) currentStepLabel = '已完成';
+                else if (isAuditPending) currentStepLabel = '待审核';
+                else if (isAuditRejected) currentStepLabel = '已驳回';
+
+                return (
+                    <div 
+                        key={order.id} 
+                        onClick={() => openDetail(order)}
+                        className={`bg-white rounded-xl shadow-sm border p-4 cursor-pointer hover:shadow-md transition-all relative overflow-hidden group 
+                            ${isAuditRejected ? 'border-red-200' : isCompleted ? 'border-green-200' : 'border-slate-100'}
+                        `}
+                    >
+                        <div className="flex justify-between items-start mb-2">
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <h4 className="font-bold text-slate-800 text-sm">{order.storeName}</h4>
+                                    <span className="text-[10px] text-slate-400">{order.createTime.split(' ')[0]}</span>
+                                </div>
+                                <div className="text-xs text-slate-500 mt-0.5">
+                                    共 {order.items.reduce((sum, item) => sum + item.quantity, 0)} 件商品
+                                </div>
+                                
+                                <div className="mt-1.5 space-y-1">
+                                    {order.expectDeliveryDate && (
+                                        <div className="text-[10px] text-slate-500 flex items-center gap-1">
+                                            <Calendar size={10} className="text-blue-500" />
+                                            期望交货: <span className="font-bold text-slate-700">{order.expectDeliveryDate}</span>
+                                        </div>
+                                    )}
+                                    {order.remark && (
+                                        <div className="text-[10px] text-slate-500 bg-slate-50 px-2 py-1 rounded flex items-start gap-1">
+                                            <FileText size={10} className="mt-0.5 shrink-0 text-slate-400" />
+                                            <span className="line-clamp-1">{order.remark}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                 <div className="font-bold text-orange-600 text-sm">¥ {order.totalPrice.toLocaleString()}</div>
+                                 <div className="mt-1 text-right">
+                                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                                         isPending ? 'bg-slate-50 text-slate-500 border-slate-200' :
+                                         isCompleted ? 'bg-green-50 text-green-600 border-green-200' :
+                                         isAuditPending ? 'bg-orange-50 text-orange-600 border-orange-200' :
+                                         isAuditRejected ? 'bg-red-50 text-red-600 border-red-200' :
+                                         'bg-blue-50 text-blue-600 border-blue-200'
+                                     }`}>
+                                         当前: {currentStepLabel}
+                                     </span>
+                                 </div>
+                            </div>
+                        </div>
+
+                        {/* Pending Action */}
+                        {isPending ? (
+                            <div className="mt-3 pt-3 border-t border-slate-50 flex justify-end">
+                                 <button 
+                                    onClick={(e) => handleConfirmReceive(e, order.id)}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1 animate-pulse"
+                                 >
+                                    <CheckCircle size={14} /> 确认接收
+                                 </button>
+                            </div>
+                        ) : (
+                            <div className="mt-3 pt-3 border-t border-slate-50">
+                                {/* Simple Progress Bar for List View */}
+                                <div className="flex items-center gap-1">
+                                    {STEPS.map((step) => (
+                                        <div key={step.id} className={`h-1.5 flex-1 rounded-full ${
+                                            order.currentStep > step.id || isCompleted ? 'bg-green-500' : 
+                                            order.currentStep === step.id ? (isAuditRejected ? 'bg-red-500' : isAuditPending ? 'bg-orange-500' : 'bg-blue-500') : 'bg-slate-100'
+                                        }`}></div>
+                                    ))}
+                                </div>
+                                <div className="flex justify-between items-center mt-1 text-[10px] text-slate-400">
+                                    <span>确认订单</span>
+                                    <span>签收</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
+        </div>
 
         {/* Full Page Detail Modal */}
         {selectedOrder && (
@@ -828,9 +863,7 @@ export const ProcurementProgress: React.FC = () => {
                             <X size={16} className="text-slate-500"/>
                         </button>
                     </div>
-                    <div className="bg-black rounded-b-lg overflow-hidden w-full border-t border-slate-100">
-                         <img src={exampleImage.url} alt="Example" className="w-full max-h-[70vh] object-contain" />
-                    </div>
+                    <div className="bg-black rounded-b-lg overflow-hidden w-full border-t border-slate-100"><img src={exampleImage.url} alt="Example" className="w-full max-h-[70vh] object-contain" /></div>
                 </div>
             </div>
         )}

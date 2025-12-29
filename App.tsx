@@ -1,4 +1,4 @@
-// 标记：本次更新优化了设备列表UI：【状态】模块类型与子类型合并显示，【巡检】模块安装信息（门店/房间、软件/时间）合并显示
+// 标记：本次更新优化了【客房安装】去掉门店筛选，【采购进度】增加大区筛选，【货物建档】搜索栏独立一行
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

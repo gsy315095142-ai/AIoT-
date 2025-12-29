@@ -37,7 +37,6 @@ export const RoomInstall: React.FC = () => {
   const { regions, stores, updateStoreInstallation } = useApp();
   
   const [selectedRegion, setSelectedRegion] = useState('');
-  const [selectedStoreId, setSelectedStoreId] = useState('');
   
   // Modals & Active State
   const [activeStore, setActiveStore] = useState<StoreType | null>(null);
@@ -68,7 +67,6 @@ export const RoomInstall: React.FC = () => {
   // Filter Logic
   const filteredStores = stores.filter(s => {
       if (selectedRegion && s.regionId !== selectedRegion) return false;
-      if (selectedStoreId && s.id !== selectedStoreId) return false;
       return true;
   });
 
@@ -517,29 +515,16 @@ export const RoomInstall: React.FC = () => {
             <h3 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-1">
                 <Store size={12} /> 安装筛选
             </h3>
-            <div className="grid grid-cols-2 gap-3">
-                <div className="relative">
-                    <select 
-                        className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={selectedRegion}
-                        onChange={(e) => { setSelectedRegion(e.target.value); setSelectedStoreId(''); }}
-                    >
-                        <option value="">全部大区</option>
-                        {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
-                </div>
-                <div className="relative">
-                    <select 
-                        className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={selectedStoreId}
-                        onChange={(e) => setSelectedStoreId(e.target.value)}
-                    >
-                        <option value="">全部门店</option>
-                        {filteredStores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
-                </div>
+            <div className="relative">
+                <select 
+                    className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={selectedRegion}
+                    onChange={(e) => setSelectedRegion(e.target.value)}
+                >
+                    <option value="">全部大区</option>
+                    {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
             </div>
         </div>
 

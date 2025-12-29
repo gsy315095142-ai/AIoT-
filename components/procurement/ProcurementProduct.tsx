@@ -123,31 +123,33 @@ export const ProcurementProduct: React.FC = () => {
             </div>
 
             {/* Filter Bar */}
-            <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 mb-2 grid grid-cols-2 gap-3 md:grid-cols-4">
-                <div className="relative">
-                    <select 
-                        className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={filterType}
-                        onChange={(e) => { setFilterType(e.target.value); setFilterSubType(''); }}
-                    >
-                        <option value="">全部类型</option>
-                        {PRODUCT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+            <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 mb-2 flex flex-col gap-3">
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="relative">
+                        <select 
+                            className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            value={filterType}
+                            onChange={(e) => { setFilterType(e.target.value); setFilterSubType(''); }}
+                        >
+                            <option value="">全部类型</option>
+                            {PRODUCT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                    </div>
+                    <div className="relative">
+                        <select 
+                            className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                            value={filterSubType}
+                            onChange={(e) => setFilterSubType(e.target.value)}
+                            disabled={!filterType && false}
+                        >
+                            <option value="">全部子类</option>
+                            {getSubTypes(filterType).map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                    </div>
                 </div>
                 <div className="relative">
-                    <select 
-                        className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                        value={filterSubType}
-                        onChange={(e) => setFilterSubType(e.target.value)}
-                        disabled={!filterType && false}
-                    >
-                        <option value="">全部子类</option>
-                        {getSubTypes(filterType).map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
-                </div>
-                <div className="relative col-span-2 md:col-span-2">
                     <input 
                         type="text" 
                         placeholder="搜索货物名称..."
