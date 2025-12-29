@@ -1,4 +1,4 @@
-import React, { useState, ChangeEvent, useMemo } from 'react';
+import React, { useState, ChangeEvent, useMemo, useRef } from 'react';
 import { Hammer, Store, ChevronDown, Clock, CheckCircle, Upload, X, Calendar, ClipboardList, AlertCircle, ArrowRight, Gavel, BedDouble, Info, Image as ImageIcon, MapPin, ChevronLeft, ChevronRight, Navigation, Plus, Check, RefreshCw, PlayCircle, Video, ChevronUp, Wifi, FileText } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Store as StoreType, InstallNode, InstallStatus, RoomImageCategory } from '../../types';
@@ -46,6 +46,8 @@ export const RoomInstall: React.FC = () => {
 
   // Example Image State
   const [exampleImage, setExampleImage] = useState<{ title: string; url: string } | null>(null);
+  
+  const appointmentInputRef = useRef<HTMLInputElement>(null);
 
   // Filter Logic
   const filteredStores = stores.filter(s => {
@@ -104,7 +106,27 @@ export const RoomInstall: React.FC = () => {
 
   // Actions
   const handleOpenDetail = (store: StoreType) => {
-      setActiveStore(store);
+      // Check if appointment date is empty, if so, set default to today
+      let initialNodes = store.installation?.nodes || [];
+      let updatedStore = store;
+
+      if (initialNodes.length > 0 && !initialNodes[0].data) {
+          const now = new Date();
+          now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+          const defaultTime = now.toISOString().slice(0, 16);
+          
+          const newNodes = [...initialNodes];
+          newNodes[0] = { ...newNodes[0], data: defaultTime };
+          
+          updatedStore = {
+              ...store,
+              installation: { ...store.installation!, nodes: newNodes, appointmentTime: defaultTime }
+          };
+          // Persist default immediately so it shows in list view too if needed
+          updateStoreInstallation(store.id, { nodes: newNodes, appointmentTime: defaultTime });
+      }
+
+      setActiveStore(updatedStore);
       setIsDetailModalOpen(true);
       setRejectMode(false);
       setRejectReason('');
@@ -112,9 +134,9 @@ export const RoomInstall: React.FC = () => {
       setInstallingRoomNumber(null);
       
       // Default to the first incomplete step, or the last step if all complete
-      if (store.installation?.nodes) {
-          const firstIncomplete = store.installation.nodes.findIndex(n => !n.completed);
-          setCurrentStepIndex(firstIncomplete !== -1 ? firstIncomplete : store.installation.nodes.length - 1);
+      if (updatedStore.installation?.nodes) {
+          const firstIncomplete = updatedStore.installation.nodes.findIndex(n => !n.completed);
+          setCurrentStepIndex(firstIncomplete !== -1 ? firstIncomplete : updatedStore.installation.nodes.length - 1);
       } else {
           setCurrentStepIndex(0);
       }
@@ -669,14 +691,35 @@ export const RoomInstall: React.FC = () => {
                             {/* Node 0: Appointment */}
                             {currentStepIndex === 0 && (
                                 <div className="space-y-4">
-                                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                                        <label className="block text-xs font-bold text-blue-800 uppercase mb-2">预约安装时间</label>
+                                    <div 
+                                        className="bg-blue-50 p-4 rounded-xl border border-blue-100 cursor-pointer"
+                                        onClick={() => {
+                                            try {
+                                                if (appointmentInputRef.current) {
+                                                    appointmentInputRef.current.showPicker();
+                                                }
+                                            } catch (error) {
+                                                appointmentInputRef.current?.focus();
+                                            }
+                                        }}
+                                    >
+                                        <label className="block text-xs font-bold text-blue-800 uppercase mb-2 pointer-events-none">预约安装时间</label>
                                         <input 
+                                            ref={appointmentInputRef}
                                             type="datetime-local" 
                                             value={currentNode.data || ''}
                                             onChange={handleTimeChange}
                                             disabled={isLocked}
-                                            className="w-full text-sm border border-blue-200 rounded-lg p-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                                            className="w-full text-sm border border-blue-200 rounded-lg p-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 caret-transparent cursor-pointer"
+                                            onKeyDown={(e) => e.preventDefault()}
+                                            onClick={(e) => { 
+                                                e.stopPropagation();
+                                                try {
+                                                    (e.target as HTMLInputElement).showPicker();
+                                                } catch (error) {
+                                                    // Ignore if not supported
+                                                }
+                                            }} 
                                         />
                                     </div>
                                     <p className="text-xs text-slate-400 text-center">请与客户沟通确认上门安装的具体时间。</p>

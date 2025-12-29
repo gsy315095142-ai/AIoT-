@@ -1,4 +1,4 @@
-// 标记：本次更新在【客房建档】列表页新增了复尺进度和安装进度的展示
+// 标记：本次更新修复了【内部下单】和【客房安装】的时间选择交互，增加了默认“今天”的初始值，并修复了点击无法弹窗的问题
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

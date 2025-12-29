@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { ShoppingBag, ChevronDown, Package, Plus, Minus, Search, Check, X, ListFilter, CheckCircle, Store, ArrowLeft, TrendingUp, Box, Calendar } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ProductType, ProductSubType, Product, ProcurementOrder as OrderType } from '../../types';
@@ -23,7 +23,17 @@ export const ProcurementOrder: React.FC = () => {
   // Checkout Modal
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [remark, setRemark] = useState('');
-  const [deliveryDate, setDeliveryDate] = useState('');
+  
+  // Default date to today's local date YYYY-MM-DD
+  const [deliveryDate, setDeliveryDate] = useState(() => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+  });
+  
+  const deliveryInputRef = useRef<HTMLInputElement>(null);
 
   // Toast State
   const [showSuccess, setShowSuccess] = useState(false);
@@ -142,7 +152,13 @@ export const ProcurementOrder: React.FC = () => {
       setCart({});
       setSelectedStoreId('');
       setRemark('');
-      setDeliveryDate('');
+      // Reset Date to Today
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      setDeliveryDate(`${year}-${month}-${day}`);
+      
       setIsCheckoutOpen(false);
       setViewMode('storeList');
       
@@ -450,14 +466,33 @@ export const ProcurementOrder: React.FC = () => {
                              </div>
                          </div>
 
-                         <div>
-                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">期望交货时间</label>
+                         <div 
+                            className="cursor-pointer"
+                            onClick={() => {
+                                try {
+                                    if (deliveryInputRef.current) deliveryInputRef.current.showPicker();
+                                } catch (error) {
+                                    deliveryInputRef.current?.focus();
+                                }
+                            }}
+                         >
+                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1 pointer-events-none">期望交货时间</label>
                              <div className="relative">
                                  <input 
+                                    ref={deliveryInputRef}
                                     type="date"
-                                    className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none pl-8"
+                                    className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none pl-8 caret-transparent cursor-pointer"
                                     value={deliveryDate}
                                     onChange={e => setDeliveryDate(e.target.value)}
+                                    onKeyDown={(e) => e.preventDefault()}
+                                    onClick={(e) => { 
+                                        e.stopPropagation();
+                                        try {
+                                            (e.target as HTMLInputElement).showPicker();
+                                        } catch (error) {
+                                            // Ignore if not supported
+                                        }
+                                    }} 
                                  />
                                  <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
                              </div>
