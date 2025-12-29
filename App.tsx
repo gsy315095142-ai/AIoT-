@@ -1,4 +1,4 @@
-// 标记：本次更新优化了设备管理页面的日志显示逻辑，在设备列表的【巡检】模块，日志中不再显示设备状态变更的内容
+// 标记：本次更新优化了设备列表的显示样式，当设备处于【待审核】状态时，调整了状态标签的显示样式
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

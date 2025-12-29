@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { useDeviceLogic } from '../hooks/useDeviceLogic';
 import { DeviceStatus, OpsStatus, AuditStatus, AuditType, Device, Store as StoreModel } from '../types';
@@ -529,18 +528,13 @@ const DeviceList: React.FC = () => {
                                     <div className="w-12 text-center text-[10px] font-bold opacity-90">{STATUS_MAP[device.status]}</div>
                                     <div className="w-16 text-right text-[10px] font-bold flex flex-col items-end justify-center leading-tight">
                                         <span className="truncate">{device.opsStatus}</span>
+                                        {isPending && <span className="text-[8px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded mt-0.5 border border-red-200 animate-pulse">待审核</span>}
                                     </div>
                                     <div className="ml-1 opacity-50 flex-shrink-0">
                                         {isDetailExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                                     </div>
                                 </div>
                                 
-                                {isPending && (
-                                    <div className="bg-red-50 text-red-600 text-[9px] px-2 py-0.5 text-right font-bold border-t border-red-100">
-                                        待审核
-                                    </div>
-                                )}
-
                                 {/* Expanded Device Detail */}
                                 {isDetailExpanded && (
                                     <div className="p-2 bg-white border-t border-slate-100">
