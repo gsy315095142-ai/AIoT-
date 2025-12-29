@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent } from 'react';
-import { Ruler, Store, ChevronDown, Plus, X, Upload, ClipboardList, Edit3, Check, Save, Filter, BedDouble, HelpCircle, Image as ImageIcon, Send, AlertCircle, CheckCircle, ArrowRight, ArrowLeft, Settings } from 'lucide-react';
+import { Ruler, Store, ChevronDown, Plus, X, Upload, ClipboardList, Edit3, Check, Save, Filter, BedDouble, HelpCircle, Image as ImageIcon, Send, AlertCircle, CheckCircle, ArrowRight, ArrowLeft, Settings, ListChecks } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { RoomImageCategory, RoomImage, RoomMeasurement, MeasurementType, RoomMeasurementStatus, RoomTypeConfig } from '../../types';
 import { AuditGate } from '../DeviceComponents';
@@ -39,9 +39,10 @@ export const RoomMeasure: React.FC = () => {
 
   // Editing state
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<{ type: MeasurementType; remark: string }>({
+  const [editForm, setEditForm] = useState<{ type: MeasurementType; remark: string; checklistValues: Record<string, string | boolean> }>({
     type: '正常安装',
-    remark: ''
+    remark: '',
+    checklistValues: {}
   });
 
   // Rejection State
@@ -117,14 +118,24 @@ export const RoomMeasure: React.FC = () => {
   const startEditing = (category: RoomImageCategory, existing?: RoomMeasurement) => {
     setEditingCategory(category);
     if (existing) {
-        setEditForm({ type: existing.type, remark: existing.remark });
+        setEditForm({ type: existing.type, remark: existing.remark, checklistValues: existing.checklistValues || {} });
     } else {
-        setEditForm({ type: '正常安装', remark: '' });
+        setEditForm({ type: '正常安装', remark: '', checklistValues: {} });
     }
   };
 
   const cancelEditing = () => {
     setEditingCategory(null);
+  };
+
+  const updateChecklistValue = (paramId: string, value: string | boolean) => {
+      setEditForm(prev => ({
+          ...prev,
+          checklistValues: {
+              ...prev.checklistValues,
+              [paramId]: value
+          }
+      }));
   };
 
   const saveMeasurement = (category: RoomImageCategory, currentStatus?: RoomMeasurementStatus) => {
@@ -134,6 +145,7 @@ export const RoomMeasure: React.FC = () => {
           category,
           type: editForm.type,
           remark: editForm.remark,
+          checklistValues: editForm.checklistValues,
           status: currentStatus, // Keep existing status if just editing text
           rejectReason: currentStatus === 'rejected' ? currentRoomTypeConfig?.measurements?.find(m => m.category === category)?.rejectReason : undefined
       };
@@ -154,6 +166,22 @@ export const RoomMeasure: React.FC = () => {
   const submitAudit = (category: RoomImageCategory) => {
       if (!currentStore || !activeRoomTypeName) return;
       
+      const configParams = currentRoomTypeConfig?.checklistConfigs?.[category] || [];
+      const measurement = currentRoomTypeConfig?.measurements?.find(m => m.category === category);
+      const values = measurement?.checklistValues || {};
+
+      // Validation: Check if all checklist items are filled
+      const missingParams = configParams.filter(p => {
+          const val = values[p.id];
+          if (p.type === 'boolean') return val === undefined; // For boolean, strictly undefined check (false is valid)
+          return !val || (val as string).trim() === '';
+      });
+
+      if (missingParams.length > 0) {
+          alert(`无法提交：还有 ${missingParams.length} 项清单参数未录入。\n未填项: ${missingParams.map(p => p.label).join(', ')}`);
+          return;
+      }
+
       const updatedTypeConfigs = currentStore.roomTypeConfigs.map(rt => {
           if (rt.name === activeRoomTypeName) {
               const existing = rt.measurements || [];
@@ -350,9 +378,17 @@ export const RoomMeasure: React.FC = () => {
                     const images = currentRoomTypeConfig.images?.filter(img => img.category === moduleName) || [];
                     const measurement = currentRoomTypeConfig.measurements?.find(m => m.category === moduleName);
                     const requirement = currentRoomTypeConfig.exampleRequirements?.[moduleName];
+                    const checklistParams = currentRoomTypeConfig.checklistConfigs?.[moduleName] || [];
                     const isEditing = editingCategory === moduleName;
                     const hasImages = images.length > 0;
                     const status = measurement?.status;
+
+                    // Calculate missing checklist items for UI hint
+                    const missingCount = checklistParams.filter(p => {
+                        const val = measurement?.checklistValues?.[p.id];
+                        if (p.type === 'boolean') return val === undefined;
+                        return !val || (val as string).trim() === '';
+                    }).length;
 
                     return (
                         <div key={moduleName} className={`bg-white rounded-xl shadow-sm border overflow-hidden flex flex-col transition-all ${
@@ -458,6 +494,49 @@ export const RoomMeasure: React.FC = () => {
                                                 <option value="特殊安装">特殊安装</option>
                                             </select>
                                         </div>
+
+                                        {/* Dynamic Checklist Inputs */}
+                                        {checklistParams.length > 0 && (
+                                            <div className="space-y-2 bg-white/50 p-2 rounded border border-blue-100">
+                                                <label className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
+                                                    <ListChecks size={10} /> 必填清单
+                                                </label>
+                                                {checklistParams.map(param => (
+                                                    <div key={param.id} className="flex flex-col gap-1">
+                                                        <label className="text-[10px] text-slate-600">{param.label}</label>
+                                                        {param.type === 'boolean' ? (
+                                                            <div className="flex gap-2">
+                                                                <label className="flex items-center gap-1 text-[10px] cursor-pointer">
+                                                                    <input 
+                                                                        type="radio" 
+                                                                        name={`checklist-${param.id}`}
+                                                                        checked={editForm.checklistValues[param.id] === true}
+                                                                        onChange={() => updateChecklistValue(param.id, true)}
+                                                                    /> 是
+                                                                </label>
+                                                                <label className="flex items-center gap-1 text-[10px] cursor-pointer">
+                                                                    <input 
+                                                                        type="radio" 
+                                                                        name={`checklist-${param.id}`}
+                                                                        checked={editForm.checklistValues[param.id] === false}
+                                                                        onChange={() => updateChecklistValue(param.id, false)}
+                                                                    /> 否
+                                                                </label>
+                                                            </div>
+                                                        ) : (
+                                                            <input 
+                                                                type="text" 
+                                                                className="border border-slate-300 rounded p-1.5 text-xs focus:ring-1 focus:ring-blue-500 outline-none w-full"
+                                                                placeholder="填写数值或描述..."
+                                                                value={(editForm.checklistValues[param.id] as string) || ''}
+                                                                onChange={(e) => updateChecklistValue(param.id, e.target.value)}
+                                                            />
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
                                         <div className="flex flex-col gap-1">
                                             <label className="text-[10px] font-bold text-slate-500">备注说明</label>
                                             <textarea 
@@ -485,29 +564,49 @@ export const RoomMeasure: React.FC = () => {
                                 ) : (
                                     measurement ? (
                                         <div className="space-y-3">
-                                            <div className={`rounded-lg p-3 border flex items-start justify-between group ${
+                                            <div className={`rounded-lg p-3 border flex flex-col gap-2 group ${
                                                 measurement.type === '特殊安装' ? 'bg-orange-50 border-orange-200' : 'bg-slate-50 border-slate-200'
                                             }`}>
-                                                <div className="flex-1">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                                                            measurement.type === '特殊安装' 
-                                                                ? 'bg-orange-100 text-orange-700 border-orange-200' 
-                                                                : 'bg-green-100 text-green-700 border-green-200'
-                                                        }`}>
-                                                            {measurement.type}
-                                                        </span>
+                                                <div className="flex items-start justify-between">
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                                                measurement.type === '特殊安装' 
+                                                                    ? 'bg-orange-100 text-orange-700 border-orange-200' 
+                                                                    : 'bg-green-100 text-green-700 border-green-200'
+                                                            }`}>
+                                                                {measurement.type}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap">
+                                                            {measurement.remark || '无备注说明'}
+                                                        </p>
                                                     </div>
-                                                    <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap">
-                                                        {measurement.remark || '无备注说明'}
-                                                    </p>
+                                                    <button 
+                                                        onClick={() => startEditing(moduleName, measurement)}
+                                                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors opacity-0 group-hover:opacity-100"
+                                                    >
+                                                        <Edit3 size={16} />
+                                                    </button>
                                                 </div>
-                                                <button 
-                                                    onClick={() => startEditing(moduleName, measurement)}
-                                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors opacity-0 group-hover:opacity-100"
-                                                >
-                                                    <Edit3 size={16} />
-                                                </button>
+
+                                                {/* Display Checklist Values if any */}
+                                                {checklistParams.length > 0 && (
+                                                    <div className="border-t border-slate-200 pt-2 mt-1 grid grid-cols-2 gap-2">
+                                                        {checklistParams.map(p => {
+                                                            const val = measurement.checklistValues?.[p.id];
+                                                            const displayVal = p.type === 'boolean' 
+                                                                ? (val === true ? '是' : val === false ? '否' : '-') 
+                                                                : (val || '-');
+                                                            return (
+                                                                <div key={p.id} className="text-[10px] flex flex-col">
+                                                                    <span className="text-slate-400 scale-90 origin-left">{p.label}</span>
+                                                                    <span className={`font-bold pl-1 ${displayVal === '-' ? 'text-red-400' : 'text-slate-700'}`}>{displayVal}</span>
+                                                                </div>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                )}
                                             </div>
 
                                             {/* Rejection Reason Display */}
@@ -525,9 +624,10 @@ export const RoomMeasure: React.FC = () => {
                                                 {!status || status === 'rejected' ? (
                                                     <button 
                                                         onClick={() => submitAudit(moduleName)}
-                                                        className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-1 shadow-sm"
+                                                        className={`flex-1 py-2 text-white rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1 shadow-sm ${missingCount > 0 ? 'bg-slate-400 cursor-pointer opacity-90' : 'bg-blue-600 hover:bg-blue-700'}`}
                                                     >
                                                         <Send size={12} /> {status === 'rejected' ? '重新提交初审' : '提交初审'}
+                                                        {missingCount > 0 && <span className="ml-1 text-[9px] bg-red-500/80 px-1.5 rounded-full">{missingCount}项未填</span>}
                                                     </button>
                                                 ) : (status === 'pending_stage_1' || status === 'pending_stage_2') ? (
                                                     rejectingCategory === moduleName ? (

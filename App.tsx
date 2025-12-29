@@ -1,4 +1,4 @@
-// 标记：本次更新在【客房建档】的示例图模块增加了【需求】配置功能，并同步显示在【客房复尺】页面中
+// 标记：本次更新在【客房建档】增加了【清单参数】配置，并在【客房复尺】中强制校验：清单参数未录入完成时无法提交初审
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

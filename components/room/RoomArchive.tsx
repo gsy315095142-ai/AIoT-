@@ -1,7 +1,7 @@
 import React, { useState, ChangeEvent, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Star, Table, Ruler, ArrowLeft, Search, ChevronDown, ChevronRight, Filter, Settings, Check, HelpCircle, Image as ImageIcon, ClipboardList, Hammer } from 'lucide-react';
-import { Store as StoreType, Room, RoomImageCategory, RoomImage, RoomTypeConfig } from '../../types';
+import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Star, Table, Ruler, ArrowLeft, Search, ChevronDown, ChevronRight, Filter, Settings, Check, HelpCircle, Image as ImageIcon, ClipboardList, Hammer, ListChecks } from 'lucide-react';
+import { Store as StoreType, Room, RoomImageCategory, RoomImage, RoomTypeConfig, ChecklistParam, ChecklistParamType } from '../../types';
 
 const ROOM_MODULES: RoomImageCategory[] = [
     '地投环境',
@@ -39,6 +39,11 @@ export const RoomArchive: React.FC = () => {
   
   // Example Image Modal State
   const [viewingExample, setViewingExample] = useState<{ title: string; url: string } | null>(null);
+
+  // Checklist Config State
+  const [addingChecklistToCategory, setAddingChecklistToCategory] = useState<string | null>(null);
+  const [newChecklistLabel, setNewChecklistLabel] = useState('');
+  const [newChecklistType, setNewChecklistType] = useState<ChecklistParamType>('text');
 
   // Store Management Modal State
   const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
@@ -324,6 +329,57 @@ export const RoomArchive: React.FC = () => {
       updateStore(activeStore.id, { roomTypeConfigs: updatedTypeConfigs });
   };
 
+  // --- Checklist Management Handlers ---
+
+  const handleAddChecklistParam = (category: string) => {
+      if (!activeStore || !activeRoomTypeName || !newChecklistLabel.trim()) return;
+      
+      const updatedTypeConfigs = activeStore.roomTypeConfigs.map(rt => {
+          if (rt.name === activeRoomTypeName) {
+              const currentConfigs = rt.checklistConfigs || {};
+              const currentParams = currentConfigs[category] || [];
+              const newParam: ChecklistParam = {
+                  id: `cp-${Date.now()}`,
+                  label: newChecklistLabel.trim(),
+                  type: newChecklistType
+              };
+              
+              return {
+                  ...rt,
+                  checklistConfigs: {
+                      ...currentConfigs,
+                      [category]: [...currentParams, newParam]
+                  }
+              };
+          }
+          return rt;
+      });
+      updateStore(activeStore.id, { roomTypeConfigs: updatedTypeConfigs });
+      setNewChecklistLabel('');
+      setAddingChecklistToCategory(null);
+  };
+
+  const handleRemoveChecklistParam = (category: string, paramId: string) => {
+      if (!activeStore || !activeRoomTypeName) return;
+      
+      const updatedTypeConfigs = activeStore.roomTypeConfigs.map(rt => {
+          if (rt.name === activeRoomTypeName) {
+              const currentConfigs = rt.checklistConfigs || {};
+              const currentParams = currentConfigs[category] || [];
+              
+              return {
+                  ...rt,
+                  checklistConfigs: {
+                      ...currentConfigs,
+                      [category]: currentParams.filter(p => p.id !== paramId)
+                  }
+              };
+          }
+          return rt;
+      });
+      updateStore(activeStore.id, { roomTypeConfigs: updatedTypeConfigs });
+  };
+
   // --- View Switching ---
 
   if (viewingStoreId && activeStore) {
@@ -417,16 +473,18 @@ export const RoomArchive: React.FC = () => {
                       </div>
                   </div>
 
-                  {/* Module 2: Example Images & Requirements */}
+                  {/* Module 2: Example Images & Requirements & Checklist */}
                   <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
                       <h3 className="text-xs font-bold text-slate-500 mb-3 flex items-center gap-1 uppercase">
                           <ImageIcon size={14} className="text-orange-500" /> 
-                          【示例图与需求模块】
+                          【示例图与参数模块】
                       </h3>
                       <div className="grid grid-cols-1 gap-4">
                           {ROOM_MODULES.map(moduleName => {
                               const existingImage = currentRoomTypeConfig?.exampleImages?.[moduleName];
                               const existingRequirement = currentRoomTypeConfig?.exampleRequirements?.[moduleName] || '';
+                              const checklistParams = currentRoomTypeConfig?.checklistConfigs?.[moduleName] || [];
+                              const isAddingChecklist = addingChecklistToCategory === moduleName;
                               
                               return (
                                   <div key={moduleName} className="flex gap-3 bg-slate-50 p-2 rounded-lg border border-slate-100">
@@ -455,15 +513,80 @@ export const RoomArchive: React.FC = () => {
                                           <div className="text-[9px] font-bold text-slate-600 text-center truncate">{moduleName}</div>
                                       </div>
 
-                                      {/* Requirement Config */}
-                                      <div className="flex-1 flex flex-col">
-                                          <label className="text-[9px] text-slate-400 font-bold uppercase mb-1">拍摄需求 / 备注</label>
-                                          <textarea 
-                                              className="flex-1 w-full bg-white border border-slate-200 rounded p-2 text-xs focus:outline-none focus:border-blue-300 focus:ring-1 focus:ring-blue-200 resize-none text-slate-700 placeholder-slate-300"
-                                              placeholder="请输入此模块的拍照或复尺需求..."
-                                              value={existingRequirement}
-                                              onChange={(e) => handleConfigRequirementChange(moduleName, e.target.value)}
-                                          />
+                                      {/* Requirement & Checklist Config */}
+                                      <div className="flex-1 flex flex-col gap-2 min-w-0">
+                                          {/* Text Requirement */}
+                                          <div className="flex flex-col">
+                                              <label className="text-[9px] text-slate-400 font-bold uppercase mb-1">拍摄需求 / 备注</label>
+                                              <textarea 
+                                                  className="w-full bg-white border border-slate-200 rounded p-2 text-xs focus:outline-none focus:border-blue-300 focus:ring-1 focus:ring-blue-200 resize-none text-slate-700 placeholder-slate-300 h-14"
+                                                  placeholder="请输入此模块的拍照或复尺需求..."
+                                                  value={existingRequirement}
+                                                  onChange={(e) => handleConfigRequirementChange(moduleName, e.target.value)}
+                                              />
+                                          </div>
+
+                                          {/* Checklist Config */}
+                                          <div className="flex flex-col">
+                                              <div className="flex justify-between items-center mb-1">
+                                                  <label className="text-[9px] text-slate-400 font-bold uppercase flex items-center gap-1">
+                                                      <ListChecks size={10} /> 必填清单参数
+                                                  </label>
+                                                  {!isAddingChecklist && (
+                                                      <button 
+                                                          onClick={() => { setAddingChecklistToCategory(moduleName); setNewChecklistLabel(''); }}
+                                                          className="text-[9px] text-blue-500 bg-white border border-blue-100 px-1.5 py-0.5 rounded hover:bg-blue-50"
+                                                      >
+                                                          + 添加参数
+                                                      </button>
+                                                  )}
+                                              </div>
+                                              
+                                              {/* Checklist Items */}
+                                              {checklistParams.length > 0 && (
+                                                  <div className="bg-white rounded border border-slate-200 divide-y divide-slate-100 mb-1">
+                                                      {checklistParams.map(param => (
+                                                          <div key={param.id} className="flex justify-between items-center p-1.5 text-xs">
+                                                              <div className="flex items-center gap-2 overflow-hidden">
+                                                                  <span className="font-medium text-slate-700 truncate">{param.label}</span>
+                                                                  <span className="text-[9px] text-slate-400 bg-slate-100 px-1 rounded">{param.type === 'text' ? '填空' : '判断'}</span>
+                                                              </div>
+                                                              <button onClick={() => handleRemoveChecklistParam(moduleName, param.id)} className="text-slate-300 hover:text-red-500">
+                                                                  <X size={12} />
+                                                              </button>
+                                                          </div>
+                                                      ))}
+                                                  </div>
+                                              )}
+
+                                              {/* Add New Checklist Form */}
+                                              {isAddingChecklist && (
+                                                  <div className="bg-blue-50 p-2 rounded border border-blue-100 animate-fadeIn">
+                                                      <div className="flex gap-2 mb-2">
+                                                          <input 
+                                                              autoFocus
+                                                              type="text" 
+                                                              className="flex-1 text-xs border border-blue-200 rounded px-2 py-1 outline-none"
+                                                              placeholder="参数名称 (如: 墙面宽度)"
+                                                              value={newChecklistLabel}
+                                                              onChange={e => setNewChecklistLabel(e.target.value)}
+                                                          />
+                                                          <select 
+                                                              className="text-xs border border-blue-200 rounded px-1 outline-none bg-white w-20"
+                                                              value={newChecklistType}
+                                                              onChange={e => setNewChecklistType(e.target.value as ChecklistParamType)}
+                                                          >
+                                                              <option value="text">填空</option>
+                                                              <option value="boolean">判断</option>
+                                                          </select>
+                                                      </div>
+                                                      <div className="flex gap-2 justify-end">
+                                                          <button onClick={() => setAddingChecklistToCategory(null)} className="text-[10px] text-slate-500 hover:text-slate-700">取消</button>
+                                                          <button onClick={() => handleAddChecklistParam(moduleName)} className="text-[10px] bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">确认</button>
+                                                      </div>
+                                                  </div>
+                                              )}
+                                          </div>
                                       </div>
                                   </div>
                               );

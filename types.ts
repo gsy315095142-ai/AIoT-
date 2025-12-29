@@ -30,8 +30,18 @@ export type RoomMeasurement = {
   category: RoomImageCategory;
   type: MeasurementType;
   remark: string;
+  checklistValues?: Record<string, string | boolean>; // Key is param.id, Value is input
   status?: RoomMeasurementStatus; // Audit Status
   rejectReason?: string;
+};
+
+// New Checklist Types
+export type ChecklistParamType = 'text' | 'boolean';
+
+export type ChecklistParam = {
+  id: string;
+  label: string;
+  type: ChecklistParamType;
 };
 
 // New Type for Dynamic Room Configuration
@@ -40,6 +50,7 @@ export type RoomTypeConfig = {
   name: string;
   exampleImages?: Record<string, string>; // Maps RoomImageCategory to URL
   exampleRequirements?: Record<string, string>; // Maps RoomImageCategory to Text Requirement
+  checklistConfigs?: Record<string, ChecklistParam[]>; // Maps RoomImageCategory to Checklist Params
   
   // Moved from Room to RoomTypeConfig
   images?: RoomImage[]; // Actual Measurement Images for this Room Type
