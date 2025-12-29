@@ -334,7 +334,7 @@ const DeviceList: React.FC = () => {
         </div>
 
         {/* --- CONTENT AREA --- */}
-        <div className="flex-1 overflow-y-auto space-y-3 relative">
+        <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 relative">
             
             {/* LEVEL 1: Stores List */}
             {viewState.level === 'stores' && (

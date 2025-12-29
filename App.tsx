@@ -1,4 +1,4 @@
-// 标记：本次更新优化了设备列表的显示样式，当设备处于【待审核】状态时，调整了状态标签的显示样式
+// 标记：本次更新将设备管理页面的【安装】和【巡检】模块合并为【巡检】模块
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
