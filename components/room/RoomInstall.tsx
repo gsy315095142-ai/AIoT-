@@ -4,6 +4,17 @@ import { useApp } from '../../context/AppContext';
 import { Store as StoreType, InstallNode, InstallStatus, RoomImageCategory } from '../../types';
 import { AuditGate } from '../DeviceComponents';
 
+const INSTALL_MODULES: RoomImageCategory[] = [
+    '地投环境',
+    '桌显桌子形状尺寸',
+    '床头背景墙尺寸',
+    '桌显处墙面宽高',
+    '浴室镜面形状和尺寸',
+    '电视墙到床尾距离',
+    '照片墙处墙面宽高',
+    '玩乐活动区域长宽'
+];
+
 // Moved outside component to avoid scope/re-creation issues
 const EXAMPLE_IMAGES: Record<string, string> = {
     '到店打卡': 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=600&auto=format&fit=crop', 
@@ -12,9 +23,14 @@ const EXAMPLE_IMAGES: Record<string, string> = {
     '调试': 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?q=80&w=600&auto=format&fit=crop',
     '交付': 'https://images.unsplash.com/photo-1556155092-490a1ba16284?q=80&w=600&auto=format&fit=crop',
     // Modules
-    '玄关': 'https://images.unsplash.com/photo-1554995207-c18c203602cb?q=80&w=600&auto=format&fit=crop',
-    '桌面': 'https://images.unsplash.com/photo-1593640408182-31c70c8268f5?q=80&w=600&auto=format&fit=crop',
-    '床': 'https://images.unsplash.com/photo-1505693416388-b0346ef4174d?q=80&w=600&auto=format&fit=crop'
+    '地投环境': 'https://images.unsplash.com/photo-1554995207-c18c203602cb?q=80&w=600&auto=format&fit=crop',
+    '桌显桌子形状尺寸': 'https://images.unsplash.com/photo-1593640408182-31c70c8268f5?q=80&w=600&auto=format&fit=crop',
+    '床头背景墙尺寸': 'https://images.unsplash.com/photo-1505693416388-b0346ef4174d?q=80&w=600&auto=format&fit=crop',
+    '桌显处墙面宽高': 'https://images.unsplash.com/photo-1600607686527-6fb886090705?q=80&w=600&auto=format&fit=crop',
+    '浴室镜面形状和尺寸': 'https://images.unsplash.com/photo-1584622050111-993a426fbf0a?q=80&w=600&auto=format&fit=crop',
+    '电视墙到床尾距离': 'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?q=80&w=600&auto=format&fit=crop',
+    '照片墙处墙面宽高': 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?q=80&w=600&auto=format&fit=crop',
+    '玩乐活动区域长宽': 'https://images.unsplash.com/photo-1596178065887-1198b6148b2e?q=80&w=600&auto=format&fit=crop'
 };
 
 export const RoomInstall: React.FC = () => {
@@ -374,7 +390,8 @@ export const RoomInstall: React.FC = () => {
       } else if (currentStepIndex === 3) { // Installation
           const roomData = currentNode.data || {};
           const rooms = activeStore.rooms;
-          const categories: RoomImageCategory[] = ['玄关', '桌面', '床'];
+          // Updated to new module list
+          const categories = INSTALL_MODULES;
           if (rooms.length > 0) {
               return rooms.every(room => {
                   const rData = roomData[room.number] || {};
@@ -467,7 +484,7 @@ export const RoomInstall: React.FC = () => {
   const isLocked = isAuditMode; 
 
   const isRoomCompleted = (roomData: any) => {
-      const categories: RoomImageCategory[] = ['玄关', '桌面', '床'];
+      const categories = INSTALL_MODULES;
       return categories.every(cat => Array.isArray(roomData[cat]) && roomData[cat].length > 0);
   };
 
@@ -786,7 +803,7 @@ export const RoomInstall: React.FC = () => {
 
                                             {(() => {
                                                 const roomData = (currentNode.data && typeof currentNode.data === 'object') ? currentNode.data[installingRoomNumber] || {} : {};
-                                                const categories: RoomImageCategory[] = ['玄关', '桌面', '床'];
+                                                const categories = INSTALL_MODULES;
                                                 const roomType = activeStore.rooms.find(r => r.number === installingRoomNumber)?.type;
 
                                                 return (

@@ -3,12 +3,26 @@ import { useApp } from '../../context/AppContext';
 import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Star, Table, Ruler, ArrowLeft, Search, ChevronDown, ChevronRight, Filter, Settings, Check, HelpCircle, Image as ImageIcon, ClipboardList, Hammer } from 'lucide-react';
 import { Store as StoreType, Room, RoomImageCategory, RoomImage, RoomTypeConfig } from '../../types';
 
-const ROOM_MODULES: RoomImageCategory[] = ['玄关', '桌面', '床'];
+const ROOM_MODULES: RoomImageCategory[] = [
+    '地投环境',
+    '桌显桌子形状尺寸',
+    '床头背景墙尺寸',
+    '桌显处墙面宽高',
+    '浴室镜面形状和尺寸',
+    '电视墙到床尾距离',
+    '照片墙处墙面宽高',
+    '玩乐活动区域长宽'
+];
 
 const EXAMPLE_IMAGES: Record<string, string> = {
-    '玄关': 'https://images.unsplash.com/photo-1554995207-c18c203602cb?q=80&w=600&auto=format&fit=crop',
-    '桌面': 'https://images.unsplash.com/photo-1593640408182-31c70c8268f5?q=80&w=600&auto=format&fit=crop',
-    '床': 'https://images.unsplash.com/photo-1505693416388-b0346ef4174d?q=80&w=600&auto=format&fit=crop'
+    '地投环境': 'https://images.unsplash.com/photo-1554995207-c18c203602cb?q=80&w=600&auto=format&fit=crop',
+    '桌显桌子形状尺寸': 'https://images.unsplash.com/photo-1593640408182-31c70c8268f5?q=80&w=600&auto=format&fit=crop',
+    '床头背景墙尺寸': 'https://images.unsplash.com/photo-1505693416388-b0346ef4174d?q=80&w=600&auto=format&fit=crop',
+    '桌显处墙面宽高': 'https://images.unsplash.com/photo-1600607686527-6fb886090705?q=80&w=600&auto=format&fit=crop',
+    '浴室镜面形状和尺寸': 'https://images.unsplash.com/photo-1584622050111-993a426fbf0a?q=80&w=600&auto=format&fit=crop',
+    '电视墙到床尾距离': 'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?q=80&w=600&auto=format&fit=crop',
+    '照片墙处墙面宽高': 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?q=80&w=600&auto=format&fit=crop',
+    '玩乐活动区域长宽': 'https://images.unsplash.com/photo-1596178065887-1198b6148b2e?q=80&w=600&auto=format&fit=crop'
 };
 
 export const RoomArchive: React.FC = () => {

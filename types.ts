@@ -7,7 +7,15 @@ export type Region = {
 
 export type UserRole = 'admin' | 'product_director' | 'hardware' | 'procurement' | 'local' | 'ops_manager' | 'business_manager' | 'artist' | 'area_manager' | 'area_assistant';
 
-export type RoomImageCategory = '玄关' | '桌面' | '床';
+export type RoomImageCategory = 
+  | '地投环境' 
+  | '桌显桌子形状尺寸' 
+  | '床头背景墙尺寸'
+  | '桌显处墙面宽高'
+  | '浴室镜面形状和尺寸'
+  | '电视墙到床尾距离'
+  | '照片墙处墙面宽高'
+  | '玩乐活动区域长宽';
 
 export type RoomImage = {
   url: string;
