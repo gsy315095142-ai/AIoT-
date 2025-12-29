@@ -638,7 +638,7 @@ export const DeviceDetailCard: React.FC<DeviceDetailCardProps> = ({ device, onEd
             'info': ['添加', '名称', 'SN', 'MAC', '图片', '类型'],
             'install': ['门店', '房间', '软件', '启动'],
             'aftersales': ['运维', '维修', '客诉', '审核', '申请', '通过', '拒绝', '运行', '待机', '未联网'],
-            'inspection': ['测试', 'CPU', '内存', '网络', '状态', '合格']
+            'inspection': ['测试', 'CPU', '内存', '网络', '状态', '合格', '不合格', '巡检']
         };
         const targetKeywords = keywords[activeModule] || [];
         return device.events.filter(evt => {
@@ -652,6 +652,7 @@ export const DeviceDetailCard: React.FC<DeviceDetailCardProps> = ({ device, onEd
                 return targetKeywords.some(k => msg.includes(k));
             }
             if (activeModule === 'inspection') {
+                if (msg.includes('状态变更为')) return false;
                 return targetKeywords.some(k => msg.includes(k));
             }
             return targetKeywords.some(k => msg.includes(k));

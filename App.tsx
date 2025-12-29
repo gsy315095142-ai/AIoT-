@@ -1,4 +1,4 @@
-// 标记：本次更新调整了设备详情卡片的布局，将日志信息统一移动至各模块底部显示
+// 标记：本次更新优化了设备管理页面的日志显示逻辑，在设备列表的【巡检】模块，日志中不再显示设备状态变更的内容
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
