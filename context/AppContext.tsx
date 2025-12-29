@@ -41,6 +41,16 @@ const MOCK_STORES: Store[] = [
 1.玄关定位（标记距离门2m处天花板的位置）
 2.图片能看清玄关地板颜色/纹路（确保投影画面清晰）
 3.门两边宽度`
+        },
+        checklistConfigs: {
+            '地投环境': [
+                { id: 'cp-def-1', label: '玄关高度（cm）', type: 'text' },
+                { id: 'cp-def-2', label: '玄关宽度（cm）', type: 'text' },
+                { id: 'cp-def-3', label: '橱柜/门板干涉', type: 'boolean' },
+                { id: 'cp-def-4', label: '电箱可拉电', type: 'boolean' },
+                { id: 'cp-def-5', label: '电源有备用220V插座', type: 'boolean' },
+                { id: 'cp-def-6', label: '满足安装', type: 'boolean' },
+            ]
         }
     })),
     rooms: [

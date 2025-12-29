@@ -1,4 +1,4 @@
-// 标记：本次更新在【客房建档】的【上海南京路店】的【地投环境】模块增加了默认需求文案
+// 标记：本次更新优化了【客房复尺】页面的代码结构，提取了子组件以提升可读性并彻底修复渲染问题
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
