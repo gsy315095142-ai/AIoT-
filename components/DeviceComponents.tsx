@@ -668,8 +668,8 @@ export const DeviceDetailCard: React.FC<DeviceDetailCardProps> = ({ device, onEd
             <button onClick={() => setActiveModule('inspection')} className={`flex-1 py-2 text-xs font-bold flex items-center justify-center gap-1 transition-colors ${activeModule === 'inspection' ? 'text-blue-600 bg-white border-t-2 border-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}><Activity size={14} /> 巡检</button>
         </div>
 
-        <div className="p-3 grid grid-cols-12 gap-2">
-            <div className="col-span-7 space-y-3">
+        <div className="p-3 flex flex-col gap-4">
+            <div className="space-y-3">
                 {activeModule === 'info' && (
                     <div className="space-y-3 animate-fadeIn">
                         <div className="flex items-center gap-1 font-bold text-sm text-slate-900 border-b border-slate-100 pb-2">
@@ -834,20 +834,27 @@ export const DeviceDetailCard: React.FC<DeviceDetailCardProps> = ({ device, onEd
                 )}
             </div>
             
-            <div className="col-span-5 border-l border-slate-100 pl-2 relative">
-                <div className="absolute left-2 top-0 bottom-0 w-px bg-slate-100 -ml-[0.5px]"></div>
-                <div className="space-y-4 relative">
+            <div className="border-t border-slate-100 pt-3">
+                <h5 className="text-[10px] font-bold text-slate-400 uppercase mb-3 flex items-center gap-2">
+                    <span className="w-1 h-3 bg-blue-400 rounded-full"></span>
+                    相关日志
+                </h5>
+                <div className="space-y-3 pl-1">
                     {filteredEvents.length === 0 ? (
-                        <div className="text-[10px] text-slate-300 text-center py-4">暂无相关事件</div>
+                        <div className="text-[10px] text-slate-300 text-center py-2">暂无相关事件</div>
                     ) : (
                         filteredEvents.map(event => (
-                            <div key={event.id} className="relative pl-3 group cursor-pointer" onClick={() => onViewEvent(event, device.id)}>
-                                <div className={`absolute left-0 top-1.5 w-1.5 h-1.5 rounded-full border border-white shadow-sm z-10 ${
+                            <div key={event.id} className="relative pl-4 group cursor-pointer border-l border-slate-200 ml-1 pb-1 last:pb-0" onClick={() => onViewEvent(event, device.id)}>
+                                <div className={`absolute left-0 top-1.5 w-2 h-2 rounded-full border-2 border-white shadow-sm z-10 -ml-[5px] ${
                                     event.type === 'error' ? 'bg-red-500' : event.type === 'warning' ? 'bg-orange-400' : 'bg-blue-400'
                                 }`}></div>
-                                <div className="text-[9px] text-slate-400 mb-0.5">{event.timestamp}</div>
-                                <div className="text-[10px] text-slate-700 font-medium leading-tight group-hover:text-blue-600 transition-colors line-clamp-2">{event.message}</div>
-                                <div className="text-[9px] text-slate-300 mt-0.5 text-right">{event.operator || 'System'}</div>
+                                <div className="flex justify-between items-start">
+                                    <div className="flex-1 mr-2">
+                                        <div className="text-[10px] text-slate-700 font-medium leading-tight group-hover:text-blue-600 transition-colors">{event.message}</div>
+                                        <div className="text-[9px] text-slate-400 mt-0.5">{event.timestamp}</div>
+                                    </div>
+                                    <div className="text-[9px] text-slate-300 whitespace-nowrap">{event.operator || 'System'}</div>
+                                </div>
                             </div>
                         ))
                     )}

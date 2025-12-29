@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { useDeviceLogic } from '../hooks/useDeviceLogic';
 import { DeviceStatus, OpsStatus, AuditStatus, AuditType, Device, Store as StoreModel } from '../types';
@@ -364,7 +365,9 @@ const DeviceList: React.FC = () => {
                             {/* Breakdown */}
                             {Object.keys(store.breakdown).length > 0 && (
                                 <div className="bg-slate-50 rounded-lg p-2 space-y-1.5 mt-2 border border-slate-100">
-                                    {Object.entries(store.breakdown).map(([type, stats]) => (
+                                    {Object.entries(store.breakdown).map(([type, val]) => {
+                                        const stats = val as BreakdownStats;
+                                        return (
                                         <div key={type} className="flex justify-between items-center text-[10px]">
                                             <span className="font-bold text-slate-700">{type} <span className="text-slate-400 font-normal">x{stats.count}</span></span>
                                             <div className="flex gap-2">
@@ -382,7 +385,7 @@ const DeviceList: React.FC = () => {
                                                 })}
                                             </div>
                                         </div>
-                                    ))}
+                                    )})}
                                 </div>
                             )}
                         </div>
@@ -420,7 +423,9 @@ const DeviceList: React.FC = () => {
                                 {/* Device Breakdown */}
                                 {room.devices.length > 0 ? (
                                     <div className="space-y-1">
-                                        {Object.entries(room.breakdown).map(([type, stats]) => (
+                                        {Object.entries(room.breakdown).map(([type, val]) => {
+                                            const stats = val as BreakdownStats;
+                                            return (
                                             <div key={type} className="text-[9px] bg-slate-50 px-1.5 py-1 rounded flex flex-col gap-0.5">
                                                 <div className="font-bold text-slate-700 flex justify-between">
                                                     <span>{type}</span>
@@ -438,7 +443,7 @@ const DeviceList: React.FC = () => {
                                                     ))}
                                                 </div>
                                             </div>
-                                        ))}
+                                        )})}
                                     </div>
                                 ) : (
                                     <div className="flex-1 flex items-center justify-center">

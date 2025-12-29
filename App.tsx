@@ -1,4 +1,4 @@
-// 标记：本次更新优化了设备管理页面的层级结构，在客房内增加了设备类型展示页，点击类型后进入具体的设备列表
+// 标记：本次更新调整了设备详情卡片的布局，将日志信息统一移动至各模块底部显示
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
