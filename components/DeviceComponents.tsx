@@ -688,16 +688,33 @@ export const DeviceDetailCard: React.FC<DeviceDetailCardProps> = ({ device, onEd
 
                         {/* Merged Aftersales Section */}
                         <div className="space-y-3">
-                            <div className={`py-2 px-3 rounded-lg border flex items-center justify-between ${
-                                device.status === DeviceStatus.ONLINE ? 'bg-green-100 border-green-200 text-green-800' : 
-                                device.status === DeviceStatus.OFFLINE ? 'bg-slate-100 border-slate-200 text-slate-600' : 
-                                'bg-yellow-100 border-yellow-200 text-yellow-800'
-                            }`}>
-                                <span className="text-[10px] font-bold opacity-70 uppercase">运行状态</span>
-                                <span className="text-sm font-bold flex items-center gap-1">
-                                    {device.status === DeviceStatus.ONLINE ? <Activity size={14} /> : device.status === DeviceStatus.OFFLINE ? <Moon size={14} /> : <AlertCircle size={14} />}
-                                    {STATUS_MAP[device.status]}
-                                </span>
+                            {/* Side-by-side Status Row */}
+                            <div className="grid grid-cols-2 gap-3">
+                                {/* Running Status */}
+                                <div className={`p-2 rounded-lg border flex flex-col items-center justify-center gap-1 ${
+                                    device.status === DeviceStatus.ONLINE ? 'bg-green-50 border-green-200 text-green-700' : 
+                                    device.status === DeviceStatus.OFFLINE ? 'bg-slate-50 border-slate-200 text-slate-600' : 
+                                    'bg-yellow-50 border-yellow-200 text-yellow-800'
+                                }`}>
+                                    <span className="text-[10px] font-bold opacity-70 uppercase">运行状态</span>
+                                    <span className="text-sm font-bold flex items-center gap-1">
+                                        {device.status === DeviceStatus.ONLINE ? <Activity size={14} /> : device.status === DeviceStatus.OFFLINE ? <Moon size={14} /> : <AlertCircle size={14} />}
+                                        {STATUS_MAP[device.status]}
+                                    </span>
+                                </div>
+
+                                {/* Ops Status */}
+                                <div className={`p-2 rounded-lg border flex flex-col items-center justify-center gap-1 ${
+                                    device.opsStatus === OpsStatus.HOTEL_COMPLAINT ? 'bg-pink-50 border-pink-200 text-pink-700' :
+                                    device.opsStatus === OpsStatus.REPAIRING ? 'bg-purple-50 border-purple-200 text-purple-700' :
+                                    'bg-green-50 border-green-200 text-green-700'
+                                }`}>
+                                    <span className="text-[10px] font-bold opacity-70 uppercase flex items-center gap-1">
+                                        <Wrench size={10} /> 运维状态
+                                    </span>
+                                    <span className="text-sm font-bold leading-none">{device.opsStatus}</span>
+                                    <span className="text-[9px] opacity-60">持续: {calculateDuration(device.lastTestTime)}</span>
+                                </div>
                             </div>
 
                             <div className="bg-slate-800 text-white rounded-lg p-3 shadow-md grid grid-cols-4 gap-2 text-center">
@@ -705,30 +722,6 @@ export const DeviceDetailCard: React.FC<DeviceDetailCardProps> = ({ device, onEd
                                 <div className="flex flex-col items-center border-l border-slate-600"><span className="text-sm font-bold leading-none">{device.memoryUsage}%</span><span className="text-[8px] text-slate-400 mt-1">内存</span></div>
                                 <div className="flex flex-col items-center border-l border-slate-600"><Wifi size={14} className={device.signalStrength > 50 ? 'text-green-400' : 'text-yellow-400'} /><span className="text-[8px] text-slate-400 mt-1">网络</span></div>
                                 <div className="flex flex-col items-center border-l border-slate-600"><span className="text-sm font-bold leading-none">{device.currentRunDuration || 0}h</span><span className="text-[8px] text-slate-400 mt-1">运行时长</span></div>
-                            </div>
-
-                            <div className={`p-3 rounded-lg border flex items-center justify-between ${
-                                device.opsStatus === OpsStatus.HOTEL_COMPLAINT ? 'bg-pink-50 border-pink-200 text-pink-700' :
-                                device.opsStatus === OpsStatus.REPAIRING ? 'bg-purple-50 border-purple-200 text-purple-700' :
-                                'bg-green-50 border-green-200 text-green-700'
-                            }`}>
-                                <div className="flex items-center gap-2">
-                                    <div className={`p-1.5 rounded-full ${
-                                        device.opsStatus === OpsStatus.HOTEL_COMPLAINT ? 'bg-pink-200 text-pink-700' :
-                                        device.opsStatus === OpsStatus.REPAIRING ? 'bg-purple-200 text-purple-700' :
-                                        'bg-green-200 text-green-700'
-                                    }`}>
-                                        <Wrench size={16} />
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] uppercase opacity-70 font-bold">运维状态</p>
-                                        <p className="font-bold text-lg leading-none">{device.opsStatus}</p>
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-[10px] uppercase opacity-70 font-bold">持续时长</p>
-                                    <p className="font-bold text-lg leading-none">{calculateDuration(device.lastTestTime)}</p>
-                                </div>
                             </div>
 
                             {pendingOpsRecord && (
@@ -758,19 +751,15 @@ export const DeviceDetailCard: React.FC<DeviceDetailCardProps> = ({ device, onEd
                 )}
                 {activeModule === 'inspection' && (
                      <div className="space-y-3 animate-fadeIn">
-                        {/* Merged Install Content */}
+                        {/* Merged Install & Time Content */}
                         <div className="bg-blue-50 p-2 rounded-lg border border-blue-100">
-                            <h4 className="text-[10px] font-bold text-blue-800 mb-2 flex items-center gap-1"><MapPin size={10} /> 位置与软件</h4>
+                            <h4 className="text-[10px] font-bold text-blue-800 mb-2 flex items-center gap-1"><MapPin size={10} /> 安装信息</h4>
                             <div className="space-y-1.5">
                                 <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">门店</span><div className="flex-1 flex justify-between items-center border border-blue-200 rounded px-1 py-0.5 bg-white min-w-0"><EditableField value={device.storeId} displayValue={getStoreName(device.storeId)} type="select" options={storeOptions} onSave={(val) => handleFieldUpdate('storeId', val)} className="flex-1 min-w-0" /></div></div>
                                 <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">房间</span><div className="flex-1 flex justify-between items-center border border-blue-200 rounded px-1 py-0.5 bg-white min-w-0"><EditableField value={device.roomNumber || ''} type="text" onSave={(val) => handleFieldUpdate('roomNumber', val)} className="flex-1 min-w-0" /></div></div>
                                 <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">软件</span><div className="flex-1 flex justify-between items-center border border-blue-200 rounded px-1 py-0.5 bg-white min-w-0"><EditableField value={device.softwareName || ''} type="text" onSave={(val) => handleFieldUpdate('softwareName', val)} className="flex-1 min-w-0" /></div></div>
+                                <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">首次启动</span><div className="flex-1 flex justify-between items-center border border-blue-200 rounded px-1 py-0.5 bg-white min-w-0"><EditableField value={toInputDate(device.firstStartTime)} displayValue={device.firstStartTime} type="datetime-local" onSave={(val) => handleFieldUpdate('firstStartTime', val)} className="flex-1 min-w-0" /></div></div>
                             </div>
-                        </div>
-
-                        <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
-                             <h4 className="text-[10px] font-bold text-slate-600 mb-2 flex items-center gap-1"><Clock size={10} /> 启动时间</h4>
-                             <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">首次启动</span><div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-white min-w-0"><EditableField value={toInputDate(device.firstStartTime)} displayValue={device.firstStartTime} type="datetime-local" onSave={(val) => handleFieldUpdate('firstStartTime', val)} className="flex-1 min-w-0" /></div></div>
                         </div>
 
                         {/* Original Inspection Content */}

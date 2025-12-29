@@ -1,4 +1,4 @@
-// 标记：本次更新将设备管理页面的【安装】和【巡检】模块合并为【巡检】模块
+// 标记：本次更新优化了设备列表UI：【状态】模块的运行/运维状态并排显示，【巡检】模块的启动时间与位置信息合并显示
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
