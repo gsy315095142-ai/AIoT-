@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useDeviceLogic } from '../hooks/useDeviceLogic';
-import { DeviceStatus, OpsStatus, AuditStatus, AuditType, Device } from '../types';
+import { DeviceStatus, OpsStatus, AuditStatus, AuditType, Device, Store as StoreModel } from '../types';
 import { STATUS_MAP, SUB_TYPE_MAPPING, ImageManagerModal, ReportDetailModal, EventDetailModal, AuditManagementModal, DeviceDetailCard, AuditGate } from '../components/DeviceComponents';
-import { ChevronDown, ChevronUp, Plus, Search, CheckSquare, Square, X, Settings2, Play, Moon, RotateCcw, Wrench, ClipboardCheck, Check, X as XIcon, ImageIcon, ClipboardList, LayoutDashboard, Monitor, BookOpen, Store, BedDouble, ArrowLeft, ArrowRight } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Search, CheckSquare, Square, X, Settings2, Play, Moon, RotateCcw, Wrench, ClipboardCheck, Check, X as XIcon, ImageIcon, ClipboardList, LayoutDashboard, Monitor, BookOpen, Store, BedDouble, ArrowLeft, ArrowRight, Server } from 'lucide-react';
 import { Dashboard } from './Dashboard';
 
 // --- Sub-Components ---
@@ -16,12 +16,33 @@ const ContentManagement: React.FC = () => (
     </div>
 );
 
-type ViewLevel = 'stores' | 'rooms' | 'devices';
+type ViewLevel = 'stores' | 'rooms' | 'deviceTypes' | 'devices';
 
 interface ViewState {
     level: ViewLevel;
     storeId?: string;
     roomNumber?: string;
+    deviceTypeId?: string;
+}
+
+interface BreakdownStats {
+    count: number;
+    statusCounts: Record<string, number>;
+}
+
+interface RoomData {
+    number: string;
+    type: string;
+    devices: Device[];
+    onlineCount: number;
+    breakdown: Record<string, BreakdownStats>;
+}
+
+interface TypeGroup {
+    typeId: string;
+    typeName: string;
+    count: number;
+    statusCounts: Record<string, number>;
 }
 
 // The original DeviceManagement content, now named DeviceList with hierarchical navigation
@@ -60,7 +81,7 @@ const DeviceList: React.FC = () => {
           const onlineCount = devicesInStore.filter(d => d.status === DeviceStatus.ONLINE).length;
           
           // Breakdown: Group by Type -> Count OpsStatus
-          const breakdown: Record<string, { count: number, statusCounts: Record<string, number> }> = {};
+          const breakdown: Record<string, BreakdownStats> = {};
           devicesInStore.forEach(d => {
               const typeName = deviceTypes.find(t => t.id === d.typeId)?.name || '其他';
               if (!breakdown[typeName]) breakdown[typeName] = { count: 0, statusCounts: {} };
@@ -81,7 +102,7 @@ const DeviceList: React.FC = () => {
   }, [availableStores, filteredDevices, deviceTypes]);
 
   // LEVEL 2: Rooms in Active Store
-  const activeStoreData = useMemo(() => {
+  const activeStoreData = useMemo<{ store: StoreModel; roomsData: RoomData[] } | null>(() => {
       if (!viewState.storeId) return null;
       const store = stores.find(s => s.id === viewState.storeId);
       if (!store) return null;
@@ -103,7 +124,7 @@ const DeviceList: React.FC = () => {
           const definedType = definedRooms.find(r => r.number === num)?.type || '未知房型';
           
           // Breakdown
-          const breakdown: Record<string, { count: number, statusCounts: Record<string, number> }> = {};
+          const breakdown: Record<string, BreakdownStats> = {};
           devicesInRoom.forEach(d => {
               const typeName = deviceTypes.find(t => t.id === d.typeId)?.name || '其他';
               if (!breakdown[typeName]) breakdown[typeName] = { count: 0, statusCounts: {} };
@@ -126,19 +147,54 @@ const DeviceList: React.FC = () => {
       return { store, roomsData };
   }, [viewState.storeId, stores, filteredDevices, deviceTypes]);
 
-  // LEVEL 3: Devices in Active Room
-  const activeRoomDevices = useMemo(() => {
+  // LEVEL 3: Device Types in Active Room
+  const activeRoomDeviceTypes = useMemo<TypeGroup[]>(() => {
       if (!viewState.storeId || !viewState.roomNumber) return [];
-      return filteredDevices.filter(d => d.storeId === viewState.storeId && d.roomNumber === viewState.roomNumber);
+      // Filter devices in this room
+      const devicesInRoom = filteredDevices.filter(d => d.storeId === viewState.storeId && d.roomNumber === viewState.roomNumber);
+      
+      // Group by Type
+      const typeGroups: Record<string, TypeGroup> = {};
+      
+      devicesInRoom.forEach(d => {
+          const typeId = d.typeId;
+          if (!typeGroups[typeId]) {
+              typeGroups[typeId] = { 
+                  typeId, 
+                  typeName: deviceTypes.find(t => t.id === typeId)?.name || '未知类型',
+                  count: 0,
+                  statusCounts: {}
+              };
+          }
+          typeGroups[typeId].count++;
+          
+          const st = d.opsStatus;
+          if (!typeGroups[typeId].statusCounts[st]) typeGroups[typeId].statusCounts[st] = 0;
+          typeGroups[typeId].statusCounts[st]++;
+      });
+      
+      return Object.values(typeGroups);
+  }, [viewState.storeId, viewState.roomNumber, filteredDevices, deviceTypes]);
+
+  // LEVEL 4: Devices in Active Room AND Selected Type
+  const activeRoomDevices = useMemo(() => {
+      if (!viewState.storeId || !viewState.roomNumber || !viewState.deviceTypeId) return [];
+      return filteredDevices.filter(d => 
+          d.storeId === viewState.storeId && 
+          d.roomNumber === viewState.roomNumber &&
+          d.typeId === viewState.deviceTypeId
+      );
   }, [viewState, filteredDevices]);
 
 
   // Navigation Handlers
   const goBack = () => {
       if (viewState.level === 'devices') {
-          setViewState({ level: 'rooms', storeId: viewState.storeId });
+          setViewState({ level: 'deviceTypes', storeId: viewState.storeId, roomNumber: viewState.roomNumber });
           // Clear selections when leaving device list
           if (selectedDeviceIds.size > 0) toggleSelectAll(); 
+      } else if (viewState.level === 'deviceTypes') {
+          setViewState({ level: 'rooms', storeId: viewState.storeId });
       } else if (viewState.level === 'rooms') {
           setViewState({ level: 'stores' });
       }
@@ -149,13 +205,17 @@ const DeviceList: React.FC = () => {
   };
 
   const handleRoomClick = (roomNumber: string) => {
-      setViewState({ level: 'devices', storeId: viewState.storeId, roomNumber });
+      setViewState({ level: 'deviceTypes', storeId: viewState.storeId, roomNumber });
+  };
+
+  const handleDeviceTypeClick = (typeId: string) => {
+      setViewState({ level: 'devices', storeId: viewState.storeId, roomNumber: viewState.roomNumber, deviceTypeId: typeId });
   };
 
   const handleAddDeviceClick = () => {
       const initialData: any = {};
       
-      // Context 1: Store is selected (Level 2 or 3)
+      // Context 1: Store is selected (Level 2+)
       if (viewState.storeId) {
           const store = stores.find(s => s.id === viewState.storeId);
           if (store) {
@@ -164,9 +224,14 @@ const DeviceList: React.FC = () => {
           }
       }
       
-      // Context 2: Room is selected (Level 3)
+      // Context 2: Room is selected (Level 3+)
       if (viewState.roomNumber) {
           initialData.roomNumber = viewState.roomNumber;
+      }
+
+      // Context 3: Type is selected (Level 4)
+      if (viewState.deviceTypeId) {
+          initialData.typeId = viewState.deviceTypeId;
       }
 
       openAddModal(initialData);
@@ -179,6 +244,16 @@ const DeviceList: React.FC = () => {
     if (d.status === DeviceStatus.OFFLINE) return 'bg-slate-200 border-slate-300 text-slate-700';
     if (d.status === DeviceStatus.ONLINE || d.status === DeviceStatus.IN_USE) return 'bg-green-200 border-green-300 text-green-900';
     return 'bg-yellow-100 border-yellow-200 text-yellow-900'; 
+  };
+
+  const getHeaderTitle = () => {
+      if (viewState.level === 'stores') return '门店列表';
+      const storeName = activeStoreData?.store.name || '';
+      if (viewState.level === 'rooms') return storeName;
+      if (viewState.level === 'deviceTypes') return `${storeName} - ${viewState.roomNumber}`;
+      // Devices level
+      const typeName = deviceTypes.find(t => t.id === viewState.deviceTypeId)?.name || '设备';
+      return `${storeName} - ${viewState.roomNumber} - ${typeName}`;
   };
 
   return (
@@ -195,14 +270,12 @@ const DeviceList: React.FC = () => {
                                 <ArrowLeft size={18} />
                             </button>
                         )}
-                        <h2 className="text-white font-bold text-lg">
-                            {viewState.level === 'stores' ? '门店列表' : 
-                             viewState.level === 'rooms' ? activeStoreData?.store.name : 
-                             `${activeStoreData?.store.name} - ${viewState.roomNumber}`}
+                        <h2 className="text-white font-bold text-lg leading-tight line-clamp-1">
+                            {getHeaderTitle()}
                         </h2>
                     </div>
                     
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-shrink-0">
                         <button 
                             onClick={handleAddDeviceClick}
                             className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-lg backdrop-blur-sm transition-all border border-white/10"
@@ -383,7 +456,52 @@ const DeviceList: React.FC = () => {
                 </div>
             )}
 
-            {/* LEVEL 3: Device List */}
+            {/* LEVEL 3: Device Types Grid */}
+            {viewState.level === 'deviceTypes' && (
+                <div className="animate-fadeIn">
+                    <div className="grid grid-cols-2 gap-3">
+                        {activeRoomDeviceTypes.map(group => (
+                            <div 
+                                key={group.typeId}
+                                onClick={() => handleDeviceTypeClick(group.typeId)}
+                                className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 cursor-pointer hover:shadow-md transition-all active:scale-[0.99]"
+                            >
+                                <div className="flex items-center gap-2 mb-3">
+                                    <div className="bg-blue-100 p-2 rounded-lg text-blue-600">
+                                        <Monitor size={18} />
+                                    </div>
+                                    <h4 className="font-bold text-slate-800 text-sm">{group.typeName}</h4>
+                                </div>
+                                
+                                <div className="text-[10px] space-y-1.5">
+                                    <div className="flex justify-between items-center bg-slate-50 p-1.5 rounded">
+                                        <span className="text-slate-500">总设备数</span>
+                                        <span className="font-bold text-slate-800">{group.count} 台</span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 pt-1">
+                                        {Object.entries(group.statusCounts).map(([st, c]) => (
+                                            <span key={st} className={`font-medium flex items-center gap-0.5 ${
+                                                st === '正常' ? 'text-green-600' : 
+                                                st === '酒店客诉' ? 'text-pink-600' : 
+                                                st === '维修中' ? 'text-purple-600' : 'text-slate-500'
+                                            }`}>
+                                                {st} {c}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    {activeRoomDeviceTypes.length === 0 && (
+                        <div className="text-center py-20 text-slate-400 text-xs">
+                            该房间暂无设备
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* LEVEL 4: Device List */}
             {viewState.level === 'devices' && (
                 <div className="animate-fadeIn pb-16">
                     {activeRoomDevices.map(device => {
@@ -435,7 +553,7 @@ const DeviceList: React.FC = () => {
                     })}
                     {activeRoomDevices.length === 0 && (
                         <div className="text-center py-20 text-slate-400 text-xs">
-                            该房间暂无匹配的设备
+                            该类型下暂无匹配的设备
                         </div>
                     )}
                 </div>

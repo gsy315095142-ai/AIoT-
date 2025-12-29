@@ -1,4 +1,4 @@
-// 标记：本次更新优化了设备管理页面的添加设备体验，支持根据当前所处的门店或客房层级，自动预填大区、门店及房号信息
+// 标记：本次更新优化了设备管理页面的层级结构，在客房内增加了设备类型展示页，点击类型后进入具体的设备列表
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
