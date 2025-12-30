@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent, AuditRecord, AuditStatus, AuditType, StoreInstallation, InstallNode, Product, RoomTypeConfig, ProcurementOrder, ProductSubType, UserRole } from '../types';
+import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent, AuditRecord, AuditStatus, AuditType, StoreInstallation, InstallNode, Product, RoomTypeConfig, ProcurementOrder, ProductSubType, UserRole, StoreModuleConfig } from '../types';
 
 // Initial Mock Data
 const MOCK_REGIONS: Region[] = [
@@ -28,14 +28,50 @@ const DEFAULT_ROOM_TYPES: RoomTypeConfig[] = [
     { id: 'rt2', name: '样板房', images: [], measurements: [] },
 ];
 
+const DEFAULT_MODULES = [
+    '地投环境',
+    '桌显桌子形状尺寸',
+    '床头背景墙尺寸',
+    '桌显处墙面宽高',
+    '浴室镜面形状和尺寸',
+    '电视墙到床尾距离',
+    '照片墙处墙面宽高',
+    '玩乐活动区域长宽'
+];
+
+const createDefaultModuleConfig = (): StoreModuleConfig => {
+    const moduleTypes: Record<string, 'measurement' | 'installation'> = {};
+    DEFAULT_MODULES.forEach(m => moduleTypes[m] = 'measurement'); // Default to measurement
+
+    return {
+        activeModules: [...DEFAULT_MODULES],
+        moduleTypes: moduleTypes,
+        exampleImages: {
+            '地投环境': 'https://images.unsplash.com/photo-1554995207-c18c203602cb?q=80&w=600&auto=format&fit=crop',
+            '桌显桌子形状尺寸': 'https://images.unsplash.com/photo-1593640408182-31c70c8268f5?q=80&w=600&auto=format&fit=crop',
+            '床头背景墙尺寸': 'https://images.unsplash.com/photo-1505693416388-b0346ef4174d?q=80&w=600&auto=format&fit=crop',
+            '桌显处墙面宽高': 'https://images.unsplash.com/photo-1600607686527-6fb886090705?q=80&w=600&auto=format&fit=crop',
+            '浴室镜面形状和尺寸': 'https://images.unsplash.com/photo-1584622050111-993a426fbf0a?q=80&w=600&auto=format&fit=crop',
+            '电视墙到床尾距离': 'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?q=80&w=600&auto=format&fit=crop',
+            '照片墙处墙面宽高': 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?q=80&w=600&auto=format&fit=crop',
+            '玩乐活动区域长宽': 'https://images.unsplash.com/photo-1596178065887-1198b6148b2e?q=80&w=600&auto=format&fit=crop'
+        },
+        exampleRequirements: {},
+        checklistConfigs: {}
+    };
+};
+
 const MOCK_STORES: Store[] = [
   { 
     id: 's1', 
     regionId: 'r1', 
     name: '上海南京路店', 
-    // Special requirements for Shanghai Nanjing Road Store
     roomTypeConfigs: DEFAULT_ROOM_TYPES.map(rt => ({
-        ...rt,
+        ...rt
+    })),
+    // Define store-specific module config overriding defaults for S1
+    moduleConfig: {
+        ...createDefaultModuleConfig(),
         exampleRequirements: {
             '地投环境': `进入房间，对着门拍一张照片
 1.玄关定位（标记距离门2m处天花板的位置）
@@ -52,7 +88,7 @@ const MOCK_STORES: Store[] = [
                 { id: 'cp-def-6', label: '满足安装', type: 'boolean' },
             ]
         }
-    })),
+    },
     rooms: [
         { number: '2101', type: '普通房' },
         { number: '2102', type: '普通房' },
@@ -65,17 +101,19 @@ const MOCK_STORES: Store[] = [
     regionId: 'r1', 
     name: '杭州西湖店', 
     roomTypeConfigs: JSON.parse(JSON.stringify(DEFAULT_ROOM_TYPES)),
+    moduleConfig: createDefaultModuleConfig(),
     rooms: [
         { number: '101', type: '普通房' },
         { number: '102', type: '样板房' }
     ],
-    installation: createMockInstallation() // Changed from 'in_progress' to default
+    installation: createMockInstallation() 
   },
   { 
     id: 's3', 
     regionId: 'r2', 
     name: '北京三里屯店', 
     roomTypeConfigs: JSON.parse(JSON.stringify(DEFAULT_ROOM_TYPES)),
+    moduleConfig: createDefaultModuleConfig(),
     rooms: [
         { number: 'Lobby', type: '普通房' },
         { number: '301', type: '普通房' },
@@ -88,6 +126,7 @@ const MOCK_STORES: Store[] = [
     regionId: 'r3', 
     name: '广州天河城店', 
     roomTypeConfigs: JSON.parse(JSON.stringify(DEFAULT_ROOM_TYPES)),
+    moduleConfig: createDefaultModuleConfig(),
     rooms: [
         { number: '501', type: '普通房' },
         { number: '505', type: '普通房' }
@@ -316,8 +355,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const addStore = (store: Store) => {
-    // Ensure new stores have default installation data
-    const newStore = { ...store, installation: createMockInstallation() };
+    // Ensure new stores have default installation data AND module config
+    const newStore: Store = { 
+        ...store, 
+        installation: createMockInstallation(),
+        moduleConfig: createDefaultModuleConfig()
+    };
     setStores([...stores, newStore]);
   };
 

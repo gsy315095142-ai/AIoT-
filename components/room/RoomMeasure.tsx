@@ -5,7 +5,7 @@ import { RoomImageCategory, RoomImage, RoomMeasurement, MeasurementType, RoomMea
 import { AuditGate } from '../DeviceComponents';
 
 // --- Constants ---
-const MODULES: RoomImageCategory[] = [
+const DEFAULT_MODULES: RoomImageCategory[] = [
     '地投环境',
     '桌显桌子形状尺寸',
     '床头背景墙尺寸',
@@ -295,7 +295,7 @@ export const RoomMeasure: React.FC = () => {
   
   // Detail View State
   const [activeRoomTypeName, setActiveRoomTypeName] = useState('');
-  const [expandedModules, setExpandedModules] = useState<string[]>([MODULES[0]]);
+  const [expandedModules, setExpandedModules] = useState<string[]>([DEFAULT_MODULES[0]]);
 
   // Editing state
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
@@ -319,6 +319,10 @@ export const RoomMeasure: React.FC = () => {
 
   const currentStore = stores.find(s => s.id === selectedStoreId);
   const currentRoomTypeConfig = currentStore?.roomTypeConfigs.find(rt => rt.name === activeRoomTypeName);
+  
+  // Use Store-Level Module Config and filter by type 'measurement'
+  const activeModules = (currentStore?.moduleConfig.activeModules || DEFAULT_MODULES)
+    .filter(m => (currentStore?.moduleConfig.moduleTypes?.[m] || 'measurement') === 'measurement');
 
   // Handlers
   const handleStoreClick = (storeId: string) => {
@@ -344,9 +348,12 @@ export const RoomMeasure: React.FC = () => {
       );
   };
 
-  const isRoomTypeCompleted = (config: RoomTypeConfig) => {
-      const measurementCount = config.measurements ? config.measurements.filter(m => m.status === 'approved').length : 0;
-      return measurementCount >= MODULES.length;
+  const isRoomTypeCompleted = (config: RoomTypeConfig, store: any) => {
+      const activeMods = store.moduleConfig.activeModules || DEFAULT_MODULES;
+      // Only count measurement modules for completion here
+      const measurementMods = activeMods.filter((m: string) => (store.moduleConfig.moduleTypes?.[m] || 'measurement') === 'measurement');
+      const measurementCount = config.measurements ? config.measurements.filter(m => m.status === 'approved' && measurementMods.includes(m.category)).length : 0;
+      return measurementCount >= measurementMods.length;
   };
 
   const handleImageUpload = (e: ChangeEvent<HTMLInputElement>, category: RoomImageCategory) => {
@@ -423,7 +430,8 @@ export const RoomMeasure: React.FC = () => {
   const submitAudit = (category: RoomImageCategory) => {
       if (!currentStore || !activeRoomTypeName) return;
       
-      const configParams = currentRoomTypeConfig?.checklistConfigs?.[category] || [];
+      // Use Store-Level Checklist Config
+      const configParams = currentStore.moduleConfig.checklistConfigs?.[category] || [];
       const measurement = currentRoomTypeConfig?.measurements?.find(m => m.category === category);
       const values = measurement?.checklistValues || {};
 
@@ -499,7 +507,8 @@ export const RoomMeasure: React.FC = () => {
   };
 
   const openExample = (moduleName: string) => {
-      let exampleUrl = currentRoomTypeConfig?.exampleImages?.[moduleName] || EXAMPLE_IMAGES[moduleName];
+      // Use Store-Level Example
+      let exampleUrl = currentStore?.moduleConfig.exampleImages?.[moduleName] || EXAMPLE_IMAGES[moduleName];
       if (exampleUrl) {
           setViewingExample({ title: `${moduleName}示例`, url: exampleUrl });
       }
@@ -534,7 +543,7 @@ export const RoomMeasure: React.FC = () => {
                 )}
                 {filteredStores.map(store => {
                     const roomTypes = store.roomTypeConfigs || [];
-                    const completedTypes = roomTypes.filter(rt => isRoomTypeCompleted(rt)).length;
+                    const completedTypes = roomTypes.filter(rt => isRoomTypeCompleted(rt, store)).length;
                     const totalTypes = roomTypes.length;
                     const percent = totalTypes > 0 ? Math.round((completedTypes / totalTypes) * 100) : 0;
 
@@ -620,12 +629,14 @@ export const RoomMeasure: React.FC = () => {
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
             {currentRoomTypeConfig ? (
-                MODULES.map(moduleName => {
+                activeModules.map(moduleName => {
                     // Data Extraction
                     const images = currentRoomTypeConfig.images?.filter(img => img.category === moduleName) || [];
                     const measurement = currentRoomTypeConfig.measurements?.find(m => m.category === moduleName);
-                    const requirement = currentRoomTypeConfig.exampleRequirements?.[moduleName];
-                    const checklistParams = currentRoomTypeConfig.checklistConfigs?.[moduleName] || [];
+                    
+                    // Use Store-Level Configs
+                    const requirement = currentStore.moduleConfig.exampleRequirements?.[moduleName];
+                    const checklistParams = currentStore.moduleConfig.checklistConfigs?.[moduleName] || [];
                     
                     const isEditing = editingCategory === moduleName;
                     const hasImages = images.length > 0;

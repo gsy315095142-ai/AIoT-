@@ -7,15 +7,7 @@ export type Region = {
 
 export type UserRole = 'admin' | 'product_director' | 'hardware' | 'procurement' | 'local' | 'ops_manager' | 'business_manager' | 'artist' | 'area_manager' | 'area_assistant';
 
-export type RoomImageCategory = 
-  | '地投环境' 
-  | '桌显桌子形状尺寸' 
-  | '床头背景墙尺寸'
-  | '桌显处墙面宽高'
-  | '浴室镜面形状和尺寸'
-  | '电视墙到床尾距离'
-  | '照片墙处墙面宽高'
-  | '玩乐活动区域长宽';
+export type RoomImageCategory = string;
 
 export type RoomImage = {
   url: string;
@@ -48,13 +40,17 @@ export type ChecklistParam = {
 export type RoomTypeConfig = {
   id: string;
   name: string;
-  exampleImages?: Record<string, string>; // Maps RoomImageCategory to URL
-  exampleRequirements?: Record<string, string>; // Maps RoomImageCategory to Text Requirement
-  checklistConfigs?: Record<string, ChecklistParam[]>; // Maps RoomImageCategory to Checklist Params
-  
-  // Moved from Room to RoomTypeConfig
+  // Config fields (exampleImages, etc.) are moved to StoreModuleConfig, but kept here for fallback or data migration if needed, 
+  // though primarily we will use Store level config for definitions.
+  // Data fields remain:
   images?: RoomImage[]; // Actual Measurement Images for this Room Type
   measurements?: RoomMeasurement[]; // Measurement Data for this Room Type
+  
+  // Deprecated/Legacy fields (kept for type compatibility during migration if necessary, but UI will look at Store)
+  modules?: string[]; 
+  exampleImages?: Record<string, string>; 
+  exampleRequirements?: Record<string, string>; 
+  checklistConfigs?: Record<string, ChecklistParam[]>; 
 };
 
 export type Room = {
@@ -91,13 +87,25 @@ export type StoreInstallation = {
 };
 // --------------------------
 
+export type ModuleType = 'measurement' | 'installation';
+
+// Store-level Module Configuration (Universal for all room types in the store)
+export type StoreModuleConfig = {
+  activeModules: string[];
+  moduleTypes: Record<string, ModuleType>; // Define the type of each module
+  exampleImages: Record<string, string>;
+  exampleRequirements: Record<string, string>;
+  checklistConfigs: Record<string, ChecklistParam[]>;
+};
+
 export type Store = {
   id: string;
   regionId: string;
   name: string;
   roomTypeConfigs: RoomTypeConfig[]; // New: Per-store room types
   rooms: Room[];
-  installation?: StoreInstallation; 
+  installation?: StoreInstallation;
+  moduleConfig: StoreModuleConfig; // New: Store-wide module configuration
 };
 
 export type DeviceType = {

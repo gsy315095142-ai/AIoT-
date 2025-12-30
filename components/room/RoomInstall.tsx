@@ -4,17 +4,6 @@ import { useApp } from '../../context/AppContext';
 import { Store as StoreType, InstallNode, InstallStatus, RoomImageCategory } from '../../types';
 import { AuditGate } from '../DeviceComponents';
 
-const INSTALL_MODULES: RoomImageCategory[] = [
-    '地投环境',
-    '桌显桌子形状尺寸',
-    '床头背景墙尺寸',
-    '桌显处墙面宽高',
-    '浴室镜面形状和尺寸',
-    '电视墙到床尾距离',
-    '照片墙处墙面宽高',
-    '玩乐活动区域长宽'
-];
-
 // Moved outside component to avoid scope/re-creation issues
 const EXAMPLE_IMAGES: Record<string, string> = {
     '到店打卡': 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=600&auto=format&fit=crop', 
@@ -22,7 +11,7 @@ const EXAMPLE_IMAGES: Record<string, string> = {
     '安装': 'https://images.unsplash.com/photo-1540518614846-7eded433c457?q=80&w=600&auto=format&fit=crop', 
     '调试': 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?q=80&w=600&auto=format&fit=crop',
     '交付': 'https://images.unsplash.com/photo-1556155092-490a1ba16284?q=80&w=600&auto=format&fit=crop',
-    // Modules
+    // Modules - Fallback if no store config
     '地投环境': 'https://images.unsplash.com/photo-1554995207-c18c203602cb?q=80&w=600&auto=format&fit=crop',
     '桌显桌子形状尺寸': 'https://images.unsplash.com/photo-1593640408182-31c70c8268f5?q=80&w=600&auto=format&fit=crop',
     '床头背景墙尺寸': 'https://images.unsplash.com/photo-1505693416388-b0346ef4174d?q=80&w=600&auto=format&fit=crop',
@@ -98,9 +87,9 @@ export const RoomInstall: React.FC = () => {
       // Try to get dynamic example from store config first if roomType is provided
       let url = null;
       if (roomType && activeStore) {
-          const config = activeStore.roomTypeConfigs.find(rt => rt.name === roomType);
-          if (config?.exampleImages?.[nodeName]) {
-              url = config.exampleImages[nodeName];
+          // Use Store-Level Config for Examples
+          if (activeStore.moduleConfig.exampleImages?.[nodeName]) {
+              url = activeStore.moduleConfig.exampleImages[nodeName];
           }
       }
       
@@ -388,12 +377,15 @@ export const RoomInstall: React.FC = () => {
       } else if (currentStepIndex === 3) { // Installation
           const roomData = currentNode.data || {};
           const rooms = activeStore.rooms;
-          // Updated to new module list
-          const categories = INSTALL_MODULES;
+          // Get Dynamic Installation Modules
+          const installationModules = activeStore.moduleConfig.activeModules.filter(m => activeStore.moduleConfig.moduleTypes?.[m] === 'installation');
+          
+          if (installationModules.length === 0) return true; // No modules configured, allow complete
+
           if (rooms.length > 0) {
               return rooms.every(room => {
                   const rData = roomData[room.number] || {};
-                  return categories.every(cat => Array.isArray(rData[cat]) && rData[cat].length > 0);
+                  return installationModules.every(cat => Array.isArray(rData[cat]) && rData[cat].length > 0);
               });
           } else {
               return true; 
@@ -482,8 +474,10 @@ export const RoomInstall: React.FC = () => {
   const isLocked = isAuditMode; 
 
   const isRoomCompleted = (roomData: any) => {
-      const categories = INSTALL_MODULES;
-      return categories.every(cat => Array.isArray(roomData[cat]) && roomData[cat].length > 0);
+      // Get Dynamic Installation Modules
+      const installationModules = activeStore?.moduleConfig.activeModules.filter(m => activeStore.moduleConfig.moduleTypes?.[m] === 'installation') || [];
+      if (installationModules.length === 0) return true;
+      return installationModules.every(cat => Array.isArray(roomData[cat]) && roomData[cat].length > 0);
   };
 
   const isDebugRoomCompleted = (rData: any) => rData?.network && rData?.log;
@@ -788,12 +782,13 @@ export const RoomInstall: React.FC = () => {
 
                                             {(() => {
                                                 const roomData = (currentNode.data && typeof currentNode.data === 'object') ? currentNode.data[installingRoomNumber] || {} : {};
-                                                const categories = INSTALL_MODULES;
+                                                // Dynamic Categories from Store Config
+                                                const categories = activeStore.moduleConfig.activeModules.filter(m => activeStore.moduleConfig.moduleTypes?.[m] === 'installation');
                                                 const roomType = activeStore.rooms.find(r => r.number === installingRoomNumber)?.type;
 
                                                 return (
                                                     <div className="space-y-4">
-                                                        {categories.map(cat => {
+                                                        {categories.length > 0 ? categories.map(cat => {
                                                             const images = roomData[cat] || [];
                                                             return (
                                                                 <div key={cat} className="bg-slate-50 p-4 rounded-xl border border-slate-100">
@@ -824,7 +819,11 @@ export const RoomInstall: React.FC = () => {
                                                                     </div>
                                                                 </div>
                                                             );
-                                                        })}
+                                                        }) : (
+                                                            <div className="p-4 text-center text-slate-400 text-xs bg-slate-50 rounded-xl border border-dashed">
+                                                                暂无需要安装拍照的模块，请在「客房建档-模块配置」中添加安装类模块。
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 );
                                             })()}

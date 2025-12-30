@@ -1,9 +1,9 @@
 import React, { useState, ChangeEvent, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Star, Table, Ruler, ArrowLeft, Search, ChevronDown, ChevronRight, Filter, Settings, Check, HelpCircle, Image as ImageIcon, ClipboardList, Hammer, ListChecks } from 'lucide-react';
-import { Store as StoreType, Room, RoomImageCategory, RoomImage, RoomTypeConfig, ChecklistParam, ChecklistParamType } from '../../types';
+import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Table, Ruler, ArrowLeft, Search, ChevronDown, ChevronRight, Settings, Check, HelpCircle, Image as ImageIcon, ClipboardList, Hammer, ListChecks } from 'lucide-react';
+import { Store as StoreType, Room, RoomImageCategory, RoomImage, RoomTypeConfig, ChecklistParam, ChecklistParamType, ModuleType } from '../../types';
 
-const ROOM_MODULES: RoomImageCategory[] = [
+const DEFAULT_MODULES: RoomImageCategory[] = [
     '地投环境',
     '桌显桌子形状尺寸',
     '床头背景墙尺寸',
@@ -45,6 +45,12 @@ export const RoomArchive: React.FC = () => {
   const [newChecklistLabel, setNewChecklistLabel] = useState('');
   const [newChecklistType, setNewChecklistType] = useState<ChecklistParamType>('text');
 
+  // Module Management State
+  const [newModuleInput, setNewModuleInput] = useState('');
+  const [editingModule, setEditingModule] = useState<{ oldName: string; newName: string } | null>(null);
+  const [isAddingModule, setIsAddingModule] = useState(false);
+  const [activeModuleTab, setActiveModuleTab] = useState<ModuleType>('measurement');
+
   // Store Management Modal State
   const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
   const [editingStoreId, setEditingStoreId] = useState<string | null>(null);
@@ -65,6 +71,9 @@ export const RoomArchive: React.FC = () => {
 
   // Store Room Type Config Modal
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  
+  // Store Module Config Modal (New - Full Page)
+  const [isModuleConfigModalOpen, setIsModuleConfigModalOpen] = useState(false);
 
   // Room Detail Modal State
   const [editingRoom, setEditingRoom] = useState<{ storeId: string; room: Room } | null>(null);
@@ -91,6 +100,188 @@ export const RoomArchive: React.FC = () => {
           }
       }
   }, [activeStore, activeRoomTypeName]);
+
+  // --- Module Management Handlers (Store Level) ---
+
+  const handleAddModule = () => {
+      if (!activeStore || !newModuleInput.trim()) return;
+      
+      const currentConfig = activeStore.moduleConfig;
+      if (currentConfig.activeModules.includes(newModuleInput.trim())) {
+          alert('该模块名称已存在');
+          return;
+      }
+
+      const newModules = [...currentConfig.activeModules, newModuleInput.trim()];
+      const newModuleTypes = { ...currentConfig.moduleTypes, [newModuleInput.trim()]: activeModuleTab };
+
+      updateStore(activeStore.id, {
+          moduleConfig: {
+              ...currentConfig,
+              activeModules: newModules,
+              moduleTypes: newModuleTypes
+          }
+      });
+      
+      setNewModuleInput('');
+      setIsAddingModule(false);
+  };
+
+  const handleDeleteModule = (moduleName: string) => {
+      if (!activeStore) return;
+      if (!window.confirm(`确定要删除模块 "${moduleName}" 吗？所有房型的相关测量数据将保留但不可见，配置数据将被移除。`)) return;
+
+      const currentConfig = activeStore.moduleConfig;
+      const newModules = currentConfig.activeModules.filter(m => m !== moduleName);
+      
+      // Also clean up configs
+      const newExampleImages = { ...currentConfig.exampleImages };
+      delete newExampleImages[moduleName];
+      const newExampleRequirements = { ...currentConfig.exampleRequirements };
+      delete newExampleRequirements[moduleName];
+      const newChecklistConfigs = { ...currentConfig.checklistConfigs };
+      delete newChecklistConfigs[moduleName];
+      const newModuleTypes = { ...currentConfig.moduleTypes };
+      delete newModuleTypes[moduleName];
+
+      updateStore(activeStore.id, {
+          moduleConfig: {
+              activeModules: newModules,
+              moduleTypes: newModuleTypes,
+              exampleImages: newExampleImages,
+              exampleRequirements: newExampleRequirements,
+              checklistConfigs: newChecklistConfigs
+          }
+      });
+  };
+
+  const handleRenameModule = () => {
+      if (!activeStore || !editingModule || !editingModule.newName.trim()) return;
+      const { oldName, newName } = editingModule;
+      if (oldName === newName) { setEditingModule(null); return; }
+
+      const currentConfig = activeStore.moduleConfig;
+      if (currentConfig.activeModules.includes(newName)) {
+          alert('该模块名称已存在');
+          return;
+      }
+
+      // 1. Update Config Keys
+      const newModules = currentConfig.activeModules.map(m => m === oldName ? newName : m);
+      
+      const newModuleTypes = { ...currentConfig.moduleTypes };
+      if (newModuleTypes[oldName]) { newModuleTypes[newName] = newModuleTypes[oldName]; delete newModuleTypes[oldName]; }
+
+      const newExampleImages = { ...currentConfig.exampleImages };
+      if (newExampleImages[oldName]) { newExampleImages[newName] = newExampleImages[oldName]; delete newExampleImages[oldName]; }
+      
+      const newRequirements = { ...currentConfig.exampleRequirements };
+      if (newRequirements[oldName]) { newRequirements[newName] = newRequirements[oldName]; delete newRequirements[oldName]; }
+      
+      const newChecklistConfigs = { ...currentConfig.checklistConfigs };
+      if (newChecklistConfigs[oldName]) { newChecklistConfigs[newName] = newChecklistConfigs[oldName]; delete newChecklistConfigs[oldName]; }
+
+      // 2. Migrate Data in RoomTypes (Update category name in measurements and images)
+      const updatedRoomTypeConfigs = activeStore.roomTypeConfigs.map(rt => {
+          const newImages = (rt.images || []).map(img => 
+              img.category === oldName ? { ...img, category: newName } : img
+          );
+          const newMeasurements = (rt.measurements || []).map(m => 
+              m.category === oldName ? { ...m, category: newName } : m
+          );
+          return { ...rt, images: newImages, measurements: newMeasurements };
+      });
+
+      updateStore(activeStore.id, {
+          moduleConfig: {
+              activeModules: newModules,
+              moduleTypes: newModuleTypes,
+              exampleImages: newExampleImages,
+              exampleRequirements: newRequirements,
+              checklistConfigs: newChecklistConfigs
+          },
+          roomTypeConfigs: updatedRoomTypeConfigs
+      });
+
+      setEditingModule(null);
+  };
+
+  // --- Config Image/Req/Checklist Handlers (Store Level) ---
+
+  const handleConfigImageUpload = (category: string, e: ChangeEvent<HTMLInputElement>) => {
+      if (!activeStore) return;
+      if (e.target.files && e.target.files[0]) {
+          const url = URL.createObjectURL(e.target.files[0]);
+          const currentConfig = activeStore.moduleConfig;
+          updateStore(activeStore.id, {
+              moduleConfig: {
+                  ...currentConfig,
+                  exampleImages: { ...currentConfig.exampleImages, [category]: url }
+              }
+          });
+          e.target.value = '';
+      }
+  };
+
+  const removeConfigImage = (category: string) => {
+      if (!activeStore) return;
+      const currentConfig = activeStore.moduleConfig;
+      const newImages = { ...currentConfig.exampleImages };
+      delete newImages[category];
+      updateStore(activeStore.id, {
+          moduleConfig: { ...currentConfig, exampleImages: newImages }
+      });
+  };
+
+  const handleConfigRequirementChange = (category: string, value: string) => {
+      if (!activeStore) return;
+      const currentConfig = activeStore.moduleConfig;
+      updateStore(activeStore.id, {
+          moduleConfig: {
+              ...currentConfig,
+              exampleRequirements: { ...currentConfig.exampleRequirements, [category]: value }
+          }
+      });
+  };
+
+  const handleAddChecklistParam = (category: string) => {
+      if (!activeStore || !newChecklistLabel.trim()) return;
+      const currentConfig = activeStore.moduleConfig;
+      const currentParams = currentConfig.checklistConfigs[category] || [];
+      const newParam: ChecklistParam = {
+          id: `cp-${Date.now()}`,
+          label: newChecklistLabel.trim(),
+          type: newChecklistType
+      };
+      
+      updateStore(activeStore.id, {
+          moduleConfig: {
+              ...currentConfig,
+              checklistConfigs: {
+                  ...currentConfig.checklistConfigs,
+                  [category]: [...currentParams, newParam]
+              }
+          }
+      });
+      setNewChecklistLabel('');
+      setAddingChecklistToCategory(null);
+  };
+
+  const handleRemoveChecklistParam = (category: string, paramId: string) => {
+      if (!activeStore) return;
+      const currentConfig = activeStore.moduleConfig;
+      const currentParams = currentConfig.checklistConfigs[category] || [];
+      
+      updateStore(activeStore.id, {
+          moduleConfig: {
+              ...currentConfig,
+              checklistConfigs: {
+                  ...currentConfig.checklistConfigs,
+                  [category]: currentParams.filter(p => p.id !== paramId)
+              }
+          }
+      });
+  };
 
   // --- Store Management Logic ---
 
@@ -221,7 +412,8 @@ export const RoomArchive: React.FC = () => {
               name: storeForm.name,
               regionId: storeForm.regionId,
               roomTypeConfigs: storeForm.roomTypes,
-              rooms: mergeRooms([])
+              rooms: mergeRooms([]),
+              moduleConfig: { activeModules: [], moduleTypes: {}, exampleImages: {}, exampleRequirements: {}, checklistConfigs: {} } // Will be handled by addStore defaults usually
           });
       }
       setIsStoreModalOpen(false);
@@ -278,106 +470,11 @@ export const RoomArchive: React.FC = () => {
       setIsAssignOpen(false);
   };
 
-  const handleConfigImageUpload = (category: string, e: ChangeEvent<HTMLInputElement>) => {
-      if (!activeStore || !activeRoomTypeName) return;
-      if (e.target.files && e.target.files[0]) {
-          const url = URL.createObjectURL(e.target.files[0]);
-          const updatedTypeConfigs = activeStore.roomTypeConfigs.map(rt => {
-              if (rt.name === activeRoomTypeName) {
-                  return {
-                      ...rt,
-                      exampleImages: {
-                          ...(rt.exampleImages || {}),
-                          [category]: url
-                      }
-                  };
-              }
-              return rt;
-          });
-          updateStore(activeStore.id, { roomTypeConfigs: updatedTypeConfigs });
-          e.target.value = '';
+  const openExample = (moduleName: string) => {
+      let exampleUrl = activeStore?.moduleConfig.exampleImages?.[moduleName] || EXAMPLE_IMAGES[moduleName];
+      if (exampleUrl) {
+          setViewingExample({ title: `${moduleName}示例`, url: exampleUrl });
       }
-  };
-
-  const removeConfigImage = (category: string) => {
-      if (!activeStore || !activeRoomTypeName) return;
-      const updatedTypeConfigs = activeStore.roomTypeConfigs.map(rt => {
-          if (rt.name === activeRoomTypeName) {
-              const newImages = { ...(rt.exampleImages || {}) };
-              delete newImages[category];
-              return { ...rt, exampleImages: newImages };
-          }
-          return rt;
-      });
-      updateStore(activeStore.id, { roomTypeConfigs: updatedTypeConfigs });
-  };
-
-  const handleConfigRequirementChange = (category: string, value: string) => {
-      if (!activeStore || !activeRoomTypeName) return;
-      const updatedTypeConfigs = activeStore.roomTypeConfigs.map(rt => {
-          if (rt.name === activeRoomTypeName) {
-              return {
-                  ...rt,
-                  exampleRequirements: {
-                      ...(rt.exampleRequirements || {}),
-                      [category]: value
-                  }
-              };
-          }
-          return rt;
-      });
-      updateStore(activeStore.id, { roomTypeConfigs: updatedTypeConfigs });
-  };
-
-  // --- Checklist Management Handlers ---
-
-  const handleAddChecklistParam = (category: string) => {
-      if (!activeStore || !activeRoomTypeName || !newChecklistLabel.trim()) return;
-      
-      const updatedTypeConfigs = activeStore.roomTypeConfigs.map(rt => {
-          if (rt.name === activeRoomTypeName) {
-              const currentConfigs = rt.checklistConfigs || {};
-              const currentParams = currentConfigs[category] || [];
-              const newParam: ChecklistParam = {
-                  id: `cp-${Date.now()}`,
-                  label: newChecklistLabel.trim(),
-                  type: newChecklistType
-              };
-              
-              return {
-                  ...rt,
-                  checklistConfigs: {
-                      ...currentConfigs,
-                      [category]: [...currentParams, newParam]
-                  }
-              };
-          }
-          return rt;
-      });
-      updateStore(activeStore.id, { roomTypeConfigs: updatedTypeConfigs });
-      setNewChecklistLabel('');
-      setAddingChecklistToCategory(null);
-  };
-
-  const handleRemoveChecklistParam = (category: string, paramId: string) => {
-      if (!activeStore || !activeRoomTypeName) return;
-      
-      const updatedTypeConfigs = activeStore.roomTypeConfigs.map(rt => {
-          if (rt.name === activeRoomTypeName) {
-              const currentConfigs = rt.checklistConfigs || {};
-              const currentParams = currentConfigs[category] || [];
-              
-              return {
-                  ...rt,
-                  checklistConfigs: {
-                      ...currentConfigs,
-                      [category]: currentParams.filter(p => p.id !== paramId)
-                  }
-              };
-          }
-          return rt;
-      });
-      updateStore(activeStore.id, { roomTypeConfigs: updatedTypeConfigs });
   };
 
   // --- View Switching ---
@@ -387,6 +484,9 @@ export const RoomArchive: React.FC = () => {
       const roomCount = activeStore.rooms.length;
       const availableRoomTypes = activeStore.roomTypeConfigs || [];
       const currentRoomTypeConfig = availableRoomTypes.find(rt => rt.name === activeRoomTypeName);
+      
+      const activeModules = activeStore.moduleConfig.activeModules || DEFAULT_MODULES;
+      const measurementModules = activeModules.filter(m => (activeStore.moduleConfig.moduleTypes?.[m] || 'measurement') === 'measurement');
       
       const filteredRooms = activeStore.rooms.filter(room => {
           if (activeRoomTypeName && room.type !== activeRoomTypeName) return false;
@@ -409,9 +509,14 @@ export const RoomArchive: React.FC = () => {
                               <p className="text-xs text-slate-500">共 {roomCount} 间客房</p>
                           </div>
                       </div>
-                      <button onClick={handleOpenConfigModal} className="flex items-center gap-1 text-[10px] bg-slate-100 text-slate-600 px-2 py-1.5 rounded-lg font-bold hover:bg-slate-200">
-                          <Settings size={12} /> 房型配置
-                      </button>
+                      <div className="flex flex-col gap-1">
+                          <button onClick={handleOpenConfigModal} className="flex items-center justify-center gap-1 text-[10px] bg-slate-100 text-slate-600 px-2 py-1.5 rounded-lg font-bold hover:bg-slate-200 min-w-[70px]">
+                              <Settings size={12} /> 房型配置
+                          </button>
+                          <button onClick={() => setIsModuleConfigModalOpen(true)} className="flex items-center justify-center gap-1 text-[10px] bg-blue-50 text-blue-600 border border-blue-100 px-2 py-1.5 rounded-lg font-bold hover:bg-blue-100 min-w-[70px]">
+                              <ListChecks size={12} /> 模块配置
+                          </button>
+                      </div>
                   </div>
 
                   <div className="flex px-4 border-b border-slate-100 overflow-x-auto no-scrollbar gap-6">
@@ -440,7 +545,7 @@ export const RoomArchive: React.FC = () => {
                       </h3>
                       <div className="space-y-4">
                           {currentRoomTypeConfig ? (
-                              ROOM_MODULES.map(moduleName => {
+                              measurementModules.map(moduleName => {
                                   // Data Source: Room Type Config
                                   const measurement = currentRoomTypeConfig.measurements?.find(m => m.category === moduleName);
                                   const catImages = currentRoomTypeConfig.images?.filter(img => img.category === moduleName) || [];
@@ -470,127 +575,6 @@ export const RoomArchive: React.FC = () => {
                           {(!currentRoomTypeConfig?.measurements?.some(m => m.status === 'approved')) && (
                               <div className="text-center py-4 text-xs text-slate-400 border border-dashed rounded-lg bg-slate-50">暂无已归档的复尺信息</div>
                           )}
-                      </div>
-                  </div>
-
-                  {/* Module 2: Example Images & Requirements & Checklist */}
-                  <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
-                      <h3 className="text-xs font-bold text-slate-500 mb-3 flex items-center gap-1 uppercase">
-                          <ImageIcon size={14} className="text-orange-500" /> 
-                          【示例图与参数模块】
-                      </h3>
-                      <div className="grid grid-cols-1 gap-4">
-                          {ROOM_MODULES.map(moduleName => {
-                              const existingImage = currentRoomTypeConfig?.exampleImages?.[moduleName];
-                              const existingRequirement = currentRoomTypeConfig?.exampleRequirements?.[moduleName] || '';
-                              const checklistParams = currentRoomTypeConfig?.checklistConfigs?.[moduleName] || [];
-                              const isAddingChecklist = addingChecklistToCategory === moduleName;
-                              
-                              return (
-                                  <div key={moduleName} className="flex gap-3 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                                      {/* Image Config */}
-                                      <div className="w-20 shrink-0 flex flex-col gap-1">
-                                          {existingImage ? (
-                                              <div className="aspect-square rounded-lg border border-slate-200 relative group overflow-hidden bg-white">
-                                                  <img src={existingImage} alt={`${moduleName} example`} className="w-full h-full object-cover" />
-                                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                                      <div className="relative cursor-pointer">
-                                                          <Edit2 size={12} className="text-white" />
-                                                          <input type="file" accept="image/*" onChange={(e) => handleConfigImageUpload(moduleName, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
-                                                      </div>
-                                                      <button onClick={() => removeConfigImage(moduleName)} className="text-white hover:text-red-400">
-                                                          <Trash2 size={12} />
-                                                      </button>
-                                                  </div>
-                                              </div>
-                                          ) : (
-                                              <div className="aspect-square border-2 border-dashed border-slate-200 rounded-lg flex flex-col items-center justify-center bg-white hover:bg-slate-100 transition-colors cursor-pointer relative group">
-                                                      <input type="file" accept="image/*" onChange={(e) => handleConfigImageUpload(moduleName, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
-                                                      <Plus size={16} className="text-slate-300 group-hover:text-blue-400 mb-1" />
-                                                      <span className="text-[9px] text-slate-400 font-bold group-hover:text-blue-500">上传</span>
-                                              </div>
-                                          )}
-                                          <div className="text-[9px] font-bold text-slate-600 text-center truncate">{moduleName}</div>
-                                      </div>
-
-                                      {/* Requirement & Checklist Config */}
-                                      <div className="flex-1 flex flex-col gap-2 min-w-0">
-                                          {/* Text Requirement */}
-                                          <div className="flex flex-col">
-                                              <label className="text-[9px] text-slate-400 font-bold uppercase mb-1">拍摄需求 / 备注</label>
-                                              <textarea 
-                                                  className="w-full bg-white border border-slate-200 rounded p-2 text-xs focus:outline-none focus:border-blue-300 focus:ring-1 focus:ring-blue-200 resize-none text-slate-700 placeholder-slate-300 h-14"
-                                                  placeholder="请输入此模块的拍照或复尺需求..."
-                                                  value={existingRequirement}
-                                                  onChange={(e) => handleConfigRequirementChange(moduleName, e.target.value)}
-                                              />
-                                          </div>
-
-                                          {/* Checklist Config */}
-                                          <div className="flex flex-col">
-                                              <div className="flex justify-between items-center mb-1">
-                                                  <label className="text-[9px] text-slate-400 font-bold uppercase flex items-center gap-1">
-                                                      <ListChecks size={10} /> 必填清单参数
-                                                  </label>
-                                                  {!isAddingChecklist && (
-                                                      <button 
-                                                          onClick={() => { setAddingChecklistToCategory(moduleName); setNewChecklistLabel(''); }}
-                                                          className="text-[9px] text-blue-500 bg-white border border-blue-100 px-1.5 py-0.5 rounded hover:bg-blue-50"
-                                                      >
-                                                          + 添加参数
-                                                      </button>
-                                                  )}
-                                              </div>
-                                              
-                                              {/* Checklist Items */}
-                                              {checklistParams.length > 0 && (
-                                                  <div className="bg-white rounded border border-slate-200 divide-y divide-slate-100 mb-1">
-                                                      {checklistParams.map(param => (
-                                                          <div key={param.id} className="flex justify-between items-center p-1.5 text-xs">
-                                                              <div className="flex items-center gap-2 overflow-hidden">
-                                                                  <span className="font-medium text-slate-700 truncate">{param.label}</span>
-                                                                  <span className="text-[9px] text-slate-400 bg-slate-100 px-1 rounded">{param.type === 'text' ? '填空' : '判断'}</span>
-                                                              </div>
-                                                              <button onClick={() => handleRemoveChecklistParam(moduleName, param.id)} className="text-slate-300 hover:text-red-500">
-                                                                  <X size={12} />
-                                                              </button>
-                                                          </div>
-                                                      ))}
-                                                  </div>
-                                              )}
-
-                                              {/* Add New Checklist Form */}
-                                              {isAddingChecklist && (
-                                                  <div className="bg-blue-50 p-2 rounded border border-blue-100 animate-fadeIn">
-                                                      <div className="flex gap-2 mb-2">
-                                                          <input 
-                                                              autoFocus
-                                                              type="text" 
-                                                              className="flex-1 text-xs border border-blue-200 rounded px-2 py-1 outline-none"
-                                                              placeholder="参数名称 (如: 墙面宽度)"
-                                                              value={newChecklistLabel}
-                                                              onChange={e => setNewChecklistLabel(e.target.value)}
-                                                          />
-                                                          <select 
-                                                              className="text-xs border border-blue-200 rounded px-1 outline-none bg-white w-20"
-                                                              value={newChecklistType}
-                                                              onChange={e => setNewChecklistType(e.target.value as ChecklistParamType)}
-                                                          >
-                                                              <option value="text">填空</option>
-                                                              <option value="boolean">判断</option>
-                                                          </select>
-                                                      </div>
-                                                      <div className="flex gap-2 justify-end">
-                                                          <button onClick={() => setAddingChecklistToCategory(null)} className="text-[10px] text-slate-500 hover:text-slate-700">取消</button>
-                                                          <button onClick={() => handleAddChecklistParam(moduleName)} className="text-[10px] bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">确认</button>
-                                                      </div>
-                                                  </div>
-                                              )}
-                                          </div>
-                                      </div>
-                                  </div>
-                              );
-                          })}
                       </div>
                   </div>
 
@@ -698,9 +682,12 @@ export const RoomArchive: React.FC = () => {
                                       );
                                   }
 
+                                  // Filter active modules to show only installation modules
+                                  const installationModules = activeStore.moduleConfig.activeModules.filter(m => activeStore.moduleConfig.moduleTypes?.[m] === 'installation');
+
                                   return (
                                       <>
-                                        {ROOM_MODULES.map(category => {
+                                        {installationModules.length > 0 ? installationModules.map(category => {
                                             const catImages: string[] = roomInstallData[category] || [];
                                             return (
                                                 <div key={category} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
@@ -718,7 +705,7 @@ export const RoomArchive: React.FC = () => {
                                                     </div>
                                                 </div>
                                             );
-                                        })}
+                                        }) : <div className="text-center text-slate-400 text-xs p-4">暂无配置安装类模块</div>}
                                       </>
                                   );
                               })()}
@@ -780,6 +767,214 @@ export const RoomArchive: React.FC = () => {
                         </div>
                     </div>
                  </div>
+              )}
+
+              {/* Module Config Page (Full Screen Overlay) */}
+              {isModuleConfigModalOpen && (
+                  <div className="fixed inset-0 z-[60] bg-white flex flex-col animate-slideInRight">
+                      <div className="bg-white p-4 border-b border-slate-100 flex justify-between items-center flex-shrink-0 shadow-sm">
+                          <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                              <ListChecks size={20} className="text-blue-600" />
+                              模块配置 - {activeStore.name}
+                          </h3>
+                          <button onClick={() => setIsModuleConfigModalOpen(false)} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200"><X size={20} className="text-slate-500" /></button>
+                      </div>
+                      
+                      <div className="flex bg-slate-100 p-1 mx-4 mt-4 rounded-lg flex-shrink-0">
+                          <button 
+                              onClick={() => setActiveModuleTab('measurement')}
+                              className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${activeModuleTab === 'measurement' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                          >
+                              复尺类模块
+                          </button>
+                          <button 
+                              onClick={() => setActiveModuleTab('installation')}
+                              className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${activeModuleTab === 'installation' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                          >
+                              安装类模块
+                          </button>
+                      </div>
+
+                      <div className="flex-1 overflow-y-auto p-4 bg-white">
+                          <div className="flex justify-between items-center mb-4">
+                              <div className="text-xs text-slate-400">
+                                  {activeModuleTab === 'measurement' ? '复尺类模块需配置图片、备注及清单，将同步至复尺页面。' : '安装类模块只需配置图片，将同步至安装页面。'}
+                              </div>
+                              
+                              {!isAddingModule ? (
+                                  <button 
+                                    onClick={() => setIsAddingModule(true)} 
+                                    className="text-[10px] bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-100 flex items-center gap-1 font-bold transition-colors"
+                                  >
+                                      <Plus size={12} /> 添加模块
+                                  </button>
+                              ) : (
+                                  <div className="flex gap-2 animate-fadeIn">
+                                      <input 
+                                        autoFocus
+                                        className="border border-blue-200 rounded px-2 py-1 text-xs outline-none w-32 focus:ring-1 focus:ring-blue-500"
+                                        placeholder="输入模块名称"
+                                        value={newModuleInput}
+                                        onChange={(e) => setNewModuleInput(e.target.value)}
+                                      />
+                                      <button onClick={handleAddModule} className="text-[10px] bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">确定</button>
+                                      <button onClick={() => { setIsAddingModule(false); setNewModuleInput(''); }} className="text-[10px] bg-slate-200 text-slate-600 px-2 py-1 rounded hover:bg-slate-300">取消</button>
+                                  </div>
+                              )}
+                          </div>
+                          
+                          <div className="grid grid-cols-1 gap-4 pb-10">
+                              {activeStore.moduleConfig.activeModules
+                                .filter(m => (activeStore.moduleConfig.moduleTypes?.[m] || 'measurement') === activeModuleTab)
+                                .map(moduleName => {
+                                  const existingImage = activeStore.moduleConfig.exampleImages[moduleName];
+                                  const existingRequirement = activeStore.moduleConfig.exampleRequirements[moduleName] || '';
+                                  const checklistParams = activeStore.moduleConfig.checklistConfigs[moduleName] || [];
+                                  const isAddingChecklist = addingChecklistToCategory === moduleName;
+                                  const isEditingName = editingModule?.oldName === moduleName;
+                                  
+                                  return (
+                                      <div key={moduleName} className="flex gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100 relative group/module animate-fadeIn">
+                                          {/* Module Name Header & Controls */}
+                                          <div className="w-24 shrink-0 flex flex-col gap-2 items-center">
+                                              {existingImage ? (
+                                                  <div className="aspect-square w-full rounded-lg border border-slate-200 relative group overflow-hidden bg-white">
+                                                      <img src={existingImage} alt={`${moduleName} example`} className="w-full h-full object-cover" />
+                                                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                                          <div className="relative cursor-pointer bg-white/20 p-1 rounded hover:bg-white/40">
+                                                              <Edit2 size={14} className="text-white" />
+                                                              <input type="file" accept="image/*" onChange={(e) => handleConfigImageUpload(moduleName, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                                          </div>
+                                                          <button onClick={() => removeConfigImage(moduleName)} className="text-white hover:text-red-400 bg-white/20 p-1 rounded hover:bg-white/40">
+                                                              <Trash2 size={14} />
+                                                          </button>
+                                                      </div>
+                                                  </div>
+                                              ) : (
+                                                  <div className="aspect-square w-full border-2 border-dashed border-slate-200 rounded-lg flex flex-col items-center justify-center bg-white hover:bg-slate-50 transition-colors cursor-pointer relative group">
+                                                          <input type="file" accept="image/*" onChange={(e) => handleConfigImageUpload(moduleName, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                                          <Plus size={20} className="text-slate-300 group-hover:text-blue-400 mb-1" />
+                                                          <span className="text-[10px] text-slate-400 font-bold group-hover:text-blue-500">上传示例</span>
+                                                  </div>
+                                              )}
+                                              
+                                              {isEditingName ? (
+                                                  <div className="flex flex-col gap-1 w-full animate-fadeIn">
+                                                      <input 
+                                                        autoFocus
+                                                        className="w-full text-[10px] border border-blue-300 rounded px-1 py-0.5 text-center outline-none bg-white"
+                                                        value={editingModule?.newName}
+                                                        onChange={(e) => setEditingModule(prev => prev ? ({ ...prev, newName: e.target.value }) : null)}
+                                                      />
+                                                      <div className="flex justify-center gap-1">
+                                                          <button onClick={handleRenameModule} className="bg-green-100 text-green-600 p-0.5 rounded hover:bg-green-200"><Check size={12} /></button>
+                                                          <button onClick={() => setEditingModule(null)} className="bg-red-100 text-red-600 p-0.5 rounded hover:bg-red-200"><X size={12} /></button>
+                                                      </div>
+                                                  </div>
+                                              ) : (
+                                                  <div className="w-full text-center relative">
+                                                      <div className="text-[10px] font-bold text-slate-700 truncate px-1 cursor-default mb-1" title={moduleName}>{moduleName}</div>
+                                                      <div className="flex justify-center gap-2">
+                                                          <button onClick={() => setEditingModule({ oldName: moduleName, newName: moduleName })} className="text-slate-400 hover:text-blue-500"><Edit2 size={12} /></button>
+                                                          <button onClick={() => handleDeleteModule(moduleName)} className="text-slate-400 hover:text-red-500"><Trash2 size={12} /></button>
+                                                      </div>
+                                                  </div>
+                                              )}
+                                          </div>
+
+                                          {/* Requirement & Checklist Config (Only for Measurement Modules) */}
+                                          {activeModuleTab === 'measurement' ? (
+                                              <div className="flex-1 flex flex-col gap-3 min-w-0">
+                                                  {/* Text Requirement */}
+                                                  <div className="flex flex-col">
+                                                      <label className="text-[9px] text-slate-400 font-bold uppercase mb-1">拍摄需求 / 备注</label>
+                                                      <textarea 
+                                                          className="w-full bg-white border border-slate-200 rounded p-2 text-xs focus:outline-none focus:border-blue-300 focus:ring-1 focus:ring-blue-200 resize-none text-slate-700 placeholder-slate-300 h-16"
+                                                          placeholder="请输入此模块的拍照或复尺需求..."
+                                                          value={existingRequirement}
+                                                          onChange={(e) => handleConfigRequirementChange(moduleName, e.target.value)}
+                                                      />
+                                                  </div>
+
+                                                  {/* Checklist Config */}
+                                                  <div className="flex flex-col">
+                                                      <div className="flex justify-between items-center mb-1">
+                                                          <label className="text-[9px] text-slate-400 font-bold uppercase flex items-center gap-1">
+                                                              <ListChecks size={10} /> 必填清单参数
+                                                          </label>
+                                                          {!isAddingChecklist && (
+                                                              <button 
+                                                                  onClick={() => { setAddingChecklistToCategory(moduleName); setNewChecklistLabel(''); }}
+                                                                  className="text-[9px] text-blue-500 bg-white border border-blue-100 px-1.5 py-0.5 rounded hover:bg-blue-50 transition-colors"
+                                                              >
+                                                                  + 添加参数
+                                                              </button>
+                                                          )}
+                                                      </div>
+                                                      
+                                                      {/* Checklist Items */}
+                                                      {checklistParams.length > 0 && (
+                                                          <div className="bg-white rounded border border-slate-200 divide-y divide-slate-100 mb-1">
+                                                              {checklistParams.map(param => (
+                                                                  <div key={param.id} className="flex justify-between items-center p-1.5 text-xs">
+                                                                      <div className="flex items-center gap-2 overflow-hidden">
+                                                                          <span className="font-medium text-slate-700 truncate">{param.label}</span>
+                                                                          <span className="text-[9px] text-slate-400 bg-slate-50 border border-slate-100 px-1 rounded">{param.type === 'text' ? '填空' : '判断'}</span>
+                                                                      </div>
+                                                                      <button onClick={() => handleRemoveChecklistParam(moduleName, param.id)} className="text-slate-300 hover:text-red-500">
+                                                                          <X size={12} />
+                                                                      </button>
+                                                                  </div>
+                                                              ))}
+                                                          </div>
+                                                      )}
+
+                                                      {/* Add New Checklist Form */}
+                                                      {isAddingChecklist && (
+                                                          <div className="bg-blue-50 p-2 rounded border border-blue-100 animate-fadeIn">
+                                                              <div className="flex gap-2 mb-2">
+                                                                  <input 
+                                                                      autoFocus
+                                                                      type="text" 
+                                                                      className="flex-1 text-xs border border-blue-200 rounded px-2 py-1 outline-none"
+                                                                      placeholder="参数名称 (如: 墙面宽度)"
+                                                                      value={newChecklistLabel}
+                                                                      onChange={e => setNewChecklistLabel(e.target.value)}
+                                                                  />
+                                                                  <select 
+                                                                      className="text-xs border border-blue-200 rounded px-1 outline-none bg-white w-20"
+                                                                      value={newChecklistType}
+                                                                      onChange={e => setNewChecklistType(e.target.value as ChecklistParamType)}
+                                                                  >
+                                                                      <option value="text">填空</option>
+                                                                      <option value="boolean">判断</option>
+                                                                  </select>
+                                                              </div>
+                                                              <div className="flex gap-2 justify-end">
+                                                                  <button onClick={() => setAddingChecklistToCategory(null)} className="text-[10px] text-slate-500 hover:text-slate-700">取消</button>
+                                                                  <button onClick={() => handleAddChecklistParam(moduleName)} className="text-[10px] bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">确认</button>
+                                                              </div>
+                                                          </div>
+                                                      )}
+                                                  </div>
+                                              </div>
+                                          ) : (
+                                              <div className="flex-1 flex flex-col justify-center items-center text-slate-300 text-xs italic border-l border-slate-100 ml-2 pl-4">
+                                                  <ImageIcon size={24} className="mb-2 opacity-50" />
+                                                  安装类模块仅需配置示例图
+                                              </div>
+                                          )}
+                                      </div>
+                                  );
+                              })}
+                              {activeStore.moduleConfig.activeModules.filter(m => (activeStore.moduleConfig.moduleTypes?.[m] || 'measurement') === activeModuleTab).length === 0 && (
+                                  <div className="text-center py-10 text-slate-400 text-xs border border-dashed rounded-xl">
+                                      暂无{activeModuleTab === 'measurement' ? '复尺' : '安装'}类模块，请点击右上角添加
+                                  </div>
+                              )}
+                          </div>
+                      </div>
+                  </div>
               )}
           </div>
       );
@@ -853,9 +1048,13 @@ export const RoomArchive: React.FC = () => {
                 // Calculate Progress
                 // Measurement
                 const measureConfigs = s.roomTypeConfigs || [];
+                const activeModules = s.moduleConfig.activeModules || DEFAULT_MODULES;
+                // Filter only measurement modules for progress
+                const measurementModules = activeModules.filter(m => (s.moduleConfig.moduleTypes?.[m] || 'measurement') === 'measurement');
+                
                 const completedMeasureCount = measureConfigs.filter(config => {
-                    const approvedCount = config.measurements?.filter(m => m.status === 'approved').length || 0;
-                    return approvedCount >= ROOM_MODULES.length;
+                    const approvedCount = config.measurements?.filter(m => m.status === 'approved' && measurementModules.includes(m.category)).length || 0;
+                    return approvedCount >= measurementModules.length;
                 }).length;
                 const measureProgress = measureConfigs.length > 0 ? Math.round((completedMeasureCount / measureConfigs.length) * 100) : 0;
 

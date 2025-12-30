@@ -1,4 +1,4 @@
-// 标记：本次更新优化了【客房安装】去掉门店筛选，【采购进度】增加大区筛选，【货物建档】搜索栏独立一行
+// 标记：本次更新优化了【模块配置】功能，调整为页面形式，区分【复尺类】与【安装类】模块，分别同步至对应业务流程
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
