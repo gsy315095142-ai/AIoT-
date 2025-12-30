@@ -28,7 +28,8 @@ const DEFAULT_ROOM_TYPES: RoomTypeConfig[] = [
     { id: 'rt2', name: '样板房', images: [], measurements: [] },
 ];
 
-const DEFAULT_MODULES = [
+// Measurement Modules
+const DEFAULT_MEASUREMENT_MODULES = [
     '地投环境',
     '桌显桌子形状尺寸',
     '床头背景墙尺寸',
@@ -39,12 +40,23 @@ const DEFAULT_MODULES = [
     '玩乐活动区域长宽'
 ];
 
+// Installation Modules
+const DEFAULT_INSTALLATION_MODULES = [
+    '地投',
+    '桌显'
+];
+
 const createDefaultModuleConfig = (): StoreModuleConfig => {
     const moduleTypes: Record<string, 'measurement' | 'installation'> = {};
-    DEFAULT_MODULES.forEach(m => moduleTypes[m] = 'measurement'); // Default to measurement
+    
+    // Set Measurement Types
+    DEFAULT_MEASUREMENT_MODULES.forEach(m => moduleTypes[m] = 'measurement');
+    
+    // Set Installation Types
+    DEFAULT_INSTALLATION_MODULES.forEach(m => moduleTypes[m] = 'installation');
 
     return {
-        activeModules: [...DEFAULT_MODULES],
+        activeModules: [...DEFAULT_MEASUREMENT_MODULES, ...DEFAULT_INSTALLATION_MODULES],
         moduleTypes: moduleTypes,
         exampleImages: {
             '地投环境': 'https://images.unsplash.com/photo-1554995207-c18c203602cb?q=80&w=600&auto=format&fit=crop',
@@ -54,7 +66,10 @@ const createDefaultModuleConfig = (): StoreModuleConfig => {
             '浴室镜面形状和尺寸': 'https://images.unsplash.com/photo-1584622050111-993a426fbf0a?q=80&w=600&auto=format&fit=crop',
             '电视墙到床尾距离': 'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?q=80&w=600&auto=format&fit=crop',
             '照片墙处墙面宽高': 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?q=80&w=600&auto=format&fit=crop',
-            '玩乐活动区域长宽': 'https://images.unsplash.com/photo-1596178065887-1198b6148b2e?q=80&w=600&auto=format&fit=crop'
+            '玩乐活动区域长宽': 'https://images.unsplash.com/photo-1596178065887-1198b6148b2e?q=80&w=600&auto=format&fit=crop',
+            // Default Installation Examples
+            '地投': 'https://images.unsplash.com/photo-1517336714731-489689fd1ca4?q=80&w=600&auto=format&fit=crop',
+            '桌显': 'https://images.unsplash.com/photo-1593640408182-31c70c8268f5?q=80&w=600&auto=format&fit=crop'
         },
         exampleRequirements: {},
         checklistConfigs: {}

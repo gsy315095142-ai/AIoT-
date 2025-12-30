@@ -1,4 +1,4 @@
-// 标记：本次更新优化了【模块配置】页面交互，修复了删除功能，并调整了删除确认提示文案
+// 标记：本次更新新增了【安装类模块】的默认配置（地投、桌显），并修复了模块配置页面删除按钮无响应的问题
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
