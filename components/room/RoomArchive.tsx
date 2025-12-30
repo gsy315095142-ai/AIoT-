@@ -129,7 +129,7 @@ export const RoomArchive: React.FC = () => {
 
   const handleDeleteModule = (moduleName: string) => {
       if (!activeStore) return;
-      if (!window.confirm(`确定要删除模块 "${moduleName}" 吗？删除后相关配置将被移除。`)) return;
+      if (!window.confirm("是否确认删除该模块？")) return;
 
       const currentConfig = activeStore.moduleConfig;
       const newModules = currentConfig.activeModules.filter(m => m !== moduleName);
@@ -798,7 +798,7 @@ export const RoomArchive: React.FC = () => {
                       <div className="flex-1 overflow-y-auto p-4 bg-white">
                           <div className="flex justify-between items-center mb-4">
                               <div className="text-xs text-slate-400">
-                                  {activeModuleTab === 'measurement' ? '复尺类模块需配置图片、备注及清单，将同步至复尺页面。' : '安装类模块只需配置图片，将同步至安装页面。'}
+                                  {activeModuleTab === 'measurement' ? '复尺类模块需配置图片、备注及清单。' : '安装类模块只需配置图片，将同步至安装页面。'}
                               </div>
                               
                               {!isAddingModule ? (
@@ -930,7 +930,7 @@ export const RoomArchive: React.FC = () => {
                                                                   <div key={param.id} className="flex justify-between items-center p-2 text-xs bg-white hover:bg-slate-50">
                                                                       <div className="flex items-center gap-2 overflow-hidden">
                                                                           <span className="font-medium text-slate-700 truncate">{param.label}</span>
-                                                                          <span className="text-[9px] text-slate-400 bg-slate-100 border border-slate-200 px-1.5 rounded">{param.type === 'text' ? '填空' : '判断'}</span>
+                                                                          <span className="text-[9px] text-slate-400 bg-slate-100 border border-slate-100 px-1.5 rounded">{param.type === 'text' ? '填空' : '判断'}</span>
                                                                       </div>
                                                                       <button onClick={() => handleRemoveChecklistParam(moduleName, param.id)} className="text-slate-300 hover:text-red-500">
                                                                           <X size={14} />

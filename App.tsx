@@ -1,4 +1,4 @@
-// 标记：本次更新优化了【模块配置】页面排版，提升交互体验，并修复了模块删除功能失效的问题
+// 标记：本次更新优化了【模块配置】页面交互，修复了删除功能，并调整了删除确认提示文案
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
