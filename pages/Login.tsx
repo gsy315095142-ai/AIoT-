@@ -59,7 +59,7 @@ export const Login: React.FC = () => {
       {/* Content */}
       <div className="z-10 text-center mt-10">
         <h1 className="text-3xl font-extrabold text-white tracking-widest drop-shadow-[0_0_15px_rgba(59,130,246,0.8)] leading-tight">
-          IoT设备<br/>
+          AIoT客房设备<br/>
           <span className="text-2xl text-blue-300">管理平台</span>
         </h1>
         <div className="mt-2 h-1 w-20 bg-blue-500 mx-auto rounded-full shadow-[0_0_10px_rgba(59,130,246,1)]"></div>
