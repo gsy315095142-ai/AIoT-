@@ -129,7 +129,7 @@ export const RoomArchive: React.FC = () => {
 
   const handleDeleteModule = (moduleName: string) => {
       if (!activeStore) return;
-      if (!window.confirm(`确定要删除模块 "${moduleName}" 吗？所有房型的相关测量数据将保留但不可见，配置数据将被移除。`)) return;
+      if (!window.confirm(`确定要删除模块 "${moduleName}" 吗？删除后相关配置将被移除。`)) return;
 
       const currentConfig = activeStore.moduleConfig;
       const newModules = currentConfig.activeModules.filter(m => m !== moduleName);
@@ -834,142 +834,158 @@ export const RoomArchive: React.FC = () => {
                                   const isEditingName = editingModule?.oldName === moduleName;
                                   
                                   return (
-                                      <div key={moduleName} className="flex gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100 relative group/module animate-fadeIn">
-                                          {/* Module Name Header & Controls */}
-                                          <div className="w-24 shrink-0 flex flex-col gap-2 items-center">
-                                              {existingImage ? (
-                                                  <div className="aspect-square w-full rounded-lg border border-slate-200 relative group overflow-hidden bg-white">
-                                                      <img src={existingImage} alt={`${moduleName} example`} className="w-full h-full object-cover" />
-                                                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                                          <div className="relative cursor-pointer bg-white/20 p-1 rounded hover:bg-white/40">
-                                                              <Edit2 size={14} className="text-white" />
-                                                              <input type="file" accept="image/*" onChange={(e) => handleConfigImageUpload(moduleName, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                      <div key={moduleName} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm relative group/module animate-fadeIn">
+                                          {/* Module Header Row */}
+                                          <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
+                                              <div className="flex items-center gap-2">
+                                                  <div className={`w-1.5 h-4 rounded-full ${activeModuleTab === 'measurement' ? 'bg-blue-500' : 'bg-orange-500'}`}></div>
+                                                  {isEditingName ? (
+                                                      <div className="flex items-center gap-1 animate-fadeIn">
+                                                          <input 
+                                                            autoFocus
+                                                            className="w-40 text-sm border border-blue-300 rounded px-1 py-0.5 outline-none bg-white text-slate-700"
+                                                            value={editingModule?.newName}
+                                                            onChange={(e) => setEditingModule(prev => prev ? ({ ...prev, newName: e.target.value }) : null)}
+                                                          />
+                                                          <button onClick={handleRenameModule} className="bg-green-100 text-green-600 p-1 rounded hover:bg-green-200"><Check size={14} /></button>
+                                                          <button onClick={() => setEditingModule(null)} className="bg-red-100 text-red-600 p-1 rounded hover:bg-red-200"><X size={14} /></button>
+                                                      </div>
+                                                  ) : (
+                                                      <h4 className="font-bold text-slate-700 text-sm">{moduleName}</h4>
+                                                  )}
+                                                  {!isEditingName && (
+                                                      <button onClick={() => setEditingModule({ oldName: moduleName, newName: moduleName })} className="text-slate-300 hover:text-blue-500 transition-colors p-1">
+                                                          <Edit2 size={12} />
+                                                      </button>
+                                                  )}
+                                              </div>
+                                              <button 
+                                                  onClick={() => handleDeleteModule(moduleName)} 
+                                                  className="text-slate-400 hover:text-red-500 p-1.5 rounded-full hover:bg-red-50 transition-colors"
+                                                  title="删除模块"
+                                              >
+                                                  <Trash2 size={16} />
+                                              </button>
+                                          </div>
+
+                                          <div className="flex gap-4">
+                                              {/* Left Column: Image */}
+                                              <div className="w-32 shrink-0 flex flex-col gap-2">
+                                                  {existingImage ? (
+                                                      <div className="aspect-square w-full rounded-lg border border-slate-200 relative group overflow-hidden bg-slate-50">
+                                                          <img src={existingImage} alt={`${moduleName} example`} className="w-full h-full object-cover" />
+                                                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                                              <div className="relative cursor-pointer bg-white/20 p-1.5 rounded-full hover:bg-white/40 backdrop-blur-sm">
+                                                                  <Edit2 size={16} className="text-white" />
+                                                                  <input type="file" accept="image/*" onChange={(e) => handleConfigImageUpload(moduleName, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                                              </div>
+                                                              <button onClick={() => removeConfigImage(moduleName)} className="text-white hover:text-red-400 bg-white/20 p-1.5 rounded-full hover:bg-white/40 backdrop-blur-sm">
+                                                                  <Trash2 size={16} />
+                                                              </button>
                                                           </div>
-                                                          <button onClick={() => removeConfigImage(moduleName)} className="text-white hover:text-red-400 bg-white/20 p-1 rounded hover:bg-white/40">
-                                                              <Trash2 size={14} />
-                                                          </button>
+                                                      </div>
+                                                  ) : (
+                                                      <div className="aspect-square w-full border-2 border-dashed border-slate-200 rounded-lg flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer relative group">
+                                                              <input type="file" accept="image/*" onChange={(e) => handleConfigImageUpload(moduleName, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                                              <Plus size={24} className="text-slate-300 group-hover:text-blue-400 mb-1" />
+                                                              <span className="text-[10px] text-slate-400 font-bold group-hover:text-blue-500">上传示例图</span>
+                                                      </div>
+                                                  )}
+                                                  <p className="text-[10px] text-center text-slate-400">标准参考图</p>
+                                              </div>
+
+                                              {/* Right Column: Config (Only for Measurement) */}
+                                              {activeModuleTab === 'measurement' ? (
+                                                  <div className="flex-1 flex flex-col gap-3 min-w-0">
+                                                      {/* Text Requirement */}
+                                                      <div className="flex flex-col">
+                                                          <label className="text-[10px] text-slate-500 font-bold uppercase mb-1">拍摄需求 / 备注</label>
+                                                          <textarea 
+                                                              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:border-blue-300 focus:ring-1 focus:ring-blue-200 resize-none text-slate-700 placeholder-slate-400 h-16"
+                                                              placeholder="请输入此模块的拍照或复尺需求..."
+                                                              value={existingRequirement}
+                                                              onChange={(e) => handleConfigRequirementChange(moduleName, e.target.value)}
+                                                          />
+                                                      </div>
+
+                                                      {/* Checklist Config */}
+                                                      <div className="flex flex-col flex-1">
+                                                          <div className="flex justify-between items-center mb-1">
+                                                              <label className="text-[10px] text-slate-500 font-bold uppercase flex items-center gap-1">
+                                                                  <ListChecks size={12} /> 必填参数清单
+                                                              </label>
+                                                              {!isAddingChecklist && (
+                                                                  <button 
+                                                                      onClick={() => { setAddingChecklistToCategory(moduleName); setNewChecklistLabel(''); }}
+                                                                      className="text-[10px] text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded hover:bg-blue-100 transition-colors font-bold"
+                                                                  >
+                                                                      + 添加参数
+                                                                  </button>
+                                                              )}
+                                                          </div>
+                                                          
+                                                          {/* Checklist Items */}
+                                                          <div className="bg-slate-50 rounded-lg border border-slate-200 divide-y divide-slate-100 overflow-hidden">
+                                                              {checklistParams.length > 0 ? checklistParams.map(param => (
+                                                                  <div key={param.id} className="flex justify-between items-center p-2 text-xs bg-white hover:bg-slate-50">
+                                                                      <div className="flex items-center gap-2 overflow-hidden">
+                                                                          <span className="font-medium text-slate-700 truncate">{param.label}</span>
+                                                                          <span className="text-[9px] text-slate-400 bg-slate-100 border border-slate-200 px-1.5 rounded">{param.type === 'text' ? '填空' : '判断'}</span>
+                                                                      </div>
+                                                                      <button onClick={() => handleRemoveChecklistParam(moduleName, param.id)} className="text-slate-300 hover:text-red-500">
+                                                                          <X size={14} />
+                                                                      </button>
+                                                                  </div>
+                                                              )) : (
+                                                                  <div className="p-2 text-center text-[10px] text-slate-400 italic">暂无参数</div>
+                                                              )}
+                                                          </div>
+
+                                                          {/* Add New Checklist Form */}
+                                                          {isAddingChecklist && (
+                                                              <div className="bg-blue-50 p-2 rounded-lg border border-blue-100 animate-fadeIn mt-2 shadow-sm">
+                                                                  <div className="flex gap-2 mb-2">
+                                                                      <input 
+                                                                          autoFocus
+                                                                          type="text" 
+                                                                          className="flex-1 text-xs border border-blue-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-blue-400"
+                                                                          placeholder="参数名称 (如: 墙面宽度)"
+                                                                          value={newChecklistLabel}
+                                                                          onChange={e => setNewChecklistLabel(e.target.value)}
+                                                                      />
+                                                                      <select 
+                                                                          className="text-xs border border-blue-200 rounded px-1 outline-none bg-white w-20 text-slate-600"
+                                                                          value={newChecklistType}
+                                                                          onChange={e => setNewChecklistType(e.target.value as ChecklistParamType)}
+                                                                      >
+                                                                          <option value="text">填空</option>
+                                                                          <option value="boolean">判断</option>
+                                                                      </select>
+                                                                  </div>
+                                                                  <div className="flex gap-2 justify-end">
+                                                                      <button onClick={() => setAddingChecklistToCategory(null)} className="text-[10px] text-slate-500 hover:text-slate-700 px-2 py-1">取消</button>
+                                                                      <button onClick={() => handleAddChecklistParam(moduleName)} className="text-[10px] bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 font-bold shadow-sm">确认添加</button>
+                                                                  </div>
+                                                              </div>
+                                                          )}
                                                       </div>
                                                   </div>
                                               ) : (
-                                                  <div className="aspect-square w-full border-2 border-dashed border-slate-200 rounded-lg flex flex-col items-center justify-center bg-white hover:bg-slate-50 transition-colors cursor-pointer relative group">
-                                                          <input type="file" accept="image/*" onChange={(e) => handleConfigImageUpload(moduleName, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
-                                                          <Plus size={20} className="text-slate-300 group-hover:text-blue-400 mb-1" />
-                                                          <span className="text-[10px] text-slate-400 font-bold group-hover:text-blue-500">上传示例</span>
-                                                  </div>
-                                              )}
-                                              
-                                              {isEditingName ? (
-                                                  <div className="flex flex-col gap-1 w-full animate-fadeIn">
-                                                      <input 
-                                                        autoFocus
-                                                        className="w-full text-[10px] border border-blue-300 rounded px-1 py-0.5 text-center outline-none bg-white"
-                                                        value={editingModule?.newName}
-                                                        onChange={(e) => setEditingModule(prev => prev ? ({ ...prev, newName: e.target.value }) : null)}
-                                                      />
-                                                      <div className="flex justify-center gap-1">
-                                                          <button onClick={handleRenameModule} className="bg-green-100 text-green-600 p-0.5 rounded hover:bg-green-200"><Check size={12} /></button>
-                                                          <button onClick={() => setEditingModule(null)} className="bg-red-100 text-red-600 p-0.5 rounded hover:bg-red-200"><X size={12} /></button>
-                                                      </div>
-                                                  </div>
-                                              ) : (
-                                                  <div className="w-full text-center relative">
-                                                      <div className="text-[10px] font-bold text-slate-700 truncate px-1 cursor-default mb-1" title={moduleName}>{moduleName}</div>
-                                                      <div className="flex justify-center gap-2">
-                                                          <button onClick={() => setEditingModule({ oldName: moduleName, newName: moduleName })} className="text-slate-400 hover:text-blue-500"><Edit2 size={12} /></button>
-                                                          <button onClick={() => handleDeleteModule(moduleName)} className="text-slate-400 hover:text-red-500"><Trash2 size={12} /></button>
-                                                      </div>
+                                                  <div className="flex-1 flex flex-col justify-center items-center text-slate-400 text-sm italic border-l border-slate-100 ml-2 pl-4 bg-slate-50/50 rounded-r-xl">
+                                                      <ImageIcon size={32} className="mb-2 opacity-30" />
+                                                      <p>安装类模块仅需配置示例图</p>
+                                                      <p className="text-xs opacity-60 mt-1">用于指导现场安装拍照</p>
                                                   </div>
                                               )}
                                           </div>
-
-                                          {/* Requirement & Checklist Config (Only for Measurement Modules) */}
-                                          {activeModuleTab === 'measurement' ? (
-                                              <div className="flex-1 flex flex-col gap-3 min-w-0">
-                                                  {/* Text Requirement */}
-                                                  <div className="flex flex-col">
-                                                      <label className="text-[9px] text-slate-400 font-bold uppercase mb-1">拍摄需求 / 备注</label>
-                                                      <textarea 
-                                                          className="w-full bg-white border border-slate-200 rounded p-2 text-xs focus:outline-none focus:border-blue-300 focus:ring-1 focus:ring-blue-200 resize-none text-slate-700 placeholder-slate-300 h-16"
-                                                          placeholder="请输入此模块的拍照或复尺需求..."
-                                                          value={existingRequirement}
-                                                          onChange={(e) => handleConfigRequirementChange(moduleName, e.target.value)}
-                                                      />
-                                                  </div>
-
-                                                  {/* Checklist Config */}
-                                                  <div className="flex flex-col">
-                                                      <div className="flex justify-between items-center mb-1">
-                                                          <label className="text-[9px] text-slate-400 font-bold uppercase flex items-center gap-1">
-                                                              <ListChecks size={10} /> 必填清单参数
-                                                          </label>
-                                                          {!isAddingChecklist && (
-                                                              <button 
-                                                                  onClick={() => { setAddingChecklistToCategory(moduleName); setNewChecklistLabel(''); }}
-                                                                  className="text-[9px] text-blue-500 bg-white border border-blue-100 px-1.5 py-0.5 rounded hover:bg-blue-50 transition-colors"
-                                                              >
-                                                                  + 添加参数
-                                                              </button>
-                                                          )}
-                                                      </div>
-                                                      
-                                                      {/* Checklist Items */}
-                                                      {checklistParams.length > 0 && (
-                                                          <div className="bg-white rounded border border-slate-200 divide-y divide-slate-100 mb-1">
-                                                              {checklistParams.map(param => (
-                                                                  <div key={param.id} className="flex justify-between items-center p-1.5 text-xs">
-                                                                      <div className="flex items-center gap-2 overflow-hidden">
-                                                                          <span className="font-medium text-slate-700 truncate">{param.label}</span>
-                                                                          <span className="text-[9px] text-slate-400 bg-slate-50 border border-slate-100 px-1 rounded">{param.type === 'text' ? '填空' : '判断'}</span>
-                                                                      </div>
-                                                                      <button onClick={() => handleRemoveChecklistParam(moduleName, param.id)} className="text-slate-300 hover:text-red-500">
-                                                                          <X size={12} />
-                                                                      </button>
-                                                                  </div>
-                                                              ))}
-                                                          </div>
-                                                      )}
-
-                                                      {/* Add New Checklist Form */}
-                                                      {isAddingChecklist && (
-                                                          <div className="bg-blue-50 p-2 rounded border border-blue-100 animate-fadeIn">
-                                                              <div className="flex gap-2 mb-2">
-                                                                  <input 
-                                                                      autoFocus
-                                                                      type="text" 
-                                                                      className="flex-1 text-xs border border-blue-200 rounded px-2 py-1 outline-none"
-                                                                      placeholder="参数名称 (如: 墙面宽度)"
-                                                                      value={newChecklistLabel}
-                                                                      onChange={e => setNewChecklistLabel(e.target.value)}
-                                                                  />
-                                                                  <select 
-                                                                      className="text-xs border border-blue-200 rounded px-1 outline-none bg-white w-20"
-                                                                      value={newChecklistType}
-                                                                      onChange={e => setNewChecklistType(e.target.value as ChecklistParamType)}
-                                                                  >
-                                                                      <option value="text">填空</option>
-                                                                      <option value="boolean">判断</option>
-                                                                  </select>
-                                                              </div>
-                                                              <div className="flex gap-2 justify-end">
-                                                                  <button onClick={() => setAddingChecklistToCategory(null)} className="text-[10px] text-slate-500 hover:text-slate-700">取消</button>
-                                                                  <button onClick={() => handleAddChecklistParam(moduleName)} className="text-[10px] bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">确认</button>
-                                                              </div>
-                                                          </div>
-                                                      )}
-                                                  </div>
-                                              </div>
-                                          ) : (
-                                              <div className="flex-1 flex flex-col justify-center items-center text-slate-300 text-xs italic border-l border-slate-100 ml-2 pl-4">
-                                                  <ImageIcon size={24} className="mb-2 opacity-50" />
-                                                  安装类模块仅需配置示例图
-                                              </div>
-                                          )}
                                       </div>
                                   );
                               })}
                               {activeStore.moduleConfig.activeModules.filter(m => (activeStore.moduleConfig.moduleTypes?.[m] || 'measurement') === activeModuleTab).length === 0 && (
-                                  <div className="text-center py-10 text-slate-400 text-xs border border-dashed rounded-xl">
-                                      暂无{activeModuleTab === 'measurement' ? '复尺' : '安装'}类模块，请点击右上角添加
+                                  <div className="text-center py-12 text-slate-400 text-xs border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 flex flex-col items-center gap-2">
+                                      <div className="bg-white p-3 rounded-full shadow-sm"><ListChecks size={24} className="opacity-20" /></div>
+                                      <p>暂无{activeModuleTab === 'measurement' ? '复尺' : '安装'}类模块</p>
+                                      <button onClick={() => setIsAddingModule(true)} className="text-blue-500 hover:text-blue-600 font-bold mt-1">点击右上角添加</button>
                                   </div>
                               )}
                           </div>
