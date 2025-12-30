@@ -79,6 +79,8 @@ const DeviceList: React.FC = () => {
       return availableStores.map(store => {
           const devicesInStore = filteredDevices.filter(d => d.storeId === store.id);
           const onlineCount = devicesInStore.filter(d => d.status === DeviceStatus.ONLINE).length;
+          const complaintCount = devicesInStore.filter(d => d.opsStatus === OpsStatus.HOTEL_COMPLAINT).length;
+          const repairCount = devicesInStore.filter(d => d.opsStatus === OpsStatus.REPAIRING).length;
           
           // Breakdown: Group by Type -> Count OpsStatus
           const breakdown: Record<string, BreakdownStats> = {};
@@ -96,6 +98,8 @@ const DeviceList: React.FC = () => {
               ...store,
               deviceCount: devicesInStore.length,
               onlineCount,
+              complaintCount,
+              repairCount,
               breakdown
           };
       });
@@ -352,10 +356,12 @@ const DeviceList: React.FC = () => {
                                     </div>
                                     <div>
                                         <h4 className="font-bold text-slate-800 text-sm">{store.name}</h4>
-                                        <p className="text-[10px] text-slate-500 mt-0.5 flex gap-2">
+                                        <div className="text-[10px] text-slate-500 mt-1 flex flex-wrap gap-2 items-center">
                                             <span>共 {store.deviceCount} 台</span>
-                                            {store.deviceCount > 0 && <span className="text-green-600 font-bold">在线 {store.onlineCount}</span>}
-                                        </p>
+                                            {store.onlineCount > 0 && <span className="text-green-600 font-bold bg-green-50 px-1.5 rounded border border-green-100">在线 {store.onlineCount}</span>}
+                                            {store.complaintCount > 0 && <span className="text-pink-600 font-bold bg-pink-50 px-1.5 rounded border border-pink-100">客诉 {store.complaintCount}</span>}
+                                            {store.repairCount > 0 && <span className="text-purple-600 font-bold bg-purple-50 px-1.5 rounded border border-purple-100">维修 {store.repairCount}</span>}
+                                        </div>
                                     </div>
                                 </div>
                                 <ArrowRight size={18} className="text-slate-300 mt-2" />
@@ -373,8 +379,8 @@ const DeviceList: React.FC = () => {
                                                 {Object.entries(stats.statusCounts).map(([status, count]) => {
                                                     let colorClass = 'text-slate-500';
                                                     if (status === '正常') colorClass = 'text-green-600';
-                                                    else if (status === '维修中') colorClass = 'text-purple-600';
-                                                    else if (status === '酒店客诉') colorClass = 'text-pink-600';
+                                                    else if (status === '维修') colorClass = 'text-purple-600';
+                                                    else if (status === '客诉') colorClass = 'text-pink-600';
                                                     
                                                     return (
                                                         <span key={status} className={`${colorClass} font-medium flex items-center gap-0.5`}>
@@ -434,8 +440,8 @@ const DeviceList: React.FC = () => {
                                                     {Object.entries(stats.statusCounts).map(([st, c]) => (
                                                         <span key={st} className={
                                                             st === '正常' ? 'text-green-600' : 
-                                                            st === '酒店客诉' ? 'text-pink-600' : 
-                                                            st === '维修中' ? 'text-purple-600' : 'text-slate-500'
+                                                            st === '客诉' ? 'text-pink-600' : 
+                                                            st === '维修' ? 'text-purple-600' : 'text-slate-500'
                                                         }>
                                                             {st}{c}
                                                         </span>
@@ -486,8 +492,8 @@ const DeviceList: React.FC = () => {
                                         {Object.entries(group.statusCounts).map(([st, c]) => (
                                             <span key={st} className={`font-medium flex items-center gap-0.5 ${
                                                 st === '正常' ? 'text-green-600' : 
-                                                st === '酒店客诉' ? 'text-pink-600' : 
-                                                st === '维修中' ? 'text-purple-600' : 'text-slate-500'
+                                                st === '客诉' ? 'text-pink-600' : 
+                                                st === '维修' ? 'text-purple-600' : 'text-slate-500'
                                             }`}>
                                                 {st} {c}
                                             </span>
@@ -713,8 +719,8 @@ const DeviceList: React.FC = () => {
                                 onChange={(e) => setOpsChangeStatus(e.target.value as OpsStatus)}
                             >
                                 <option value={OpsStatus.INSPECTED}>正常</option>
-                                <option value={OpsStatus.HOTEL_COMPLAINT}>酒店客诉</option>
-                                <option value={OpsStatus.REPAIRING}>维修中</option>
+                                <option value={OpsStatus.HOTEL_COMPLAINT}>客诉</option>
+                                <option value={OpsStatus.REPAIRING}>维修</option>
                             </select>
                         </div>
 

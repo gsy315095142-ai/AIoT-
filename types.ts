@@ -122,10 +122,10 @@ export enum DeviceStatus {
 
 export enum OpsStatus {
   INSPECTED = '正常', // Changed from '已巡检' to '正常'
-  REPAIRING = '维修中', // Repairing
+  REPAIRING = '维修', // Changed from '维修中' to '维修'
   // Abnormal status removed as per requirement
   PENDING = '待审核', // Pending Audit - Kept for legacy/fallback, but logic moves to AuditRecord
-  HOTEL_COMPLAINT = '酒店客诉', // Hotel Customer Complaint
+  HOTEL_COMPLAINT = '客诉', // Changed from '酒店客诉' to '客诉'
 }
 
 export type DeviceEvent = {

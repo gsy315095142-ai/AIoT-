@@ -1,4 +1,4 @@
-// 标记：本次更新新增了【安装类模块】的默认配置（地投、桌显），并修复了模块配置页面删除按钮无响应的问题
+// 标记：本次更新优化了【设备管理】门店列表信息展示（增加客诉、维修数量），并统一调整了运维状态文案（酒店客诉->客诉，维修中->维修）
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
