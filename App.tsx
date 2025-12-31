@@ -1,4 +1,4 @@
-// 标记：本次更新实现了采购订单签收后自动生成设备数据，并在设备管理中增加了订单号字段
+// 标记：本次更新优化了设备详情页布局，将SN/MAC、供应商/订单号改为同行显示，并增强了相关字段修改的日志记录
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

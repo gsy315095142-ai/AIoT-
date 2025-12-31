@@ -522,9 +522,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 images: eventMeta?.images
             });
         }
+
+        // 4. Handle Supplier Change
+        if (data.supplierId !== undefined && data.supplierId !== d.supplierId) {
+            const newSup = suppliers.find(s => s.id === data.supplierId)?.name || '无';
+            newEvents.push({
+                id: `evt-sup-${Date.now()}-${Math.random()}`,
+                type: 'info',
+                message: `供应商变更为: ${newSup}`,
+                timestamp: timestamp,
+                operator: currentUser || 'System'
+            });
+        }
+
+        // 5. Handle Order Change
+        if (data.orderId !== undefined && data.orderId !== d.orderId) {
+            newEvents.push({
+                id: `evt-order-${Date.now()}-${Math.random()}`,
+                type: 'info',
+                message: `关联订单号变更为: ${data.orderId || '无'}`,
+                timestamp: timestamp,
+                operator: currentUser || 'System'
+            });
+        }
         
-        // 4. Check for Detail Changes (only if not covered above, though they can coexist)
-        const relevantKeys: (keyof Device)[] = ['name', 'sn', 'roomNumber', 'softwareName', 'imageUrl', 'mac', 'subType', 'supplierId', 'orderId'];
+        // 6. Check for Detail Changes (excluding status, supplier, order)
+        // Removed 'supplierId', 'orderId' from relevantKeys as they are handled explicitly above
+        const relevantKeys: (keyof Device)[] = ['name', 'sn', 'roomNumber', 'softwareName', 'imageUrl', 'mac', 'subType'];
         const hasDetailChanges = relevantKeys.some(key => data[key] !== undefined && data[key] !== d[key]);
         
         if (hasDetailChanges) {

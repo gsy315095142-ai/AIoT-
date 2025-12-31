@@ -637,14 +637,14 @@ export const DeviceDetailCard: React.FC<DeviceDetailCardProps> = ({ device, onEd
 
     const getFilteredEvents = () => {
         const keywords: Record<string, string[]> = {
-            'status': ['添加', '名称', 'SN', 'MAC', '图片', '类型', '运维', '维修', '客诉', '审核', '申请', '通过', '拒绝', '运行', '待机', '未联网', '设备详情已修改'],
+            'status': ['添加', '名称', 'SN', 'MAC', '图片', '类型', '运维', '维修', '客诉', '审核', '申请', '通过', '拒绝', '运行', '待机', '未联网', '设备详情已修改', '供应商', '订单号'],
             'inspection': ['门店', '房间', '软件', '启动', '测试', 'CPU', '内存', '网络', '状态', '合格', '不合格', '巡检']
         };
         const targetKeywords = keywords[activeModule] || [];
         return device.events.filter(evt => {
             const msg = evt.message;
             if (activeModule === 'status') {
-                 if (msg.includes('设备首次添加') || msg.includes('设备详情已修改')) return true;
+                 if (msg.includes('设备首次添加') || msg.includes('设备详情已修改') || msg.includes('供应商') || msg.includes('订单号')) return true;
                  return targetKeywords.some(k => msg.includes(k));
             }
             if (activeModule === 'inspection') {
@@ -679,10 +679,23 @@ export const DeviceDetailCard: React.FC<DeviceDetailCardProps> = ({ device, onEd
                             </div>
 
                             <div className="space-y-1">
-                                <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">SN码</span><div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0"><EditableField value={device.sn} type="text" onSave={(val) => handleFieldUpdate('sn', val)} className="flex-1 min-w-0" /></div></div>
-                                <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">MAC</span><div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0"><EditableField value={device.mac || ''} type="text" onSave={(val) => handleFieldUpdate('mac', val)} className="flex-1 min-w-0" /></div></div>
+                                {/* Row 1: SN & MAC */}
+                                <div className="flex gap-2">
+                                    <div className="flex-1 flex text-[10px] items-center min-w-0">
+                                        <span className="text-slate-500 w-8 flex-shrink-0">SN码</span>
+                                        <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0">
+                                            <EditableField value={device.sn} type="text" onSave={(val) => handleFieldUpdate('sn', val)} className="flex-1 min-w-0" />
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 flex text-[10px] items-center min-w-0">
+                                        <span className="text-slate-500 w-8 flex-shrink-0 text-right pr-1">MAC</span>
+                                        <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0">
+                                            <EditableField value={device.mac || ''} type="text" onSave={(val) => handleFieldUpdate('mac', val)} className="flex-1 min-w-0" />
+                                        </div>
+                                    </div>
+                                </div>
                                 
-                                {/* Merged Type and Sub-type */}
+                                {/* Row 2: Type & Sub-type */}
                                 <div className="flex text-[10px] items-center gap-2">
                                     <div className="flex-1 flex items-center min-w-0">
                                         <span className="text-slate-500 w-8 flex-shrink-0">类型</span>
@@ -692,7 +705,7 @@ export const DeviceDetailCard: React.FC<DeviceDetailCardProps> = ({ device, onEd
                                     </div>
                                     {detailSubTypeOptions && (
                                         <div className="flex-1 flex items-center min-w-0">
-                                            <span className="text-slate-500 w-10 flex-shrink-0 text-right pr-1">子类型</span>
+                                            <span className="text-slate-500 w-8 flex-shrink-0 text-right pr-1">子类型</span>
                                             <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0">
                                                 <EditableField value={device.subType || ''} type="select" options={detailSubTypeOptions} onSave={(val) => handleFieldUpdate('subType', val)} className="flex-1 min-w-0" />
                                             </div>
@@ -700,11 +713,21 @@ export const DeviceDetailCard: React.FC<DeviceDetailCardProps> = ({ device, onEd
                                     )}
                                 </div>
 
-                                {/* Supplier Field */}
-                                <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">供应商</span><div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0"><EditableField value={device.supplierId || ''} displayValue={getSupplierName(device.supplierId)} type="select" options={supplierOptions} onSave={(val) => handleFieldUpdate('supplierId', val)} className="flex-1 min-w-0" /></div></div>
-                                
-                                {/* Order ID Field - Added */}
-                                <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">订单号</span><div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0"><EditableField value={device.orderId || ''} type="text" onSave={(val) => handleFieldUpdate('orderId', val)} className="flex-1 min-w-0 text-blue-600" /></div></div>
+                                {/* Row 3: Supplier & Order ID */}
+                                <div className="flex gap-2">
+                                    <div className="flex-1 flex text-[10px] items-center min-w-0">
+                                        <span className="text-slate-500 w-8 flex-shrink-0">供应商</span>
+                                        <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0">
+                                            <EditableField value={device.supplierId || ''} displayValue={getSupplierName(device.supplierId)} type="select" options={supplierOptions} onSave={(val) => handleFieldUpdate('supplierId', val)} className="flex-1 min-w-0" />
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 flex text-[10px] items-center min-w-0">
+                                        <span className="text-slate-500 w-8 flex-shrink-0 text-right pr-1">订单号</span>
+                                        <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0">
+                                            <EditableField value={device.orderId || ''} type="text" onSave={(val) => handleFieldUpdate('orderId', val)} className="flex-1 min-w-0 text-blue-600" />
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
