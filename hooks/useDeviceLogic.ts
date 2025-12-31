@@ -227,6 +227,7 @@ export const useDeviceLogic = () => {
 
   return {
     // Data
+    devices, // Export raw devices list for stats calculation
     regions, stores, deviceTypes, suppliers, filteredDevices, availableStores, auditRecords, pendingAuditCount, imageCounts, CATEGORY_LIMITS,
     
     // States

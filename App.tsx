@@ -1,4 +1,4 @@
-// 标记：本次更新微调了设备详情页字段排版，防止子类型、供应商、订单号等标题换行影响美观
+// 标记：本次更新在设备管理页面的大区筛选下拉框中，增加了每个大区的设备总数及各状态（在线、使用、待机、离线）设备数量的统计显示
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

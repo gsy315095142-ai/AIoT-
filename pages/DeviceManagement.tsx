@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useDeviceLogic } from '../hooks/useDeviceLogic';
-import { DeviceStatus, OpsStatus, AuditStatus, AuditType, Device, Store as StoreModel } from '../types';
+import { DeviceStatus, OpsStatus, AuditStatus, AuditType, Device, Store as StoreModel, Region } from '../types';
 import { STATUS_MAP, SUB_TYPE_MAPPING, ImageManagerModal, ReportDetailModal, EventDetailModal, AuditManagementModal, DeviceDetailCard, AuditGate } from '../components/DeviceComponents';
 import { ChevronDown, ChevronUp, Plus, Search, CheckSquare, Square, X, Settings2, Play, Moon, RotateCcw, Wrench, ClipboardCheck, Check, X as XIcon, ImageIcon, ClipboardList, LayoutDashboard, Monitor, BookOpen, Store, BedDouble, ArrowLeft, ArrowRight, Server } from 'lucide-react';
 import { Dashboard } from './Dashboard';
@@ -50,6 +50,7 @@ const DeviceList: React.FC = () => {
   const {
     // Data
     regions, stores, deviceTypes, suppliers, filteredDevices, availableStores, pendingAuditCount, imageCounts, CATEGORY_LIMITS,
+    devices, // Added from useDeviceLogic update
     // States
     selectedRegion, setSelectedRegion, searchQuery, setSearchQuery,
     expandedDeviceId, selectedDeviceIds,
@@ -70,6 +71,23 @@ const DeviceList: React.FC = () => {
 
   // Navigation State
   const [viewState, setViewState] = useState<ViewState>({ level: 'stores' });
+
+  // --- Helper for Region Stats ---
+  const getRegionLabel = (region?: Region) => {
+      const regionDevices = region 
+          ? devices.filter(d => d.regionId === region.id)
+          : devices; // All if no region passed (for "All Regions" option)
+      
+      const total = regionDevices.length;
+      // Statuses: ONLINE, OFFLINE, STANDBY, IN_USE
+      const online = regionDevices.filter(d => d.status === DeviceStatus.ONLINE).length;
+      const inUse = regionDevices.filter(d => d.status === DeviceStatus.IN_USE).length;
+      const standby = regionDevices.filter(d => d.status === DeviceStatus.STANDBY).length;
+      const offline = regionDevices.filter(d => d.status === DeviceStatus.OFFLINE).length;
+
+      const baseName = region ? region.name : '全部大区';
+      return `${baseName} (总:${total} 运行:${online} 使用:${inUse} 待机:${standby} 离线:${offline})`;
+  };
 
   // --- Derived Data for Hierarchy ---
 
@@ -327,8 +345,8 @@ const DeviceList: React.FC = () => {
                                 value={selectedRegion}
                                 onChange={(e) => { setSelectedRegion(e.target.value); setViewState({ level: 'stores' }); }}
                             >
-                                <option value="">全部大区</option>
-                                {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                                <option value="">{getRegionLabel()}</option>
+                                {regions.map(r => <option key={r.id} value={r.id}>{getRegionLabel(r)}</option>)}
                             </select>
                             <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-900 pointer-events-none" size={14} />
                         </div>
