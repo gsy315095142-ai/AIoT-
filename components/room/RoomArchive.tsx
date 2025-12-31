@@ -1,7 +1,7 @@
 import React, { useState, ChangeEvent, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Table, Ruler, ArrowLeft, Search, ChevronDown, ChevronRight, Settings, Check, HelpCircle, Image as ImageIcon, ClipboardList, Hammer, ListChecks } from 'lucide-react';
-import { Store as StoreType, Room, RoomImageCategory, RoomImage, RoomTypeConfig, ChecklistParam, ChecklistParamType, ModuleType } from '../../types';
+import { Store as StoreType, Room, RoomImageCategory, RoomImage, RoomTypeConfig, ChecklistParam, ChecklistParamType, ModuleType, Region } from '../../types';
 
 const DEFAULT_MODULES: RoomImageCategory[] = [
     '地投环境',
@@ -102,6 +102,12 @@ export const RoomArchive: React.FC = () => {
           }
       }
   }, [activeStore, activeRoomTypeName]);
+
+  // Helper for Region Label with Store Count
+  const getRegionLabel = (region: Region) => {
+      const storeCount = stores.filter(s => s.regionId === region.id).length;
+      return `${region.name} (${storeCount}家)`;
+  };
 
   // --- Module Management Handlers (Store Level) ---
 
@@ -1046,8 +1052,8 @@ export const RoomArchive: React.FC = () => {
                             value={regionFilter}
                             onChange={(e) => setRegionFilter(e.target.value)}
                         >
-                            <option value="">全部大区</option>
-                            {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                            <option value="">全部大区 ({stores.length}家)</option>
+                            {regions.map(r => <option key={r.id} value={r.id}>{getRegionLabel(r)}</option>)}
                         </select>
                         <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
                     </div>

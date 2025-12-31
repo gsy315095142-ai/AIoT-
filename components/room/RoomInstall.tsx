@@ -1,7 +1,7 @@
 import React, { useState, ChangeEvent, useMemo, useRef } from 'react';
 import { Hammer, Store, ChevronDown, Clock, CheckCircle, Upload, X, Calendar, ClipboardList, AlertCircle, ArrowRight, Gavel, BedDouble, Info, Image as ImageIcon, MapPin, ChevronLeft, ChevronRight, Navigation, Plus, Check, RefreshCw, PlayCircle, Video, ChevronUp, Wifi, FileText } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { Store as StoreType, InstallNode, InstallStatus, RoomImageCategory } from '../../types';
+import { Store as StoreType, InstallNode, InstallStatus, RoomImageCategory, Region } from '../../types';
 import { AuditGate } from '../DeviceComponents';
 
 // Moved outside component to avoid scope/re-creation issues
@@ -76,6 +76,45 @@ export const RoomInstall: React.FC = () => {
           case 'rejected': return { label: '已驳回', color: 'bg-red-100 text-red-700 border-red-200', icon: AlertCircle };
           default: return { label: '未开始', color: 'bg-slate-100 text-slate-500 border-slate-200', icon: Clock };
       }
+  };
+
+  // Helper for Region Label with Status Counts
+  const getRegionLabel = (region: Region) => {
+      const regionStores = stores.filter(s => s.regionId === region.id);
+      const total = regionStores.length;
+      
+      const p1 = regionStores.filter(s => s.installation?.status === 'pending_review_1').length;
+      const p2 = regionStores.filter(s => s.installation?.status === 'pending_review_2').length;
+      const p3 = regionStores.filter(s => s.installation?.status === 'pending_review_3').length;
+      const p4 = regionStores.filter(s => s.installation?.status === 'pending_review_4').length;
+      const approved = regionStores.filter(s => s.installation?.status === 'approved').length;
+
+      let label = `${region.name} (总:${total}`;
+      if (p1 > 0) label += ` 初审:${p1}`;
+      if (p2 > 0) label += ` 二审:${p2}`;
+      if (p3 > 0) label += ` 三审:${p3}`;
+      if (p4 > 0) label += ` 终审:${p4}`;
+      if (approved > 0) label += ` 完成:${approved}`;
+      label += `)`;
+      return label;
+  };
+
+  const getAllRegionsLabel = () => {
+      const total = stores.length;
+      const p1 = stores.filter(s => s.installation?.status === 'pending_review_1').length;
+      const p2 = stores.filter(s => s.installation?.status === 'pending_review_2').length;
+      const p3 = stores.filter(s => s.installation?.status === 'pending_review_3').length;
+      const p4 = stores.filter(s => s.installation?.status === 'pending_review_4').length;
+      const approved = stores.filter(s => s.installation?.status === 'approved').length;
+
+      let label = `全部大区 (总:${total}`;
+      if (p1 > 0) label += ` 初审:${p1}`;
+      if (p2 > 0) label += ` 二审:${p2}`;
+      if (p3 > 0) label += ` 三审:${p3}`;
+      if (p4 > 0) label += ` 终审:${p4}`;
+      if (approved > 0) label += ` 完成:${approved}`;
+      label += `)`;
+      return label;
   };
 
   const getCurrentNodeName = (nodes: InstallNode[]) => {
@@ -515,8 +554,8 @@ export const RoomInstall: React.FC = () => {
                     value={selectedRegion}
                     onChange={(e) => setSelectedRegion(e.target.value)}
                 >
-                    <option value="">全部大区</option>
-                    {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    <option value="">{getAllRegionsLabel()}</option>
+                    {regions.map(r => <option key={r.id} value={r.id}>{getRegionLabel(r)}</option>)}
                 </select>
                 <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
             </div>

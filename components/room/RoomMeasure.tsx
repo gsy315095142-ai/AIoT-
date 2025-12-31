@@ -1,7 +1,7 @@
 import React, { useState, ChangeEvent } from 'react';
 import { Ruler, Store, ChevronDown, ChevronUp, Plus, X, Upload, ClipboardList, Edit3, Check, Save, Filter, BedDouble, HelpCircle, Image as ImageIcon, Send, AlertCircle, CheckCircle, ArrowRight, ArrowLeft, Settings, ListChecks } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { RoomImageCategory, RoomImage, RoomMeasurement, MeasurementType, RoomMeasurementStatus, RoomTypeConfig, ChecklistParam } from '../../types';
+import { RoomImageCategory, RoomImage, RoomMeasurement, MeasurementType, RoomMeasurementStatus, RoomTypeConfig, ChecklistParam, Region } from '../../types';
 import { AuditGate } from '../DeviceComponents';
 
 // --- Constants ---
@@ -324,6 +324,86 @@ export const RoomMeasure: React.FC = () => {
   const activeModules = (currentStore?.moduleConfig.activeModules || DEFAULT_MODULES)
     .filter(m => (currentStore?.moduleConfig.moduleTypes?.[m] || 'measurement') === 'measurement');
 
+  // Helper for Region Label with Status Counts
+  const getRegionLabel = (region: Region) => {
+      const regionStores = stores.filter(s => s.regionId === region.id);
+      const total = regionStores.length;
+      
+      let p1 = 0; // pending_stage_1
+      let p2 = 0; // pending_stage_2 (Final)
+      let completed = 0;
+
+      regionStores.forEach(s => {
+          // Count Pending
+          let hasP1 = false;
+          let hasP2 = false;
+          (s.roomTypeConfigs || []).forEach(rt => {
+              if (rt.measurements?.some(m => m.status === 'pending_stage_1')) hasP1 = true;
+              if (rt.measurements?.some(m => m.status === 'pending_stage_2')) hasP2 = true;
+          });
+          if (hasP1) p1++;
+          if (hasP2) p2++;
+
+          // Count Completed
+          const roomTypes = s.roomTypeConfigs || [];
+          const activeMods = s.moduleConfig.activeModules || DEFAULT_MODULES;
+          const measurementMods = activeMods.filter((m: any) => (s.moduleConfig.moduleTypes?.[m] || 'measurement') === 'measurement');
+          
+          if (roomTypes.length > 0 && measurementMods.length > 0) {
+              const completedTypes = roomTypes.filter(rt => {
+                   const measurementCount = rt.measurements ? rt.measurements.filter(m => m.status === 'approved' && measurementMods.includes(m.category)).length : 0;
+                   return measurementCount >= measurementMods.length;
+              }).length;
+              if (completedTypes === roomTypes.length) completed++;
+          }
+      });
+
+      let label = `${region.name} (总:${total}`;
+      if (p1 > 0) label += ` 待初审:${p1}`;
+      if (p2 > 0) label += ` 待终审:${p2}`;
+      if (completed > 0) label += ` 完成:${completed}`;
+      label += `)`;
+      return label;
+  };
+
+  const getAllRegionsLabel = () => {
+      const total = stores.length;
+      let p1 = 0;
+      let p2 = 0;
+      let completed = 0;
+
+      stores.forEach(s => {
+          // Same logic as getRegionLabel but accumulating globally
+          let hasP1 = false;
+          let hasP2 = false;
+          (s.roomTypeConfigs || []).forEach(rt => {
+              if (rt.measurements?.some(m => m.status === 'pending_stage_1')) hasP1 = true;
+              if (rt.measurements?.some(m => m.status === 'pending_stage_2')) hasP2 = true;
+          });
+          if (hasP1) p1++;
+          if (hasP2) p2++;
+
+          const roomTypes = s.roomTypeConfigs || [];
+          const activeMods = s.moduleConfig.activeModules || DEFAULT_MODULES;
+          const measurementMods = activeMods.filter((m: any) => (s.moduleConfig.moduleTypes?.[m] || 'measurement') === 'measurement');
+          
+          if (roomTypes.length > 0 && measurementMods.length > 0) {
+              const completedTypes = roomTypes.filter(rt => {
+                   const measurementCount = rt.measurements ? rt.measurements.filter(m => m.status === 'approved' && measurementMods.includes(m.category)).length : 0;
+                   return measurementCount >= measurementMods.length;
+              }).length;
+              if (completedTypes === roomTypes.length) completed++;
+          }
+      });
+
+      let label = `全部大区 (总:${total}`;
+      if (p1 > 0) label += ` 待初审:${p1}`;
+      if (p2 > 0) label += ` 待终审:${p2}`;
+      if (completed > 0) label += ` 完成:${completed}`;
+      label += `)`;
+      return label;
+  };
+
   // Handlers
   const handleStoreClick = (storeId: string) => {
       setSelectedStoreId(storeId);
@@ -529,8 +609,8 @@ export const RoomMeasure: React.FC = () => {
                         value={selectedRegion}
                         onChange={(e) => setSelectedRegion(e.target.value)}
                     >
-                        <option value="">全部大区</option>
-                        {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                        <option value="">{getAllRegionsLabel()}</option>
+                        {regions.map(r => <option key={r.id} value={r.id}>{getRegionLabel(r)}</option>)}
                     </select>
                     <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
                 </div>
@@ -786,9 +866,7 @@ export const RoomMeasure: React.FC = () => {
                             <X size={16} className="text-slate-500"/>
                         </button>
                     </div>
-                    <div className="bg-black rounded-b-lg overflow-hidden w-full border-t border-slate-100">
-                        <img src={viewingExample.url} alt="Example" className="w-full max-h-[70vh] object-contain" />
-                    </div>
+                    <div className="bg-black rounded-b-lg overflow-hidden w-full border-t border-slate-100"><img src={viewingExample.url} alt="Example" className="w-full max-h-[70vh] object-contain" /></div>
                 </div>
             </div>
         )}

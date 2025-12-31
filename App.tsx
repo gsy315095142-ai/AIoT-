@@ -1,4 +1,4 @@
-// 标记：本次更新在设备管理页面的门店条目上，将设备统计显示从“各运行状态（在线等）”调整为“各运维状态（正常、维修、客诉、待审）”
+// 标记：本次更新在客房建档、安装、复尺页面的大区筛选中，【全部大区】选项增加了所有大区的汇总统计数据
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
