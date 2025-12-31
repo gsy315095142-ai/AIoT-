@@ -1,4 +1,4 @@
-// 标记：本次更新优化了设备详情页布局，将SN/MAC、供应商/订单号改为同行显示，并增强了相关字段修改的日志记录
+// 标记：本次更新微调了设备详情页字段排版，防止子类型、供应商、订单号等标题换行影响美观
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

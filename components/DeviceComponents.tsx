@@ -705,7 +705,7 @@ export const DeviceDetailCard: React.FC<DeviceDetailCardProps> = ({ device, onEd
                                     </div>
                                     {detailSubTypeOptions && (
                                         <div className="flex-1 flex items-center min-w-0">
-                                            <span className="text-slate-500 w-8 flex-shrink-0 text-right pr-1">子类型</span>
+                                            <span className="text-slate-500 w-12 flex-shrink-0 text-right pr-1 whitespace-nowrap">子类型</span>
                                             <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0">
                                                 <EditableField value={device.subType || ''} type="select" options={detailSubTypeOptions} onSave={(val) => handleFieldUpdate('subType', val)} className="flex-1 min-w-0" />
                                             </div>
@@ -716,13 +716,13 @@ export const DeviceDetailCard: React.FC<DeviceDetailCardProps> = ({ device, onEd
                                 {/* Row 3: Supplier & Order ID */}
                                 <div className="flex gap-2">
                                     <div className="flex-1 flex text-[10px] items-center min-w-0">
-                                        <span className="text-slate-500 w-8 flex-shrink-0">供应商</span>
+                                        <span className="text-slate-500 w-12 flex-shrink-0 whitespace-nowrap">供应商</span>
                                         <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0">
                                             <EditableField value={device.supplierId || ''} displayValue={getSupplierName(device.supplierId)} type="select" options={supplierOptions} onSave={(val) => handleFieldUpdate('supplierId', val)} className="flex-1 min-w-0" />
                                         </div>
                                     </div>
                                     <div className="flex-1 flex text-[10px] items-center min-w-0">
-                                        <span className="text-slate-500 w-8 flex-shrink-0 text-right pr-1">订单号</span>
+                                        <span className="text-slate-500 w-12 flex-shrink-0 text-right pr-1 whitespace-nowrap">订单号</span>
                                         <div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0">
                                             <EditableField value={device.orderId || ''} type="text" onSave={(val) => handleFieldUpdate('orderId', val)} className="flex-1 min-w-0 text-blue-600" />
                                         </div>
