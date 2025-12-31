@@ -1,4 +1,4 @@
-// 标记：本次更新在设备管理页面的大区筛选下拉框中，增加了每个大区的设备总数及各状态（在线、使用、待机、离线）设备数量的统计显示
+// 标记：本次更新在设备管理页面的大区筛选下拉框中，每个大区后面显示的各运维状态的设备数量，不需要显示待审核的设备数量
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

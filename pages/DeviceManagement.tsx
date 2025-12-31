@@ -79,14 +79,14 @@ const DeviceList: React.FC = () => {
           : devices; // All if no region passed (for "All Regions" option)
       
       const total = regionDevices.length;
-      // Statuses: ONLINE, OFFLINE, STANDBY, IN_USE
-      const online = regionDevices.filter(d => d.status === DeviceStatus.ONLINE).length;
-      const inUse = regionDevices.filter(d => d.status === DeviceStatus.IN_USE).length;
-      const standby = regionDevices.filter(d => d.status === DeviceStatus.STANDBY).length;
-      const offline = regionDevices.filter(d => d.status === DeviceStatus.OFFLINE).length;
-
+      
+      // Calculate OpsStatus counts
+      const normal = regionDevices.filter(d => d.opsStatus === OpsStatus.INSPECTED).length;
+      const repairing = regionDevices.filter(d => d.opsStatus === OpsStatus.REPAIRING).length;
+      const complaint = regionDevices.filter(d => d.opsStatus === OpsStatus.HOTEL_COMPLAINT).length;
+      
       const baseName = region ? region.name : '全部大区';
-      return `${baseName} (总:${total} 运行:${online} 使用:${inUse} 待机:${standby} 离线:${offline})`;
+      return `${baseName} (总:${total} 正常:${normal} 维修:${repairing} 客诉:${complaint})`;
   };
 
   // --- Derived Data for Hierarchy ---
