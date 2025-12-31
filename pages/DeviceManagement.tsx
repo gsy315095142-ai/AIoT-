@@ -96,9 +96,12 @@ const DeviceList: React.FC = () => {
   const storesWithCounts = useMemo(() => {
       return availableStores.map(store => {
           const devicesInStore = filteredDevices.filter(d => d.storeId === store.id);
-          const onlineCount = devicesInStore.filter(d => d.status === DeviceStatus.ONLINE).length;
-          const complaintCount = devicesInStore.filter(d => d.opsStatus === OpsStatus.HOTEL_COMPLAINT).length;
+          
+          // Ops Status Counts
+          const normalCount = devicesInStore.filter(d => d.opsStatus === OpsStatus.INSPECTED).length;
           const repairCount = devicesInStore.filter(d => d.opsStatus === OpsStatus.REPAIRING).length;
+          const complaintCount = devicesInStore.filter(d => d.opsStatus === OpsStatus.HOTEL_COMPLAINT).length;
+          const pendingCount = devicesInStore.filter(d => d.opsStatus === OpsStatus.PENDING).length;
           
           // Breakdown: Group by Type -> Count OpsStatus
           const breakdown: Record<string, BreakdownStats> = {};
@@ -115,9 +118,10 @@ const DeviceList: React.FC = () => {
           return {
               ...store,
               deviceCount: devicesInStore.length,
-              onlineCount,
-              complaintCount,
+              normalCount,
               repairCount,
+              complaintCount,
+              pendingCount,
               breakdown
           };
       });
@@ -376,9 +380,10 @@ const DeviceList: React.FC = () => {
                                         <h4 className="font-bold text-slate-800 text-sm">{store.name}</h4>
                                         <div className="text-[10px] text-slate-500 mt-1 flex flex-wrap gap-2 items-center">
                                             <span>共 {store.deviceCount} 台</span>
-                                            {store.onlineCount > 0 && <span className="text-green-600 font-bold bg-green-50 px-1.5 rounded border border-green-100">在线 {store.onlineCount}</span>}
-                                            {store.complaintCount > 0 && <span className="text-pink-600 font-bold bg-pink-50 px-1.5 rounded border border-pink-100">客诉 {store.complaintCount}</span>}
+                                            {store.normalCount > 0 && <span className="text-green-600 font-bold bg-green-50 px-1.5 rounded border border-green-100">正常 {store.normalCount}</span>}
                                             {store.repairCount > 0 && <span className="text-purple-600 font-bold bg-purple-50 px-1.5 rounded border border-purple-100">维修 {store.repairCount}</span>}
+                                            {store.complaintCount > 0 && <span className="text-pink-600 font-bold bg-pink-50 px-1.5 rounded border border-pink-100">客诉 {store.complaintCount}</span>}
+                                            {store.pendingCount > 0 && <span className="text-orange-600 font-bold bg-orange-50 px-1.5 rounded border border-orange-100">待审 {store.pendingCount}</span>}
                                         </div>
                                     </div>
                                 </div>

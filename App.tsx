@@ -1,4 +1,4 @@
-// 标记：本次更新在设备管理页面的大区筛选下拉框中，每个大区后面显示的各运维状态的设备数量，不需要显示待审核的设备数量
+// 标记：本次更新在设备管理页面的门店条目上，将设备统计显示从“各运行状态（在线等）”调整为“各运维状态（正常、维修、客诉、待审）”
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
