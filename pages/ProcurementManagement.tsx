@@ -81,7 +81,7 @@ export const ProcurementManagement: React.FC = () => {
       </div>
 
       {/* Content */}
-      <div className="flex-1 bg-slate-50 pb-20 overflow-hidden flex flex-col">
+      <div className="flex-1 bg-slate-50 overflow-hidden flex flex-col">
          {activeTab === 'product' && <div className="p-4 h-full overflow-hidden flex flex-col"><ProcurementProduct /></div>}
          {activeTab === 'order' && <div className="h-full overflow-hidden flex flex-col"><ProcurementOrder /></div>}
          {activeTab === 'progress' && <div className="p-4 h-full overflow-hidden flex flex-col"><ProcurementProgress /></div>}

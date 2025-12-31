@@ -1,7 +1,7 @@
 import React, { useState, ChangeEvent, useMemo } from 'react';
 import { TrendingUp, Package, ChevronRight, CheckCircle, Truck, ClipboardList, Box, MapPin, X, ChevronLeft, Check, Upload, Link, Copy, Clipboard, FileText, Image as ImageIcon, ExternalLink, Calendar, AlertCircle, Plus, Trash2, Edit2, Store, ChevronDown } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { ProcurementOrder } from '../../types';
+import { ProcurementOrder, Region } from '../../types';
 import { AuditGate } from '../DeviceComponents';
 
 export const ProcurementProgress: React.FC = () => {
@@ -40,6 +40,32 @@ export const ProcurementProgress: React.FC = () => {
       2: 'https://images.unsplash.com/photo-1553413077-190dd305871c?q=80&w=600&auto=format&fit=crop', // Stocking
       3: 'https://images.unsplash.com/photo-1586864387967-d02ef85d93e8?q=80&w=600&auto=format&fit=crop', // Packing
       5: 'https://images.unsplash.com/photo-1623126908029-58cb08a2b272?q=80&w=600&auto=format&fit=crop'  // Signed
+  };
+
+  // --- Helper for Region Label with Detailed Order Counts ---
+  const getRegionLabel = (region: Region) => {
+      const regionOrders = procurementOrders.filter(o => {
+          const store = stores.find(s => s.id === o.storeId);
+          return store?.regionId === region.id;
+      });
+      
+      const total = regionOrders.length;
+      const pendingReceive = regionOrders.filter(o => o.status === 'pending_receive').length;
+      const pendingAudit = regionOrders.filter(o => o.auditStatus === 'pending').length;
+      // In Progress: status is purchasing, and not pending audit (which is technically purchasing but waiting)
+      const inProgress = regionOrders.filter(o => o.status === 'purchasing' && o.auditStatus !== 'pending').length;
+
+      let label = `${region.name} (总:${total}`;
+      if (pendingReceive > 0) label += ` 待接:${pendingReceive}`;
+      if (inProgress > 0) label += ` 进行:${inProgress}`;
+      if (pendingAudit > 0) label += ` 待审:${pendingAudit}`;
+      label += `)`;
+      return label;
+  };
+
+  const getAllRegionsLabel = () => {
+      const total = procurementOrders.length;
+      return `全部大区 (总:${total})`;
   };
 
   // Filter Logic
@@ -325,8 +351,8 @@ export const ProcurementProgress: React.FC = () => {
                     value={regionFilter}
                     onChange={(e) => setRegionFilter(e.target.value)}
                 >
-                    <option value="">全部大区</option>
-                    {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    <option value="">{getAllRegionsLabel()}</option>
+                    {regions.map(r => <option key={r.id} value={r.id}>{getRegionLabel(r)}</option>)}
                 </select>
                 <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
             </div>

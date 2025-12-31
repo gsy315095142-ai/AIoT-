@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { ShoppingBag, ChevronDown, Package, Plus, Minus, Search, Check, X, ListFilter, CheckCircle, Store, ArrowLeft, TrendingUp, Box, Calendar } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { ProductType, ProductSubType, Product, ProcurementOrder as OrderType } from '../../types';
+import { ProductType, ProductSubType, Product, ProcurementOrder as OrderType, Region } from '../../types';
 
 export const ProcurementOrder: React.FC = () => {
   const { procurementProducts, stores, regions, procurementOrders, addProcurementOrder } = useApp();
@@ -50,6 +50,20 @@ export const ProcurementOrder: React.FC = () => {
   };
 
   const STEPS = ['确认订单', '备货', '出库打包', '物流', '签收'];
+
+  // --- Helper for Region Label with Unfinished Order Count ---
+  const getRegionLabel = (region: Region) => {
+      const count = procurementOrders.filter(o => {
+          const store = stores.find(s => s.id === o.storeId);
+          return store?.regionId === region.id && o.status !== 'completed';
+      }).length;
+      return `${region.name} (未完成:${count})`;
+  };
+
+  const getAllRegionsLabel = () => {
+      const count = procurementOrders.filter(o => o.status !== 'completed').length;
+      return `全部大区 (未完成:${count})`;
+  };
 
   // --- Store List Logic ---
   const filteredStores = useMemo(() => {
@@ -195,8 +209,8 @@ export const ProcurementOrder: React.FC = () => {
                         value={regionFilter}
                         onChange={(e) => setRegionFilter(e.target.value)}
                     >
-                        <option value="">全部大区</option>
-                        {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                        <option value="">{getAllRegionsLabel()}</option>
+                        {regions.map(r => <option key={r.id} value={r.id}>{getRegionLabel(r)}</option>)}
                     </select>
                     <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                 </div>
@@ -350,8 +364,8 @@ export const ProcurementOrder: React.FC = () => {
             </div>
         </div>
 
-        {/* Product List - Bottom padding accounts for the fixed footer */}
-        <div className="flex-1 overflow-y-auto px-4 pb-48 space-y-3 pt-3">
+        {/* Product List */}
+        <div className="flex-1 overflow-y-auto px-4 pb-28 space-y-3 pt-3">
              {filteredProducts.length === 0 && (
                 <div className="text-center py-10 text-slate-400 text-xs">没有找到相关货物</div>
             )}
@@ -382,17 +396,17 @@ export const ProcurementOrder: React.FC = () => {
                         <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-lg border border-slate-100">
                             <button 
                                 onClick={() => updateQuantity(product.id, -1)}
-                                className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${qty > 0 ? 'bg-white text-slate-600 shadow-sm' : 'text-slate-300 cursor-not-allowed'}`}
+                                className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${qty > 0 ? 'bg-white text-slate-600 shadow-sm border border-slate-200 hover:text-blue-600' : 'text-slate-300 cursor-default'}`}
                                 disabled={qty === 0}
                             >
-                                <Minus size={12} />
+                                <Minus size={14} />
                             </button>
-                            <span className="w-6 text-center text-sm font-bold text-slate-700">{qty}</span>
+                            <span className={`w-6 text-center text-sm font-bold ${qty > 0 ? 'text-slate-800' : 'text-slate-300'}`}>{qty}</span>
                             <button 
                                 onClick={() => updateQuantity(product.id, 1)}
-                                className="w-6 h-6 flex items-center justify-center rounded bg-blue-500 text-white shadow-sm hover:bg-blue-600 transition-colors"
+                                className="w-7 h-7 bg-blue-600 text-white rounded-md flex items-center justify-center shadow-sm hover:bg-blue-700 transition-colors active:scale-95"
                             >
-                                <Plus size={12} />
+                                <Plus size={14} />
                             </button>
                         </div>
                     </div>
@@ -400,151 +414,129 @@ export const ProcurementOrder: React.FC = () => {
             })}
         </div>
 
-        {/* Footer Cart Summary - Fixed at bottom of VIEWPORT (above navigation) */}
-        <div className="fixed bottom-16 left-0 right-0 z-30 bg-white border-t border-slate-200 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] flex flex-col">
-            {/* Selected Items Detail List - Only show when cart has items but not in modal */}
-            {selectedItems.length > 0 && !isCheckoutOpen && (
-                <div className="max-h-36 overflow-y-auto bg-slate-50 border-b border-slate-100 p-3 space-y-2">
-                    <div className="flex items-center gap-1 text-[10px] text-slate-400 font-bold uppercase mb-1">
-                        <ListFilter size={10} /> 已选商品清单
-                    </div>
-                    {selectedItems.map(item => (
-                        <div key={item.id} className="flex justify-between items-center text-xs">
-                            <div className="flex items-center gap-2 overflow-hidden">
-                                <span className="font-bold text-slate-700 truncate max-w-[120px]">{item.name}</span>
-                                <span className="text-[10px] text-slate-500 bg-white px-1.5 rounded border border-slate-200">{item.subType}</span>
-                            </div>
-                            <div className="flex items-center gap-4 flex-shrink-0">
-                                <span className="text-slate-500 text-[10px]">¥ {item.price.toLocaleString()}</span>
-                                <span className="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">x {item.qty}</span>
-                            </div>
+        {/* Footer Cart / Checkout Bar (Fixed at Bottom) */}
+        {/* Changed to fixed bottom-0 to overlay app navigation and ensure it's at the very bottom of the viewport */}
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] p-4 z-50">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="relative">
+                        <div className={`p-3 rounded-full ${totalCount > 0 ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                            <ShoppingBag size={24} />
                         </div>
-                    ))}
-                </div>
-            )}
-
-            {/* Action Bar */}
-            <div className="p-3 flex items-center justify-between bg-white">
-                <div>
-                    <p className="text-xs text-slate-500">
-                        共 <span className="font-bold text-slate-800">{totalCount}</span> 件商品
-                    </p>
-                    <p className="text-lg font-bold text-orange-600 leading-none mt-0.5">
-                        ¥ {totalPrice.toLocaleString()}
-                    </p>
+                        {totalCount > 0 && (
+                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold border-2 border-white">
+                                {totalCount}
+                            </span>
+                        )}
+                    </div>
+                    <div>
+                        <p className="text-xs text-slate-500">合计金额</p>
+                        <p className="text-lg font-bold text-slate-800">¥ {totalPrice.toLocaleString()}</p>
+                    </div>
                 </div>
                 <button 
-                    onClick={() => totalCount > 0 && setIsCheckoutOpen(true)}
+                    onClick={() => setIsCheckoutOpen(true)}
                     disabled={totalCount === 0}
-                    className={`px-6 py-2.5 rounded-lg font-bold text-sm shadow-md transition-all ${
+                    className={`px-6 py-3 rounded-xl font-bold text-sm transition-all shadow-lg ${
                         totalCount > 0 ? 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95' : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                     }`}
                 >
-                    确认下单
+                    去结算
                 </button>
             </div>
         </div>
 
         {/* Checkout Modal */}
         {isCheckoutOpen && (
-             <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
-                 <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-scaleIn">
-                     <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
-                        <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                            <ShoppingBag size={20} className="text-blue-600" />
-                            下单详情
-                        </h3>
-                        <button onClick={() => setIsCheckoutOpen(false)}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
-                     </div>
-                     
-                     <div className="p-5 space-y-4">
-                         <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
-                             <div className="text-xs text-slate-500 uppercase font-bold mb-1">归属门店</div>
-                             <div className="text-sm font-bold text-blue-900 flex items-center gap-2">
-                                 <Store size={14} />
-                                 {currentStoreName}
-                             </div>
-                         </div>
+            <div className="fixed inset-0 z-[60] bg-black/50 flex items-end justify-center sm:items-center animate-fadeIn backdrop-blur-sm p-0 sm:p-4">
+                <div className="bg-white w-full sm:w-[400px] sm:rounded-2xl rounded-t-2xl overflow-hidden flex flex-col max-h-[85vh] animate-slideInUp shadow-2xl">
+                    <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
+                        <h3 className="font-bold text-slate-800 text-lg">确认订单信息</h3>
+                        <button onClick={() => setIsCheckoutOpen(false)}><X size={24} className="text-slate-400 hover:text-slate-600" /></button>
+                    </div>
+                    
+                    <div className="p-5 flex-1 overflow-y-auto space-y-4">
+                        {/* Store Info */}
+                        <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
+                            <p className="text-xs text-blue-500 mb-1 font-bold uppercase">下单门店</p>
+                            <p className="font-bold text-slate-800 text-sm">{currentStoreName}</p>
+                        </div>
 
-                         <div 
-                            className="cursor-pointer"
-                            onClick={() => {
-                                try {
-                                    if (deliveryInputRef.current) deliveryInputRef.current.showPicker();
-                                } catch (error) {
-                                    deliveryInputRef.current?.focus();
-                                }
-                            }}
-                         >
-                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1 pointer-events-none">期望交货时间</label>
-                             <div className="relative">
-                                 <input 
-                                    ref={deliveryInputRef}
-                                    type="date"
-                                    className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none pl-8 caret-transparent cursor-pointer"
-                                    value={deliveryDate}
-                                    onChange={e => setDeliveryDate(e.target.value)}
-                                    onKeyDown={(e) => e.preventDefault()}
-                                    onClick={(e) => { 
-                                        e.stopPropagation();
-                                        try {
-                                            (e.target as HTMLInputElement).showPicker();
-                                        } catch (error) {
-                                            // Ignore if not supported
-                                        }
-                                    }} 
-                                 />
-                                 <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
-                             </div>
-                         </div>
-
-                         <div>
-                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">备注说明 *</label>
-                             <textarea 
-                                className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none h-20 resize-none"
-                                placeholder="请输入订单备注..."
-                                value={remark}
-                                onChange={e => setRemark(e.target.value)}
-                             />
-                         </div>
-
-                         {/* Item Detail List Grouped with Summary */}
-                         <div className="bg-slate-50 rounded-lg border border-slate-100 overflow-hidden">
-                            <div className="p-2 bg-slate-100 border-b border-slate-200 text-[10px] font-bold text-slate-500 flex justify-between">
-                                <span>商品名称</span>
-                                <span>数量</span>
-                            </div>
-                            <div className="divide-y divide-slate-100 max-h-40 overflow-y-auto">
+                        {/* Items Preview */}
+                        <div>
+                            <p className="text-xs font-bold text-slate-500 mb-2 uppercase">商品清单 ({totalCount})</p>
+                            <div className="bg-slate-50 rounded-xl border border-slate-100 divide-y divide-slate-100 max-h-40 overflow-y-auto">
                                 {selectedItems.map(item => (
-                                    <div key={item.id} className="p-2 flex justify-between items-center text-xs bg-white/50">
-                                        <div className="flex items-center gap-2 overflow-hidden">
-                                            <span className="truncate text-slate-700 font-medium">{item.name}</span>
+                                    <div key={item.id} className="p-2 flex justify-between items-center text-xs">
+                                        <div className="flex-1 truncate pr-2">
+                                            <span className="font-bold text-slate-700">{item.name}</span>
                                         </div>
-                                        <span className="font-bold text-blue-600">x{item.qty}</span>
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-slate-500">x{item.qty}</span>
+                                            <span className="font-bold text-slate-800 w-12 text-right">¥{(item.price * item.qty).toLocaleString()}</span>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
-                            <div className="p-3 border-t border-slate-200 bg-slate-100/50 text-xs text-slate-600 space-y-1">
-                                 <div className="flex justify-between">
-                                     <span>商品总数:</span>
-                                     <span className="font-bold">{totalCount}</span>
-                                 </div>
-                                 <div className="flex justify-between">
-                                     <span>订单总额:</span>
-                                     <span className="font-bold text-orange-600">¥ {totalPrice.toLocaleString()}</span>
-                                 </div>
-                             </div>
-                         </div>
-                         
-                         <button 
+                        </div>
+
+                        {/* Date Picker - Using Native Picker for Mobile Friendliness */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">期望交货日期</label>
+                            <div 
+                                className="relative w-full"
+                                onClick={() => {
+                                    // Trigger picker programmatically if possible/needed or rely on input click
+                                    try {
+                                        if (deliveryInputRef.current && 'showPicker' in HTMLInputElement.prototype) {
+                                            (deliveryInputRef.current as any).showPicker();
+                                        } else {
+                                            deliveryInputRef.current?.focus();
+                                        }
+                                    } catch (e) {
+                                        deliveryInputRef.current?.focus();
+                                    }
+                                }}
+                            >
+                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                                    <Calendar size={16} />
+                                </div>
+                                <input 
+                                    ref={deliveryInputRef}
+                                    type="date" 
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-10 pr-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                                    value={deliveryDate}
+                                    onChange={(e) => setDeliveryDate(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Remark */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">订单备注</label>
+                            <textarea 
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none h-20"
+                                placeholder="如有特殊要求请在此说明..."
+                                value={remark}
+                                onChange={(e) => setRemark(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="p-4 border-t border-slate-100 bg-white">
+                        <div className="flex justify-between items-end mb-3">
+                            <span className="text-sm text-slate-500">总计金额</span>
+                            <span className="text-2xl font-bold text-orange-600">¥ {totalPrice.toLocaleString()}</span>
+                        </div>
+                        <button 
                             onClick={handleSubmitOrder}
-                            className="w-full py-2.5 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition-colors"
-                         >
-                             确定
-                         </button>
-                     </div>
-                 </div>
-             </div>
+                            className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 active:scale-95 transition-all"
+                        >
+                            确认提交订单
+                        </button>
+                    </div>
+                </div>
+            </div>
         )}
     </div>
   );

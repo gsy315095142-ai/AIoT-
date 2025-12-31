@@ -1,4 +1,4 @@
-// 标记：本次更新在客房建档、安装、复尺页面的大区筛选中，【全部大区】选项增加了所有大区的汇总统计数据
+// 标记：本次更新修复了采购管理【客户下单】页面中【去结算】栏位置问题，改为fixed定位以确保固定在页面最底部
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
