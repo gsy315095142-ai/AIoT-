@@ -64,7 +64,7 @@ export const ProcurementManagement: React.FC = () => {
             className={`flex-1 py-3 text-xs font-bold flex flex-col items-center gap-1 transition-colors relative ${activeTab === 'order' ? 'text-blue-600' : 'text-slate-500'}`}
             >
                 <ShoppingBag size={16} />
-                内部下单
+                客户下单
                 {activeTab === 'order' && <div className="absolute bottom-0 w-full h-0.5 bg-blue-600"></div>}
             </button>
         )}

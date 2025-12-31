@@ -1,4 +1,4 @@
-// 标记：本次更新优化了【设备管理】门店列表信息展示（增加客诉、维修数量），并统一调整了运维状态文案（酒店客诉->客诉，维修中->维修）
+// 标记：本次更新在【后台配置】新增了供应商配置功能
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

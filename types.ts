@@ -113,6 +113,11 @@ export type DeviceType = {
   name: string;
 };
 
+export type Supplier = {
+  id: string;
+  name: string;
+};
+
 export enum DeviceStatus {
   ONLINE = 'Online',
   OFFLINE = 'Offline',

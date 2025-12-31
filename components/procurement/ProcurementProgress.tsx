@@ -335,7 +335,7 @@ export const ProcurementProgress: React.FC = () => {
                 <div className="flex flex-col items-center justify-center py-20 text-slate-400">
                     <TrendingUp size={48} className="mb-4 opacity-20" />
                     <p className="text-sm font-medium">暂无采购订单</p>
-                    <p className="text-xs opacity-60 mt-1">请先在「内部下单」模块提交订单</p>
+                    <p className="text-xs opacity-60 mt-1">请先在「客户下单」模块提交订单</p>
                 </div>
             )}
 

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent, AuditRecord, AuditStatus, AuditType, StoreInstallation, InstallNode, Product, RoomTypeConfig, ProcurementOrder, ProductSubType, UserRole, StoreModuleConfig } from '../types';
+import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent, AuditRecord, AuditStatus, AuditType, StoreInstallation, InstallNode, Product, RoomTypeConfig, ProcurementOrder, ProductSubType, UserRole, StoreModuleConfig, Supplier } from '../types';
 
 // Initial Mock Data
 const MOCK_REGIONS: Region[] = [
@@ -156,6 +156,11 @@ const MOCK_DEVICE_TYPES: DeviceType[] = [
   { id: 't3', name: '头显' },
 ];
 
+const MOCK_SUPPLIERS: Supplier[] = [
+    { id: 'sup1', name: 'YVR' },
+    { id: 'sup2', name: 'PICO' }
+];
+
 const MOCK_DEVICES: Device[] = [
   {
     id: 'd1',
@@ -265,6 +270,7 @@ interface AppContextType {
   regions: Region[];
   stores: Store[];
   deviceTypes: DeviceType[];
+  suppliers: Supplier[]; // New Supplier State
   devices: Device[];
   auditRecords: AuditRecord[];
   
@@ -291,6 +297,9 @@ interface AppContextType {
   removeStore: (id: string) => void;
   addDeviceType: (name: string) => void;
   removeDeviceType: (id: string) => void;
+  addSupplier: (name: string) => void; // New
+  updateSupplier: (id: string, name: string) => void; // New
+  removeSupplier: (id: string) => void; // New
   addDevice: (device: Omit<Device, 'id' | 'events' | 'status' | 'opsStatus' | 'cpuUsage' | 'memoryUsage' | 'signalStrength' | 'lastTestTime'>) => void;
   updateDevice: (id: string, data: Partial<Device>, customEventMessage?: string, eventMeta?: { remark?: string, images?: string[] }) => void;
   deleteDeviceEvent: (deviceId: string, eventId: string) => void;
@@ -308,6 +317,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [regions, setRegions] = useState<Region[]>(MOCK_REGIONS);
   const [stores, setStores] = useState<Store[]>(MOCK_STORES);
   const [deviceTypes, setDeviceTypes] = useState<DeviceType[]>(MOCK_DEVICE_TYPES);
+  const [suppliers, setSuppliers] = useState<Supplier[]>(MOCK_SUPPLIERS); // New Supplier State
   const [devices, setDevices] = useState<Device[]>(MOCK_DEVICES);
   const [auditRecords, setAuditRecords] = useState<AuditRecord[]>([]);
   const [procurementProducts, setProcurementProducts] = useState<Product[]>(MOCK_PRODUCTS);
@@ -405,6 +415,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const removeDeviceType = (id: string) => {
     setDeviceTypes(deviceTypes.filter(t => t.id !== id));
+  };
+
+  const addSupplier = (name: string) => {
+    setSuppliers([...suppliers, { id: `sup${Date.now()}`, name }]);
+  };
+
+  const updateSupplier = (id: string, name: string) => {
+    setSuppliers(prev => prev.map(s => s.id === id ? { ...s, name } : s));
+  };
+
+  const removeSupplier = (id: string) => {
+    setSuppliers(suppliers.filter(s => s.id !== id));
   };
 
   const addDevice = (deviceData: Omit<Device, 'id' | 'events' | 'status' | 'opsStatus' | 'cpuUsage' | 'memoryUsage' | 'signalStrength' | 'lastTestTime'>) => {
@@ -700,13 +722,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       login,
       logout,
       checkAuditPermission,
-      regions, stores, deviceTypes, devices, auditRecords,
+      regions, stores, deviceTypes, suppliers, devices, auditRecords,
       procurementProducts, addProcurementProduct, updateProcurementProduct, removeProcurementProduct,
       procurementOrders, addProcurementOrder, updateProcurementOrder,
       headerRightAction, setHeaderRightAction,
       addRegion, updateRegion, removeRegion, 
       addStore, updateStore, updateStoreInstallation, removeStore, 
-      addDeviceType, removeDeviceType, 
+      addDeviceType, removeDeviceType, addSupplier, updateSupplier, removeSupplier,
       addDevice, updateDevice, deleteDeviceEvent,
       submitOpsStatusChange, submitInspectionReport, approveAudit, rejectAudit
     }}>
