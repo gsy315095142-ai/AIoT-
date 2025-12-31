@@ -12,6 +12,7 @@ interface DeviceFormState {
   typeId: string;
   subType: string;
   supplierId: string; // Added supplierId
+  orderId: string; // Added orderId
   roomNumber: string;
   softwareName: string;
   firstStartTime: string; 
@@ -19,7 +20,7 @@ interface DeviceFormState {
 }
 
 const initialFormState: DeviceFormState = {
-  name: '', sn: '', mac: '', regionId: '', storeId: '', typeId: '', subType: '', supplierId: '', roomNumber: '', softwareName: '', firstStartTime: '', images: []
+  name: '', sn: '', mac: '', regionId: '', storeId: '', typeId: '', subType: '', supplierId: '', orderId: '', roomNumber: '', softwareName: '', firstStartTime: '', images: []
 };
 
 export const useDeviceLogic = () => {

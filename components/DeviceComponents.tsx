@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, ChangeEvent } from 'react';
 import { Device, DeviceStatus, OpsStatus, DeviceImage, AuditRecord, AuditStatus, AuditType, DeviceEvent } from '../types';
 import { useApp, AuditPermissionType } from '../context/AppContext';
-import { Check, X as XIcon, FilePenLine, X, Upload, ClipboardCheck, Clock, Wrench, Trash2, History, Info, ImageIcon, MapPin, Activity, Wifi, Moon, AlertCircle, Eye, ClipboardList } from 'lucide-react';
+import { Check, X as XIcon, FilePenLine, X, Upload, ClipboardCheck, Clock, Wrench, Trash2, History, Info, ImageIcon, MapPin, Activity, Wifi, Moon, AlertCircle, Eye, ClipboardList, ShoppingBag } from 'lucide-react';
 
 // --- Constants ---
 
@@ -702,6 +702,9 @@ export const DeviceDetailCard: React.FC<DeviceDetailCardProps> = ({ device, onEd
 
                                 {/* Supplier Field */}
                                 <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">供应商</span><div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0"><EditableField value={device.supplierId || ''} displayValue={getSupplierName(device.supplierId)} type="select" options={supplierOptions} onSave={(val) => handleFieldUpdate('supplierId', val)} className="flex-1 min-w-0" /></div></div>
+                                
+                                {/* Order ID Field - Added */}
+                                <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">订单号</span><div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0"><EditableField value={device.orderId || ''} type="text" onSave={(val) => handleFieldUpdate('orderId', val)} className="flex-1 min-w-0 text-blue-600" /></div></div>
                             </div>
                         </div>
 
@@ -875,7 +878,7 @@ export const DeviceDetailCard: React.FC<DeviceDetailCardProps> = ({ device, onEd
                         filteredEvents.map(event => (
                             <div key={event.id} className="relative pl-4 group cursor-pointer border-l border-slate-200 ml-1 pb-1 last:pb-0" onClick={() => onViewEvent(event, device.id)}>
                                 <div className={`absolute left-0 top-1.5 w-2 h-2 rounded-full border-2 border-white shadow-sm z-10 -ml-[5px] ${
-                                    event.type === 'error' ? 'bg-red-500' : event.type === 'warning' ? 'bg-orange-400' : 'bg-blue-400'
+                                    event.type === 'error' ? 'bg-red-50' : event.type === 'warning' ? 'bg-orange-400' : 'bg-blue-400'
                                 }`}></div>
                                 <div className="flex justify-between items-start">
                                     <div className="flex-1 mr-2">

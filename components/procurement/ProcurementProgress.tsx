@@ -5,7 +5,7 @@ import { ProcurementOrder } from '../../types';
 import { AuditGate } from '../DeviceComponents';
 
 export const ProcurementProgress: React.FC = () => {
-  const { procurementOrders, updateProcurementOrder, regions, stores } = useApp();
+  const { procurementOrders, updateProcurementOrder, approveProcurementOrder, regions, stores } = useApp();
   
   // State for Filters
   const [regionFilter, setRegionFilter] = useState('');
@@ -251,7 +251,10 @@ export const ProcurementProgress: React.FC = () => {
 
   const handleAuditApprove = () => {
       if (!selectedOrder) return;
-      updateProcurementOrder(selectedOrder.id, { auditStatus: 'approved', status: 'completed' });
+      // This function now triggers device creation
+      approveProcurementOrder(selectedOrder.id);
+      
+      // Manually update local state to reflect changes without full re-fetch if context is slow
       setSelectedOrder(prev => prev ? ({ ...prev, auditStatus: 'approved', status: 'completed' }) : null);
   };
 
@@ -364,7 +367,11 @@ export const ProcurementProgress: React.FC = () => {
                                     <h4 className="font-bold text-slate-800 text-sm">{order.storeName}</h4>
                                     <span className="text-[10px] text-slate-400">{order.createTime.split(' ')[0]}</span>
                                 </div>
-                                <div className="text-xs text-slate-500 mt-0.5">
+                                {/* Added Order ID display */}
+                                <div className="text-[10px] text-slate-400 mt-0.5 bg-slate-50 inline-block px-1 rounded border border-slate-100">
+                                    ID: {order.id}
+                                </div>
+                                <div className="text-xs text-slate-500 mt-1">
                                     共 {order.items.reduce((sum, item) => sum + item.quantity, 0)} 件商品
                                 </div>
                                 

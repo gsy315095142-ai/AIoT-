@@ -1,4 +1,4 @@
-// 标记：本次更新在【设备管理】模块添加设备和详情页中增加了【供应商】字段
+// 标记：本次更新实现了采购订单签收后自动生成设备数据，并在设备管理中增加了订单号字段
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

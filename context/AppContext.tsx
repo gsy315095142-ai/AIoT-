@@ -172,6 +172,7 @@ const MOCK_DEVICES: Device[] = [
     typeId: 't1',
     subType: '桌显2.0',
     supplierId: 'sup1',
+    orderId: 'po-mock-001',
     roomNumber: '2101',
     softwareName: '爱丽丝主题V1.3.0',
     status: DeviceStatus.ONLINE,
@@ -286,6 +287,7 @@ interface AppContextType {
   procurementOrders: ProcurementOrder[];
   addProcurementOrder: (order: Omit<ProcurementOrder, 'id' | 'status' | 'currentStep' | 'createTime'>) => void;
   updateProcurementOrder: (id: string, data: Partial<ProcurementOrder>) => void;
+  approveProcurementOrder: (id: string) => void; // New function
 
   // Header Action
   headerRightAction: ReactNode;
@@ -436,12 +438,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const timestamp = new Date().toLocaleString(); // Simple format for demo
     const newDevice: Device = {
       ...deviceData,
-      id: `d${Date.now()}`,
+      id: `d${Date.now()}-${Math.random().toString(36).substr(2, 5)}`, // Random ID suffix to prevent collisions in loops
       status: DeviceStatus.STANDBY,
       opsStatus: OpsStatus.INSPECTED, // Default to Inspected, not Pending
       events: [
         {
-            id: `evt-init-${Date.now()}`,
+            id: `evt-init-${Date.now()}-${Math.random()}`,
             type: 'info',
             message: '设备首次添加',
             timestamp: timestamp,
@@ -459,7 +461,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       lastTestTime: timestamp,
       lastTestResult: 'Qualified',
     };
-    setDevices([newDevice, ...devices]);
+    setDevices(prev => [newDevice, ...prev]);
   };
 
   const updateDevice = (id: string, data: Partial<Device>, customEventMessage?: string, eventMeta?: { remark?: string, images?: string[] }) => {
@@ -522,7 +524,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
         
         // 4. Check for Detail Changes (only if not covered above, though they can coexist)
-        const relevantKeys: (keyof Device)[] = ['name', 'sn', 'roomNumber', 'softwareName', 'imageUrl', 'mac', 'subType', 'supplierId'];
+        const relevantKeys: (keyof Device)[] = ['name', 'sn', 'roomNumber', 'softwareName', 'imageUrl', 'mac', 'subType', 'supplierId', 'orderId'];
         const hasDetailChanges = relevantKeys.some(key => data[key] !== undefined && data[key] !== d[key]);
         
         if (hasDetailChanges) {
@@ -705,7 +707,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addProcurementOrder = (orderData: Omit<ProcurementOrder, 'id' | 'status' | 'currentStep' | 'createTime'>) => {
       const newOrder: ProcurementOrder = {
           ...orderData,
-          id: `po-${Date.now()}`,
+          id: `PO-${Math.floor(100000 + Math.random() * 900000)}`, // Generate Readable ID like PO-123456
           status: 'pending_receive',
           currentStep: 0,
           createTime: new Date().toLocaleString(),
@@ -718,6 +720,53 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setProcurementOrders(prev => prev.map(o => o.id === id ? { ...o, ...data } : o));
   };
 
+  const approveProcurementOrder = (orderId: string) => {
+      const order = procurementOrders.find(o => o.id === orderId);
+      if (!order) return;
+
+      // 1. Mark Order as Completed
+      updateProcurementOrder(orderId, { auditStatus: 'approved', status: 'completed' });
+
+      // 2. Auto-create devices
+      const store = stores.find(s => s.id === order.storeId);
+      const regionId = store?.regionId || 'unknown';
+
+      // Iterate items and create devices for hardware
+      order.items.forEach(item => {
+          // Find original product to check type
+          const product = procurementProducts.find(p => p.id === item.productId);
+          
+          if (product && product.type === '硬件') {
+              // Try to map Product SubType to Device Type ID
+              // MOCK_DEVICE_TYPES: [{id: 't1', name: '桌显'}, {id: 't2', name: '地投'}, {id: 't3', name: '头显'}]
+              const matchedType = deviceTypes.find(t => product.subType.includes(t.name) || t.name.includes(product.subType));
+              const typeId = matchedType ? matchedType.id : '';
+
+              if (typeId) {
+                  // Create 'quantity' number of devices
+                  for (let i = 0; i < item.quantity; i++) {
+                      addDevice({
+                          name: `新设备-${item.productName}-${i + 1}`,
+                          sn: '待录入', // Placeholder
+                          mac: '',
+                          regionId: regionId,
+                          storeId: order.storeId,
+                          typeId: typeId,
+                          subType: product.subType, // Keep subType from product
+                          supplierId: '', // To be filled
+                          orderId: order.id, // Link to Order
+                          roomNumber: '待分配',
+                          softwareName: '',
+                          firstStartTime: new Date().toLocaleString().replace(/\//g, '-'), // Placeholder date
+                          imageUrl: item.imageUrl,
+                          images: item.imageUrl ? [{ url: item.imageUrl, category: '设备外观' }] : []
+                      });
+                  }
+              }
+          }
+      });
+  };
+
   return (
     <AppContext.Provider value={{ 
       currentUser,
@@ -727,7 +776,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       checkAuditPermission,
       regions, stores, deviceTypes, suppliers, devices, auditRecords,
       procurementProducts, addProcurementProduct, updateProcurementProduct, removeProcurementProduct,
-      procurementOrders, addProcurementOrder, updateProcurementOrder,
+      procurementOrders, addProcurementOrder, updateProcurementOrder, approveProcurementOrder,
       headerRightAction, setHeaderRightAction,
       addRegion, updateRegion, removeRegion, 
       addStore, updateStore, updateStoreInstallation, removeStore, 

@@ -688,7 +688,7 @@ const DeviceList: React.FC = () => {
                                  );
                              })()}
 
-                             {/* Supplier Selection - Added */}
+                             {/* Supplier Selection */}
                              <div>
                                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">供应商 *</label>
                                  <select 
@@ -700,6 +700,17 @@ const DeviceList: React.FC = () => {
                                      <option value="">选择供应商</option>
                                      {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                  </select>
+                             </div>
+
+                             {/* Order ID Input - Added */}
+                             <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">采购订单号</label>
+                                <input 
+                                    className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+                                    value={deviceForm.orderId} 
+                                    onChange={e => setDeviceForm({...deviceForm, orderId: e.target.value})} 
+                                    placeholder="选填，关联采购单"
+                                />
                              </div>
 
                              <div className="grid grid-cols-2 gap-3">
