@@ -157,6 +157,7 @@ export type Device = {
   storeId: string;
   typeId: string;
   subType?: string; // New Sub-type field
+  supplierId?: string; // New Supplier field
   
   // Hardware/Soft Details
   roomNumber: string;

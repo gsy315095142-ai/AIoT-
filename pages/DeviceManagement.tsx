@@ -49,7 +49,7 @@ interface TypeGroup {
 const DeviceList: React.FC = () => {
   const {
     // Data
-    regions, stores, deviceTypes, filteredDevices, availableStores, pendingAuditCount, imageCounts, CATEGORY_LIMITS,
+    regions, stores, deviceTypes, suppliers, filteredDevices, availableStores, pendingAuditCount, imageCounts, CATEGORY_LIMITS,
     // States
     selectedRegion, setSelectedRegion, searchQuery, setSearchQuery,
     expandedDeviceId, selectedDeviceIds,
@@ -687,6 +687,20 @@ const DeviceList: React.FC = () => {
                                      </div>
                                  );
                              })()}
+
+                             {/* Supplier Selection - Added */}
+                             <div>
+                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">供应商 *</label>
+                                 <select 
+                                    required
+                                    className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
+                                    value={deviceForm.supplierId}
+                                    onChange={e => setDeviceForm({...deviceForm, supplierId: e.target.value})}
+                                 >
+                                     <option value="">选择供应商</option>
+                                     {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                 </select>
+                             </div>
 
                              <div className="grid grid-cols-2 gap-3">
                                 <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">房间号码</label><input className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" value={deviceForm.roomNumber} onChange={e => setDeviceForm({...deviceForm, roomNumber: e.target.value})} /></div>

@@ -602,7 +602,7 @@ interface DeviceDetailCardProps {
 }
 
 export const DeviceDetailCard: React.FC<DeviceDetailCardProps> = ({ device, onEditImage, onViewReport, onViewEvent, onOpenInspection }) => {
-    const { updateDevice, auditRecords, deviceTypes, stores } = useApp();
+    const { updateDevice, auditRecords, deviceTypes, stores, suppliers } = useApp();
     const [activeModule, setActiveModule] = useState<'status' | 'inspection'>('status');
 
     const handleFieldUpdate = (field: keyof Device, value: string) => {
@@ -614,6 +614,7 @@ export const DeviceDetailCard: React.FC<DeviceDetailCardProps> = ({ device, onEd
 
     const getStoreName = (id: string) => stores.find(s => s.id === id)?.name || '-';
     const getTypeName = (id: string) => deviceTypes.find(t => t.id === id)?.name || '-';
+    const getSupplierName = (id?: string) => suppliers.find(s => s.id === id)?.name || '-';
     const toInputDate = (dateStr: string) => dateStr.replace(' ', 'T');
     
     const calculateDuration = (dateStr: string) => {
@@ -627,6 +628,7 @@ export const DeviceDetailCard: React.FC<DeviceDetailCardProps> = ({ device, onEd
 
     const typeOptions = deviceTypes.map(t => ({ label: t.name, value: t.id }));
     const storeOptions = stores.filter(s => !device.regionId || s.regionId === device.regionId).map(s => ({ label: s.name, value: s.id }));
+    const supplierOptions = suppliers.map(s => ({ label: s.name, value: s.id }));
     const currentTypeName = getTypeName(device.typeId);
     const detailSubTypeOptions = SUB_TYPE_MAPPING[currentTypeName]?.map(s => ({ label: s, value: s }));
 
@@ -697,6 +699,9 @@ export const DeviceDetailCard: React.FC<DeviceDetailCardProps> = ({ device, onEd
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Supplier Field */}
+                                <div className="flex text-[10px] items-center"><span className="text-slate-500 w-12 flex-shrink-0">供应商</span><div className="flex-1 flex justify-between items-center border border-slate-200 rounded px-1 py-0.5 bg-slate-50 min-w-0"><EditableField value={device.supplierId || ''} displayValue={getSupplierName(device.supplierId)} type="select" options={supplierOptions} onSave={(val) => handleFieldUpdate('supplierId', val)} className="flex-1 min-w-0" /></div></div>
                             </div>
                         </div>
 

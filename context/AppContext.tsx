@@ -171,6 +171,7 @@ const MOCK_DEVICES: Device[] = [
     storeId: 's1',
     typeId: 't1',
     subType: '桌显2.0',
+    supplierId: 'sup1',
     roomNumber: '2101',
     softwareName: '爱丽丝主题V1.3.0',
     status: DeviceStatus.ONLINE,
@@ -201,6 +202,7 @@ const MOCK_DEVICES: Device[] = [
     regionId: 'r1',
     storeId: 's1',
     typeId: 't2',
+    supplierId: 'sup1',
     // subType: undefined for Floor Projector
     roomNumber: '102',
     softwareName: 'Floor Interactive',
@@ -228,6 +230,7 @@ const MOCK_DEVICES: Device[] = [
     storeId: 's3',
     typeId: 't3',
     subType: '大堂头显',
+    supplierId: 'sup2',
     roomNumber: 'Lobby',
     softwareName: 'VR World',
     status: DeviceStatus.STANDBY,
@@ -519,7 +522,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
         
         // 4. Check for Detail Changes (only if not covered above, though they can coexist)
-        const relevantKeys: (keyof Device)[] = ['name', 'sn', 'roomNumber', 'softwareName', 'imageUrl', 'mac', 'subType'];
+        const relevantKeys: (keyof Device)[] = ['name', 'sn', 'roomNumber', 'softwareName', 'imageUrl', 'mac', 'subType', 'supplierId'];
         const hasDetailChanges = relevantKeys.some(key => data[key] !== undefined && data[key] !== d[key]);
         
         if (hasDetailChanges) {

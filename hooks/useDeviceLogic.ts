@@ -11,6 +11,7 @@ interface DeviceFormState {
   storeId: string;
   typeId: string;
   subType: string;
+  supplierId: string; // Added supplierId
   roomNumber: string;
   softwareName: string;
   firstStartTime: string; 
@@ -18,11 +19,11 @@ interface DeviceFormState {
 }
 
 const initialFormState: DeviceFormState = {
-  name: '', sn: '', mac: '', regionId: '', storeId: '', typeId: '', subType: '', roomNumber: '', softwareName: '', firstStartTime: '', images: []
+  name: '', sn: '', mac: '', regionId: '', storeId: '', typeId: '', subType: '', supplierId: '', roomNumber: '', softwareName: '', firstStartTime: '', images: []
 };
 
 export const useDeviceLogic = () => {
-  const { devices, regions, stores, deviceTypes, updateDevice, addDevice, auditRecords, submitOpsStatusChange, submitInspectionReport, deleteDeviceEvent } = useApp();
+  const { devices, regions, stores, deviceTypes, suppliers, updateDevice, addDevice, auditRecords, submitOpsStatusChange, submitInspectionReport, deleteDeviceEvent } = useApp();
   
   // Filter States
   const [selectedRegion, setSelectedRegion] = useState('');
@@ -225,7 +226,7 @@ export const useDeviceLogic = () => {
 
   return {
     // Data
-    regions, stores, deviceTypes, filteredDevices, availableStores, auditRecords, pendingAuditCount, imageCounts, CATEGORY_LIMITS,
+    regions, stores, deviceTypes, suppliers, filteredDevices, availableStores, auditRecords, pendingAuditCount, imageCounts, CATEGORY_LIMITS,
     
     // States
     selectedRegion, setSelectedRegion,

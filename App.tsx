@@ -1,4 +1,4 @@
-// 标记：本次更新在【后台配置】新增了供应商配置功能
+// 标记：本次更新在【设备管理】模块添加设备和详情页中增加了【供应商】字段
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
