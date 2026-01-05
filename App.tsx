@@ -1,4 +1,4 @@
-// 标记：本次更新优化了【设备反馈】流程，增加了运维状态修改的审核机制及客诉类型选择，并完善了反馈列表的时间显示
+// 标记：本次更新修复了【数据总览】和【内容管理】页面丢失的问题，恢复了设备管理页面的多Tab架构
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

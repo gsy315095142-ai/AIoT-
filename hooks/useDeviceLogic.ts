@@ -24,7 +24,7 @@ const initialFormState: DeviceFormState = {
 };
 
 export const useDeviceLogic = () => {
-  const { devices, regions, stores, deviceTypes, suppliers, updateDevice, addDevice, auditRecords, submitOpsStatusChange, submitInspectionReport, deleteDeviceEvent } = useApp();
+  const { devices, regions, stores, deviceTypes, suppliers, updateDevice, addDevice, auditRecords, submitOpsStatusChange, submitInspectionReport, deleteDeviceEvent, addFeedback } = useApp();
   
   // Filter States
   const [selectedRegion, setSelectedRegion] = useState('');
@@ -131,6 +131,16 @@ export const useDeviceLogic = () => {
     if (selectedDeviceIds.size === 0) return;
     selectedDeviceIds.forEach(id => updateDevice(id, { status: DeviceStatus.OFFLINE }));
     setIsControlMenuOpen(false); setSelectedDeviceIds(new Set());
+  };
+
+  const handleBatchFeedback = () => {
+    if (selectedDeviceIds.size === 0) return;
+    selectedDeviceIds.forEach(id => {
+        addFeedback(id, "手动上报设备问题");
+    });
+    alert("已上报该设备问题");
+    setIsControlMenuOpen(false);
+    setSelectedDeviceIds(new Set());
   };
 
   const openOpsStatusModal = () => {
@@ -262,7 +272,7 @@ export const useDeviceLogic = () => {
 
     // Actions
     toggleSelection, toggleSelectAll, toggleExpand, hasPendingAudit,
-    handleBatchRun, handleBatchSleep, handleBatchRestart, 
+    handleBatchRun, handleBatchSleep, handleBatchRestart, handleBatchFeedback,
     openOpsStatusModal, handleOpsImageUpload, removeOpsImage, handleBatchOpsStatusSubmit,
     openInspectionModal, handleInspImageUpload, removeInspImage, handleSubmitInspection,
     openAddModal, handleAddFormImage, handleRemoveFormImage, handleFormImageCategoryChange, handleAddSubmit

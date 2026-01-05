@@ -313,7 +313,8 @@ interface AppContextType {
   devices: Device[];
   auditRecords: AuditRecord[];
   feedbacks: DeviceFeedback[]; // New Feedback State
-  resolveFeedback: (id: string, type: 'resolved' | 'false_alarm', resolver: string) => void; // New Feedback Action
+  addFeedback: (deviceId: string, content: string) => void; // New Feedback Action
+  resolveFeedback: (id: string, type: 'resolved' | 'false_alarm', resolver: string) => void; 
   
   // Procurement
   procurementProducts: Product[];
@@ -624,6 +625,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // --- Feedback Workflow ---
+  const addFeedback = (deviceId: string, content: string) => {
+      const device = devices.find(d => d.id === deviceId);
+      if (!device) return;
+      const store = stores.find(s => s.id === device.storeId);
+
+      const newFeedback: DeviceFeedback = {
+          id: `fb-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+          deviceId: device.id,
+          deviceSn: device.sn,
+          deviceName: device.name,
+          storeName: store?.name || '未知门店',
+          roomNumber: device.roomNumber,
+          content: content,
+          createTime: new Date().toLocaleString(),
+          status: 'pending'
+      };
+      setFeedbacks(prev => [newFeedback, ...prev]);
+  };
+
   const resolveFeedback = (id: string, type: 'resolved' | 'false_alarm', resolver: string) => {
       setFeedbacks(prev => prev.map(f => {
           if (f.id === id) {
@@ -852,7 +872,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       logout,
       checkAuditPermission,
       regions, stores, deviceTypes, suppliers, devices, auditRecords,
-      feedbacks, resolveFeedback,
+      feedbacks, addFeedback, resolveFeedback,
       procurementProducts, addProcurementProduct, updateProcurementProduct, removeProcurementProduct,
       procurementOrders, addProcurementOrder, updateProcurementOrder, approveProcurementOrder,
       headerRightAction, setHeaderRightAction,

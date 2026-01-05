@@ -46,13 +46,13 @@ interface TypeGroup {
     statusCounts: Record<string, number>;
 }
 
-// The original DeviceManagement content, now named DeviceList with hierarchical navigation
+// DeviceList Component containing the hierarchical navigation and list logic
 const DeviceList: React.FC = () => {
   const navigate = useNavigate();
   const {
     // Data
     regions, stores, deviceTypes, suppliers, filteredDevices, availableStores, pendingAuditCount, imageCounts, CATEGORY_LIMITS,
-    devices, // Added from useDeviceLogic update
+    devices,
     // States
     selectedRegion, setSelectedRegion, searchQuery, setSearchQuery,
     expandedDeviceId, selectedDeviceIds,
@@ -65,7 +65,7 @@ const DeviceList: React.FC = () => {
     deviceForm, setDeviceForm,
     // Actions
     toggleSelection, toggleSelectAll, toggleExpand, hasPendingAudit,
-    handleBatchRun, handleBatchSleep, handleBatchRestart,
+    handleBatchRun, handleBatchSleep, handleBatchRestart, handleBatchFeedback,
     openOpsStatusModal, handleOpsImageUpload, removeOpsImage, handleBatchOpsStatusSubmit,
     openInspectionModal, handleInspImageUpload, removeInspImage, handleSubmitInspection,
     openAddModal, handleAddFormImage, handleRemoveFormImage, handleFormImageCategoryChange, handleAddSubmit
@@ -78,11 +78,10 @@ const DeviceList: React.FC = () => {
   const getRegionLabel = (region?: Region) => {
       const regionDevices = region 
           ? devices.filter(d => d.regionId === region.id)
-          : devices; // All if no region passed (for "All Regions" option)
+          : devices;
       
       const total = regionDevices.length;
       
-      // Calculate OpsStatus counts
       const normal = regionDevices.filter(d => d.opsStatus === OpsStatus.INSPECTED).length;
       const repairing = regionDevices.filter(d => d.opsStatus === OpsStatus.REPAIRING).length;
       const complaint = regionDevices.filter(d => d.opsStatus === OpsStatus.HOTEL_COMPLAINT).length;
@@ -92,20 +91,15 @@ const DeviceList: React.FC = () => {
   };
 
   // --- Derived Data for Hierarchy ---
-
-  // LEVEL 1: Stores (Use availableStores which respects Region filter)
-  // We need to attach device counts to these stores based on filteredDevices (which respects search)
   const storesWithCounts = useMemo(() => {
       return availableStores.map(store => {
           const devicesInStore = filteredDevices.filter(d => d.storeId === store.id);
           
-          // Ops Status Counts
           const normalCount = devicesInStore.filter(d => d.opsStatus === OpsStatus.INSPECTED).length;
           const repairCount = devicesInStore.filter(d => d.opsStatus === OpsStatus.REPAIRING).length;
           const complaintCount = devicesInStore.filter(d => d.opsStatus === OpsStatus.HOTEL_COMPLAINT).length;
           const pendingCount = devicesInStore.filter(d => d.opsStatus === OpsStatus.PENDING).length;
           
-          // Breakdown: Group by Type -> Count OpsStatus
           const breakdown: Record<string, BreakdownStats> = {};
           devicesInStore.forEach(d => {
               const typeName = deviceTypes.find(t => t.id === d.typeId)?.name || '其他';
@@ -129,19 +123,15 @@ const DeviceList: React.FC = () => {
       });
   }, [availableStores, filteredDevices, deviceTypes]);
 
-  // LEVEL 2: Rooms in Active Store
   const activeStoreData = useMemo<{ store: StoreModel; roomsData: RoomData[] } | null>(() => {
       if (!viewState.storeId) return null;
       const store = stores.find(s => s.id === viewState.storeId);
       if (!store) return null;
 
-      // Get rooms defined in store
       const definedRooms = store.rooms || [];
-      // Get rooms from devices (in case unconfigured rooms have devices)
       const devicesInStore = filteredDevices.filter(d => d.storeId === store.id);
       const deviceRoomNumbers = new Set(devicesInStore.map(d => d.roomNumber));
       
-      // Merge unique room numbers
       const allRoomNumbers = Array.from(new Set([
           ...definedRooms.map(r => r.number),
           ...Array.from(deviceRoomNumbers)
@@ -151,7 +141,6 @@ const DeviceList: React.FC = () => {
           const devicesInRoom = devicesInStore.filter(d => d.roomNumber === num);
           const definedType = definedRooms.find(r => r.number === num)?.type || '未知房型';
           
-          // Breakdown
           const breakdown: Record<string, BreakdownStats> = {};
           devicesInRoom.forEach(d => {
               const typeName = deviceTypes.find(t => t.id === d.typeId)?.name || '其他';
@@ -175,13 +164,10 @@ const DeviceList: React.FC = () => {
       return { store, roomsData };
   }, [viewState.storeId, stores, filteredDevices, deviceTypes]);
 
-  // LEVEL 3: Device Types in Active Room
   const activeRoomDeviceTypes = useMemo<TypeGroup[]>(() => {
       if (!viewState.storeId || !viewState.roomNumber) return [];
-      // Filter devices in this room
       const devicesInRoom = filteredDevices.filter(d => d.storeId === viewState.storeId && d.roomNumber === viewState.roomNumber);
       
-      // Group by Type
       const typeGroups: Record<string, TypeGroup> = {};
       
       devicesInRoom.forEach(d => {
@@ -204,7 +190,6 @@ const DeviceList: React.FC = () => {
       return Object.values(typeGroups);
   }, [viewState.storeId, viewState.roomNumber, filteredDevices, deviceTypes]);
 
-  // LEVEL 4: Devices in Active Room AND Selected Type
   const activeRoomDevices = useMemo(() => {
       if (!viewState.storeId || !viewState.roomNumber || !viewState.deviceTypeId) return [];
       return filteredDevices.filter(d => 
@@ -215,11 +200,9 @@ const DeviceList: React.FC = () => {
   }, [viewState, filteredDevices]);
 
 
-  // Navigation Handlers
   const goBack = () => {
       if (viewState.level === 'devices') {
           setViewState({ level: 'deviceTypes', storeId: viewState.storeId, roomNumber: viewState.roomNumber });
-          // Clear selections when leaving device list
           if (selectedDeviceIds.size > 0) toggleSelectAll(); 
       } else if (viewState.level === 'deviceTypes') {
           setViewState({ level: 'rooms', storeId: viewState.storeId });
@@ -228,22 +211,12 @@ const DeviceList: React.FC = () => {
       }
   };
 
-  const handleStoreClick = (storeId: string) => {
-      setViewState({ level: 'rooms', storeId });
-  };
-
-  const handleRoomClick = (roomNumber: string) => {
-      setViewState({ level: 'deviceTypes', storeId: viewState.storeId, roomNumber });
-  };
-
-  const handleDeviceTypeClick = (typeId: string) => {
-      setViewState({ level: 'devices', storeId: viewState.storeId, roomNumber: viewState.roomNumber, deviceTypeId: typeId });
-  };
+  const handleStoreClick = (storeId: string) => setViewState({ level: 'rooms', storeId });
+  const handleRoomClick = (roomNumber: string) => setViewState({ level: 'deviceTypes', storeId: viewState.storeId, roomNumber });
+  const handleDeviceTypeClick = (typeId: string) => setViewState({ level: 'devices', storeId: viewState.storeId, roomNumber: viewState.roomNumber, deviceTypeId: typeId });
 
   const handleAddDeviceClick = () => {
       const initialData: any = {};
-      
-      // Context 1: Store is selected (Level 2+)
       if (viewState.storeId) {
           const store = stores.find(s => s.id === viewState.storeId);
           if (store) {
@@ -251,17 +224,8 @@ const DeviceList: React.FC = () => {
               initialData.regionId = store.regionId;
           }
       }
-      
-      // Context 2: Room is selected (Level 3+)
-      if (viewState.roomNumber) {
-          initialData.roomNumber = viewState.roomNumber;
-      }
-
-      // Context 3: Type is selected (Level 4)
-      if (viewState.deviceTypeId) {
-          initialData.typeId = viewState.deviceTypeId;
-      }
-
+      if (viewState.roomNumber) initialData.roomNumber = viewState.roomNumber;
+      if (viewState.deviceTypeId) initialData.typeId = viewState.deviceTypeId;
       openAddModal(initialData);
   };
 
@@ -279,7 +243,6 @@ const DeviceList: React.FC = () => {
       const storeName = activeStoreData?.store.name || '';
       if (viewState.level === 'rooms') return storeName;
       if (viewState.level === 'deviceTypes') return `${storeName} - ${viewState.roomNumber}`;
-      // Devices level
       const typeName = deviceTypes.find(t => t.id === viewState.deviceTypeId)?.name || '设备';
       return `${storeName} - ${viewState.roomNumber} - ${typeName}`;
   };
@@ -372,7 +335,6 @@ const DeviceList: React.FC = () => {
 
         {/* --- CONTENT AREA --- */}
         <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 relative">
-            
             {/* LEVEL 1: Stores List */}
             {viewState.level === 'stores' && (
                 <div className="space-y-3 animate-fadeIn">
@@ -621,8 +583,8 @@ const DeviceList: React.FC = () => {
         {isControlMenuOpen && selectedDeviceIds.size > 0 && (
             <>
                 <div className="fixed inset-0 z-40" onClick={() => setIsControlMenuOpen(false)}></div>
-                <div className="fixed bottom-[130px] left-1/2 transform -translate-x-1/2 z-50 bg-white rounded-xl shadow-2xl border border-slate-100 p-2 w-64 animate-scaleIn origin-bottom">
-                    <div className="grid grid-cols-4 gap-2">
+                <div className="fixed bottom-[130px] left-1/2 transform -translate-x-1/2 z-50 bg-white rounded-xl shadow-2xl border border-slate-100 p-2 w-80 animate-scaleIn origin-bottom">
+                    <div className="grid grid-cols-5 gap-2">
                         <button onClick={handleBatchRun} className="flex flex-col items-center gap-1 p-2 hover:bg-green-50 rounded-lg text-green-700 transition-colors">
                             <Play size={20} />
                             <span className="text-[10px] font-bold">运行设备</span>
@@ -638,6 +600,10 @@ const DeviceList: React.FC = () => {
                          <button onClick={openOpsStatusModal} className="flex flex-col items-center gap-1 p-2 hover:bg-blue-50 rounded-lg text-blue-600 transition-colors">
                             <Wrench size={20} />
                             <span className="text-[10px] font-bold">运维状态</span>
+                        </button>
+                        <button onClick={handleBatchFeedback} className="flex flex-col items-center gap-1 p-2 hover:bg-orange-50 rounded-lg text-orange-600 transition-colors">
+                            <MessageSquareWarning size={20} />
+                            <span className="text-[10px] font-bold">设备反馈</span>
                         </button>
                     </div>
                 </div>
@@ -910,10 +876,9 @@ const DeviceList: React.FC = () => {
   );
 };
 
-// --- Main Export with Tabs ---
-
+// Main Export with Tabs
 export const DeviceManagement: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<'overview' | 'devices' | 'content'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'devices' | 'content'>('devices');
 
     return (
         <div className="flex flex-col h-full">
@@ -944,8 +909,8 @@ export const DeviceManagement: React.FC = () => {
                 </button>
             </div>
             
-            <div className="flex-1 bg-slate-50 overflow-y-auto no-scrollbar relative">
-                {activeTab === 'overview' && <Dashboard />}
+            <div className="flex-1 bg-slate-50 relative overflow-hidden flex flex-col">
+                {activeTab === 'overview' && <div className="h-full overflow-y-auto no-scrollbar"><Dashboard /></div>}
                 {activeTab === 'devices' && <DeviceList />}
                 {activeTab === 'content' && <ContentManagement />}
             </div>
