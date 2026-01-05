@@ -1203,17 +1203,18 @@ export const RoomArchive: React.FC = () => {
                 
                 if (isTaskPublished) {
                     const activeMods = store.moduleConfig.activeModules.filter(m => (store.moduleConfig.moduleTypes?.[m] || 'measurement') === 'measurement');
-                    const totalTypes = store.roomTypeConfigs.length;
+                    const roomTypes = store.roomTypeConfigs || [];
                     
-                    if (totalTypes > 0 && activeMods.length > 0) {
-                        const completedTypes = store.roomTypeConfigs.filter(rt => {
-                             const measurementCount = rt.measurements ? rt.measurements.filter(m => m.status === 'approved' && activeMods.includes(m.category)).length : 0;
-                             return measurementCount >= activeMods.length;
-                        }).length;
-                        progressPercent = Math.round((completedTypes / totalTypes) * 100);
-                    } else if (totalTypes > 0 && activeMods.length === 0) {
-                        // No measurement modules configured, technically 100% complete or 0% depending on interpretation. 
-                        // Assuming 100% if no requirements.
+                    if (roomTypes.length > 0 && activeMods.length > 0) {
+                        const totalModules = roomTypes.length * activeMods.length;
+                        let completedModules = 0;
+                        roomTypes.forEach(rt => {
+                            const approvedCount = rt.measurements?.filter(m => m.status === 'approved' && activeMods.includes(m.category)).length || 0;
+                            completedModules += approvedCount;
+                        });
+                        
+                        progressPercent = totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0;
+                    } else if (roomTypes.length > 0 && activeMods.length === 0) {
                         progressPercent = 100;
                     }
                 }

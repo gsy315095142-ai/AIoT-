@@ -360,12 +360,21 @@ export const RoomMeasure: React.FC = () => {
           const activeMods = s.moduleConfig.activeModules || DEFAULT_MODULES;
           const measurementMods = activeMods.filter((m: any) => (s.moduleConfig.moduleTypes?.[m] || 'measurement') === 'measurement');
           
+          // Calculate Progress by Modules, not just "Room Type Completed"
           if (roomTypes.length > 0 && measurementMods.length > 0) {
-              const completedTypes = roomTypes.filter(rt => {
-                   const measurementCount = rt.measurements ? rt.measurements.filter(m => m.status === 'approved' && measurementMods.includes(m.category)).length : 0;
-                   return measurementCount >= measurementMods.length;
-              }).length;
-              if (completedTypes === roomTypes.length) completed++;
+              const totalModules = roomTypes.length * measurementMods.length;
+              let completedModules = 0;
+              roomTypes.forEach(rt => {
+                  const approvedCount = rt.measurements?.filter(m => m.status === 'approved' && measurementMods.includes(m.category)).length || 0;
+                  completedModules += approvedCount;
+              });
+              
+              if (totalModules > 0 && completedModules === totalModules) {
+                  completed++;
+              }
+          } else if (roomTypes.length > 0 && measurementMods.length === 0) {
+              // 100% if no measurement modules needed
+              completed++;
           }
       });
 
@@ -384,7 +393,6 @@ export const RoomMeasure: React.FC = () => {
       let completed = 0;
 
       filteredStores.forEach(s => {
-          // Same logic as getRegionLabel but accumulating globally
           let hasP1 = false;
           let hasP2 = false;
           (s.roomTypeConfigs || []).forEach(rt => {
@@ -399,11 +407,15 @@ export const RoomMeasure: React.FC = () => {
           const measurementMods = activeMods.filter((m: any) => (s.moduleConfig.moduleTypes?.[m] || 'measurement') === 'measurement');
           
           if (roomTypes.length > 0 && measurementMods.length > 0) {
-              const completedTypes = roomTypes.filter(rt => {
-                   const measurementCount = rt.measurements ? rt.measurements.filter(m => m.status === 'approved' && measurementMods.includes(m.category)).length : 0;
-                   return measurementCount >= measurementMods.length;
-              }).length;
-              if (completedTypes === roomTypes.length) completed++;
+              const totalModules = roomTypes.length * measurementMods.length;
+              let completedModules = 0;
+              roomTypes.forEach(rt => {
+                  const approvedCount = rt.measurements?.filter(m => m.status === 'approved' && measurementMods.includes(m.category)).length || 0;
+                  completedModules += approvedCount;
+              });
+              if (totalModules > 0 && completedModules === totalModules) completed++;
+          } else if (roomTypes.length > 0 && measurementMods.length === 0) {
+              completed++;
           }
       });
 
@@ -437,14 +449,6 @@ export const RoomMeasure: React.FC = () => {
               ? prev.filter(m => m !== moduleName) 
               : [...prev, moduleName]
       );
-  };
-
-  const isRoomTypeCompleted = (config: RoomTypeConfig, store: any) => {
-      const activeMods = store.moduleConfig.activeModules || DEFAULT_MODULES;
-      // Only count measurement modules for completion here
-      const measurementMods = activeMods.filter((m: string) => (store.moduleConfig.moduleTypes?.[m] || 'measurement') === 'measurement');
-      const measurementCount = config.measurements ? config.measurements.filter(m => m.status === 'approved' && measurementMods.includes(m.category)).length : 0;
-      return measurementCount >= measurementMods.length;
   };
 
   const handleImageUpload = (e: ChangeEvent<HTMLInputElement>, category: RoomImageCategory) => {
@@ -644,9 +648,21 @@ export const RoomMeasure: React.FC = () => {
                 )}
                 {filteredStores.map(store => {
                     const roomTypes = store.roomTypeConfigs || [];
-                    const completedTypes = roomTypes.filter(rt => isRoomTypeCompleted(rt, store)).length;
-                    const totalTypes = roomTypes.length;
-                    const percent = totalTypes > 0 ? Math.round((completedTypes / totalTypes) * 100) : 0;
+                    
+                    // --- Progress Calculation (Modules Based) ---
+                    const activeMods = store.moduleConfig.activeModules.filter(m => (store.moduleConfig.moduleTypes?.[m] || 'measurement') === 'measurement');
+                    const totalModules = roomTypes.length * activeMods.length;
+                    
+                    let completedModules = 0;
+                    if (totalModules > 0) {
+                        roomTypes.forEach(rt => {
+                            const approvedCount = rt.measurements?.filter(m => m.status === 'approved' && activeMods.includes(m.category)).length || 0;
+                            completedModules += approvedCount;
+                        });
+                    }
+                    
+                    const percent = totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : (roomTypes.length > 0 ? 100 : 0);
+                    // ---------------------------------------------
 
                     return (
                         <div 
@@ -663,7 +679,7 @@ export const RoomMeasure: React.FC = () => {
                                                 {regions.find(r => r.id === store.regionId)?.name}
                                             </span>
                                             <span className="text-[10px] text-slate-400">
-                                                {totalTypes} 种房型
+                                                {roomTypes.length} 种房型
                                             </span>
                                         </div>
                                         {/* Show Task Deadline */}
@@ -680,8 +696,8 @@ export const RoomMeasure: React.FC = () => {
                             {/* Progress */}
                             <div className="mt-3">
                                 <div className="flex justify-between text-[10px] text-slate-500 font-bold mb-1">
-                                    <span>房型复尺进度</span>
-                                    <span className={percent === 100 ? 'text-green-600' : 'text-blue-600'}>{completedTypes}/{totalTypes} ({percent}%)</span>
+                                    <span>复尺进度</span>
+                                    <span className={percent === 100 ? 'text-green-600' : 'text-blue-600'}>{completedModules}/{totalModules} 模块 ({percent}%)</span>
                                 </div>
                                 <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
                                     <div 

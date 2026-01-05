@@ -1,4 +1,4 @@
-// 标记：本次更新在【客房复尺】评估提交后增加了操作人显示，并在【客房建档】列表中增加了复尺任务进度显示
+// 标记：本次更新修改了复尺进度的计算方式，改为按所有房型的模块总数计算
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
