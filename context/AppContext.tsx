@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent, AuditRecord, AuditStatus, AuditType, StoreInstallation, InstallNode, Product, RoomTypeConfig, ProcurementOrder, ProductSubType, UserRole, StoreModuleConfig, Supplier } from '../types';
+import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent, AuditRecord, AuditStatus, AuditType, StoreInstallation, InstallNode, Product, RoomTypeConfig, ProcurementOrder, ProductSubType, UserRole, StoreModuleConfig, Supplier, DeviceFeedback, FeedbackStatus } from '../types';
 
 // Initial Mock Data
 const MOCK_REGIONS: Region[] = [
@@ -9,7 +9,14 @@ const MOCK_REGIONS: Region[] = [
 ];
 
 const DEFAULT_NODES: InstallNode[] = [
-    { name: '预约安装时间', completed: false, data: '' },
+    { 
+        name: '安装筹备', // Changed from 预约安装时间
+        completed: false, 
+        data: { 
+            appointmentTime: '', 
+            checklist: { networkWhitelist: false, roomAvailability: false } 
+        } 
+    },
     { name: '到店打卡', completed: false, data: [] }, // Renamed from 打卡
     { name: '清点货物', completed: false, data: [] },
     { name: '安装', completed: false, data: {} }, 
@@ -263,6 +270,34 @@ const INITIAL_PRODUCTS: Product[] = MOCK_DEVICE_TYPES.map(dt => ({
 
 const MOCK_PRODUCTS: Product[] = [...INITIAL_PRODUCTS];
 
+// Mock Feedbacks
+const MOCK_FEEDBACKS: DeviceFeedback[] = [
+    {
+        id: 'fb-1',
+        deviceId: 'd2',
+        deviceSn: 'DT-2023-9999',
+        deviceName: '地投01号',
+        storeName: '上海南京路店',
+        roomNumber: '102',
+        content: '投影画面闪烁，偶尔黑屏',
+        createTime: '2025-08-26 10:00:00',
+        status: 'pending'
+    },
+    {
+        id: 'fb-2',
+        deviceId: 'd1',
+        deviceSn: 'D2H412121212',
+        deviceName: '桌显01号',
+        storeName: '上海南京路店',
+        roomNumber: '2101',
+        content: '客人反映无法启动游戏',
+        createTime: '2025-08-25 14:30:00',
+        status: 'resolved',
+        resolveTime: '2025-08-25 16:00:00',
+        resolver: '张晓梦'
+    }
+];
+
 export type AuditPermissionType = 'procurement' | 'measurement' | 'installation' | 'device';
 
 interface AppContextType {
@@ -277,6 +312,8 @@ interface AppContextType {
   suppliers: Supplier[]; // New Supplier State
   devices: Device[];
   auditRecords: AuditRecord[];
+  feedbacks: DeviceFeedback[]; // New Feedback State
+  resolveFeedback: (id: string, type: 'resolved' | 'false_alarm', resolver: string) => void; // New Feedback Action
   
   // Procurement
   procurementProducts: Product[];
@@ -325,6 +362,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [suppliers, setSuppliers] = useState<Supplier[]>(MOCK_SUPPLIERS); // New Supplier State
   const [devices, setDevices] = useState<Device[]>(MOCK_DEVICES);
   const [auditRecords, setAuditRecords] = useState<AuditRecord[]>([]);
+  const [feedbacks, setFeedbacks] = useState<DeviceFeedback[]>(MOCK_FEEDBACKS); // Feedback State
   const [procurementProducts, setProcurementProducts] = useState<Product[]>(MOCK_PRODUCTS);
   const [procurementOrders, setProcurementOrders] = useState<ProcurementOrder[]>([]);
   const [headerRightAction, setHeaderRightAction] = useState<ReactNode>(null);
@@ -585,6 +623,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }));
   };
 
+  // --- Feedback Workflow ---
+  const resolveFeedback = (id: string, type: 'resolved' | 'false_alarm', resolver: string) => {
+      setFeedbacks(prev => prev.map(f => {
+          if (f.id === id) {
+              return {
+                  ...f,
+                  status: type,
+                  resolveTime: new Date().toLocaleString(),
+                  resolver
+              };
+          }
+          return f;
+      }));
+  };
+
   // --- Audit Workflow ---
 
   const submitOpsStatusChange = (deviceId: string, targetStatus: OpsStatus, reason: string, images?: string[]) => {
@@ -799,6 +852,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       logout,
       checkAuditPermission,
       regions, stores, deviceTypes, suppliers, devices, auditRecords,
+      feedbacks, resolveFeedback,
       procurementProducts, addProcurementProduct, updateProcurementProduct, removeProcurementProduct,
       procurementOrders, addProcurementOrder, updateProcurementOrder, approveProcurementOrder,
       headerRightAction, setHeaderRightAction,

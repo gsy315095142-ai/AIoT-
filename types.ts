@@ -229,6 +229,28 @@ export type AuditRecord = {
   rejectReason?: string;
 };
 
+// --- Feedback Types ---
+export type FeedbackStatus = 'pending' | 'resolved' | 'false_alarm';
+
+export type DeviceFeedback = {
+  id: string;
+  deviceId: string;
+  content: string; // The feedback issue description
+  createTime: string;
+  status: FeedbackStatus;
+  images?: string[];
+  
+  // Resolution Info
+  resolveTime?: string;
+  resolver?: string;
+  
+  // Snapshot data for listing
+  deviceSn: string;
+  deviceName: string;
+  storeName: string;
+  roomNumber: string;
+};
+
 // --- Procurement Types ---
 export type ProductType = '物料' | '硬件';
 export type ProductSubType = '桌显' | '地投' | '头显' | '床帏巾' | '帐篷';

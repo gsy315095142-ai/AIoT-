@@ -43,7 +43,6 @@ export const useDeviceLogic = () => {
   const [editingImageDevice, setEditingImageDevice] = useState<Device | null>(null);
   const [isControlMenuOpen, setIsControlMenuOpen] = useState(false);
   const [isOpsStatusModalOpen, setIsOpsStatusModalOpen] = useState(false);
-  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [isInspectionModalOpen, setIsInspectionModalOpen] = useState(false);
   const [inspectingDeviceId, setInspectingDeviceId] = useState<string | null>(null);
 
@@ -245,7 +244,6 @@ export const useDeviceLogic = () => {
     editingImageDevice, setEditingImageDevice,
     isControlMenuOpen, setIsControlMenuOpen,
     isOpsStatusModalOpen, setIsOpsStatusModalOpen,
-    isAuditModalOpen, setIsAuditModalOpen,
     isInspectionModalOpen, setIsInspectionModalOpen,
     
     viewingReportDevice, setViewingReportDevice,

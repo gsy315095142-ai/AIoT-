@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent, useMemo, useRef } from 'react';
-import { Hammer, Store, ChevronDown, Clock, CheckCircle, Upload, X, Calendar, ClipboardList, AlertCircle, ArrowRight, Gavel, BedDouble, Info, Image as ImageIcon, MapPin, ChevronLeft, ChevronRight, Navigation, Plus, Check, RefreshCw, PlayCircle, Video, ChevronUp, Wifi, FileText } from 'lucide-react';
+import { Hammer, Store, ChevronDown, Clock, CheckCircle, Upload, X, Calendar, ClipboardList, AlertCircle, ArrowRight, Gavel, BedDouble, Info, Image as ImageIcon, MapPin, ChevronLeft, ChevronRight, Navigation, Plus, Check, RefreshCw, PlayCircle, Video, ChevronUp, Wifi, FileText, Square, CheckSquare } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Store as StoreType, InstallNode, InstallStatus, RoomImageCategory, Region } from '../../types';
 import { AuditGate } from '../DeviceComponents';
@@ -148,24 +148,38 @@ export const RoomInstall: React.FC = () => {
 
   // Actions
   const handleOpenDetail = (store: StoreType) => {
-      // Check if appointment date is empty, if so, set default to today
       let initialNodes = store.installation?.nodes || [];
       let updatedStore = store;
 
-      if (initialNodes.length > 0 && !initialNodes[0].data) {
-          const now = new Date();
-          now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-          const defaultTime = now.toISOString().slice(0, 16);
-          
-          const newNodes = [...initialNodes];
-          newNodes[0] = { ...newNodes[0], data: defaultTime };
-          
-          updatedStore = {
-              ...store,
-              installation: { ...store.installation!, nodes: newNodes, appointmentTime: defaultTime }
-          };
-          // Persist default immediately so it shows in list view too if needed
-          updateStoreInstallation(store.id, { nodes: newNodes, appointmentTime: defaultTime });
+      // Handle migration/initialization of step 0 data
+      if (initialNodes.length > 0) {
+          const step0 = initialNodes[0];
+          let needUpdate = false;
+          let newStep0Data = step0.data;
+
+          // If data is missing or is legacy string, convert to new object structure
+          if (!newStep0Data || typeof newStep0Data === 'string') {
+              const now = new Date();
+              now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+              const defaultTime = typeof newStep0Data === 'string' && newStep0Data ? newStep0Data : now.toISOString().slice(0, 16);
+              
+              newStep0Data = {
+                  appointmentTime: defaultTime,
+                  checklist: { networkWhitelist: false, roomAvailability: false }
+              };
+              needUpdate = true;
+          }
+
+          if (needUpdate) {
+              const newNodes = [...initialNodes];
+              newNodes[0] = { ...step0, data: newStep0Data, name: '安装筹备' }; // Ensure name is updated
+              
+              updatedStore = {
+                  ...store,
+                  installation: { ...store.installation!, nodes: newNodes, appointmentTime: newStep0Data.appointmentTime }
+              };
+              updateStoreInstallation(store.id, { nodes: newNodes, appointmentTime: newStep0Data.appointmentTime });
+          }
       }
 
       setActiveStore(updatedStore);
@@ -226,7 +240,14 @@ export const RoomInstall: React.FC = () => {
 
       // Update local state and global state
       const extraUpdates: any = {};
-      if (targetIndex === 0) extraUpdates.appointmentTime = newData;
+      // For step 0, sync appointment time to store root
+      if (targetIndex === 0) {
+          if (typeof newData === 'object' && newData.appointmentTime) {
+              extraUpdates.appointmentTime = newData.appointmentTime;
+          } else if (typeof newData === 'string') {
+              extraUpdates.appointmentTime = newData;
+          }
+      }
 
       const updatedStore = {
           ...activeStore,
@@ -241,10 +262,29 @@ export const RoomInstall: React.FC = () => {
       updateStoreInstallation(activeStore.id, { nodes: newNodes, ...extraUpdates });
   };
 
-  // --- Input Handlers ---
+  // --- Handlers for Step 0 (Preparation) ---
+  const handlePreparationUpdate = (field: 'appointmentTime' | 'networkWhitelist' | 'roomAvailability', value: any) => {
+      const currentNode = activeStore?.installation?.nodes[0];
+      const currentData = currentNode?.data || { appointmentTime: '', checklist: { networkWhitelist: false, roomAvailability: false } };
+      
+      // Handle potential legacy string data gracefully
+      const safeData = typeof currentData === 'string' 
+          ? { appointmentTime: currentData, checklist: { networkWhitelist: false, roomAvailability: false } }
+          : currentData;
 
-  const handleTimeChange = (e: ChangeEvent<HTMLInputElement>) => {
-      updateNodeData(currentStepIndex, e.target.value);
+      let newData;
+      if (field === 'appointmentTime') {
+          newData = { ...safeData, appointmentTime: value };
+      } else {
+          newData = { 
+              ...safeData, 
+              checklist: { 
+                  ...safeData.checklist,
+                  [field]: value 
+              } 
+          };
+      }
+      updateNodeData(0, newData);
   };
 
   // Check-in (Node 1)
@@ -406,8 +446,14 @@ export const RoomInstall: React.FC = () => {
       }
 
       // 2. Validate Requirements
-      if (currentStepIndex === 0) { // Appointment
-          return !!currentNode.data;
+      if (currentStepIndex === 0) { // Prep
+          const data = currentNode.data;
+          // Handle legacy/string case
+          if (typeof data === 'string') return !!data;
+          if (typeof data === 'object') {
+              return !!data.appointmentTime && data.checklist?.networkWhitelist && data.checklist?.roomAvailability;
+          }
+          return false;
       } else if (currentStepIndex === 1) { // Check-in
           const data = currentNode.data as { images: string[], address: string };
           const hasImages = data?.images?.length > 0;
@@ -723,9 +769,10 @@ export const RoomInstall: React.FC = () => {
 
                         <div className="flex-1 space-y-6">
                             
-                            {/* Node 0: Appointment */}
+                            {/* Node 0: Preparation (Renamed from Appointment) */}
                             {currentStepIndex === 0 && (
                                 <div className="space-y-4">
+                                    {/* Date Picker */}
                                     <div 
                                         className="bg-blue-50 p-4 rounded-xl border border-blue-100 cursor-pointer"
                                         onClick={() => {
@@ -742,8 +789,8 @@ export const RoomInstall: React.FC = () => {
                                         <input 
                                             ref={appointmentInputRef}
                                             type="datetime-local" 
-                                            value={currentNode.data || ''}
-                                            onChange={handleTimeChange}
+                                            value={currentNode.data && typeof currentNode.data === 'object' ? currentNode.data.appointmentTime : (typeof currentNode.data === 'string' ? currentNode.data : '')}
+                                            onChange={(e) => handlePreparationUpdate('appointmentTime', e.target.value)}
                                             disabled={isLocked}
                                             className="w-full text-sm border border-blue-200 rounded-lg p-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 caret-transparent cursor-pointer"
                                             onKeyDown={(e) => e.preventDefault()}
@@ -757,7 +804,48 @@ export const RoomInstall: React.FC = () => {
                                             }} 
                                         />
                                     </div>
-                                    <p className="text-xs text-slate-400 text-center">请与客户沟通确认上门安装的具体时间。</p>
+
+                                    {/* Preparation Checklist */}
+                                    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                                        <h4 className="font-bold text-sm text-slate-700 mb-3 flex items-center gap-2">
+                                            <ClipboardList size={16} className="text-blue-500" /> 
+                                            安装筹备清单
+                                        </h4>
+                                        <div className="space-y-3">
+                                            <div 
+                                                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                                                    (currentNode.data?.checklist?.networkWhitelist) 
+                                                        ? 'bg-green-50 border-green-200' 
+                                                        : 'bg-slate-50 border-slate-200 hover:border-blue-200'
+                                                }`}
+                                                onClick={() => !isLocked && handlePreparationUpdate('networkWhitelist', !(currentNode.data?.checklist?.networkWhitelist))}
+                                            >
+                                                <div className={`w-5 h-5 flex items-center justify-center rounded transition-colors ${
+                                                    (currentNode.data?.checklist?.networkWhitelist) ? 'text-green-600' : 'text-slate-300'
+                                                }`}>
+                                                    {(currentNode.data?.checklist?.networkWhitelist) ? <CheckSquare size={20} /> : <Square size={20} />}
+                                                </div>
+                                                <span className={`text-xs font-bold ${(currentNode.data?.checklist?.networkWhitelist) ? 'text-green-800' : 'text-slate-600'}`}>酒店网络白名单</span>
+                                            </div>
+
+                                            <div 
+                                                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                                                    (currentNode.data?.checklist?.roomAvailability) 
+                                                        ? 'bg-green-50 border-green-200' 
+                                                        : 'bg-slate-50 border-slate-200 hover:border-blue-200'
+                                                }`}
+                                                onClick={() => !isLocked && handlePreparationUpdate('roomAvailability', !(currentNode.data?.checklist?.roomAvailability))}
+                                            >
+                                                <div className={`w-5 h-5 flex items-center justify-center rounded transition-colors ${
+                                                    (currentNode.data?.checklist?.roomAvailability) ? 'text-green-600' : 'text-slate-300'
+                                                }`}>
+                                                    {(currentNode.data?.checklist?.roomAvailability) ? <CheckSquare size={20} /> : <Square size={20} />}
+                                                </div>
+                                                <span className={`text-xs font-bold ${(currentNode.data?.checklist?.roomAvailability) ? 'text-green-800' : 'text-slate-600'}`}>运营空房时间确认</span>
+                                            </div>
+                                        </div>
+                                        <p className="text-[10px] text-slate-400 mt-2 text-center">需完成上述所有筹备事项方可进入下一环节</p>
+                                    </div>
                                 </div>
                             )}
 
@@ -801,7 +889,7 @@ export const RoomInstall: React.FC = () => {
                                 </div>
                             )}
 
-                            {/* Node 3: Room Installation (Refactored to Grid) */}
+                            {/* Node 3: Room Installation */}
                             {currentStepIndex === 3 && (
                                 <div className="space-y-4">
                                     {/* Sub-view: Room Detail Upload */}
@@ -821,7 +909,6 @@ export const RoomInstall: React.FC = () => {
 
                                             {(() => {
                                                 const roomData = (currentNode.data && typeof currentNode.data === 'object') ? currentNode.data[installingRoomNumber] || {} : {};
-                                                // Dynamic Categories from Store Config
                                                 const categories = activeStore.moduleConfig.activeModules.filter(m => activeStore.moduleConfig.moduleTypes?.[m] === 'installation');
                                                 const roomType = activeStore.rooms.find(r => r.number === installingRoomNumber)?.type;
 
@@ -901,7 +988,7 @@ export const RoomInstall: React.FC = () => {
                                 </div>
                             )}
 
-                            {/* Node 4: Debug (New Logic) */}
+                            {/* Node 4: Debug */}
                             {currentStepIndex === 4 && (
                                 <div className="space-y-4">
                                     {activeStore.rooms.map((room) => {
@@ -977,7 +1064,7 @@ export const RoomInstall: React.FC = () => {
                                 </div>
                             )}
 
-                            {/* Node 5: Delivery (Video Support) */}
+                            {/* Node 5: Delivery */}
                             {currentStepIndex === 5 && (
                                 <div className="space-y-4">
                                     <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
@@ -992,7 +1079,6 @@ export const RoomInstall: React.FC = () => {
                                             {(() => {
                                                 const rawData = currentNode.data;
                                                 const items = Array.isArray(rawData) ? rawData : [];
-                                                // Normalize data: some items might be strings (legacy), some objects {url, type}
                                                 return items.map((item: any, idx: number) => {
                                                     const isObj = typeof item === 'object';
                                                     const url = isObj ? item.url : item;
@@ -1071,7 +1157,7 @@ export const RoomInstall: React.FC = () => {
                         </div>
                     ) : (
                         <div className="flex flex-col gap-3">
-                            {/* Audit Decision Buttons (Visible only in Audit Mode and NOT reject mode) */}
+                            {/* Audit Decision Buttons */}
                             {isAuditMode && (
                                 <div className="flex gap-3 mb-1">
                                     <AuditGate type="installation" stage={getCurrentStage()} className="flex-1">
@@ -1085,8 +1171,7 @@ export const RoomInstall: React.FC = () => {
                                 </div>
                             )}
 
-                            {/* Normal Operation Button - Visible if NOT Audit Mode (Allowed even if approved/completed) */}
-                            {/* Hide during room upload sub-view */}
+                            {/* Normal Operation Button */}
                             {!isAuditMode && !installingRoomNumber && (
                                 <button 
                                     onClick={handleConfirmStep}
@@ -1101,7 +1186,7 @@ export const RoomInstall: React.FC = () => {
                                 </button>
                             )}
                             
-                            {/* Navigation Buttons - Always visible to allow flipping pages */}
+                            {/* Navigation Buttons */}
                             <div className="flex gap-3">
                                 <button 
                                     onClick={goPrevStep} 
@@ -1112,7 +1197,6 @@ export const RoomInstall: React.FC = () => {
                                 </button>
                                 
                                 {currentStepIndex === activeStore.installation.nodes.length - 1 ? (
-                                    /* If last step, show Submit Audit if applicable, or disabled */
                                     !isAuditMode && !isApproved ? (
                                         <button 
                                             onClick={handleSubmit}
@@ -1141,12 +1225,14 @@ export const RoomInstall: React.FC = () => {
             </div>
         )}
 
-        {/* Example Image Modal - Moved to end to ensure high z-index stacking */}
+        {/* Example Image Modal */}
         {exampleImage && (
             <div className="fixed inset-0 z-[70] bg-black/80 flex items-center justify-center p-4 animate-fadeIn" onClick={() => setExampleImage(null)}>
                 <div className="bg-transparent w-full max-w-lg flex flex-col items-center animate-scaleIn" onClick={e => e.stopPropagation()}>
                     <div className="bg-white rounded-t-lg px-4 py-2 w-full flex justify-between items-center">
-                        <span className="font-bold text-sm text-slate-800 flex items-center gap-2"><ImageIcon size={16} className="text-blue-500"/> {exampleImage.title}</span>
+                        <span className="font-bold text-sm text-slate-800 flex items-center gap-2">
+                            <ImageIcon size={16} className="text-blue-500"/> {exampleImage.title}
+                        </span>
                         <button onClick={() => setExampleImage(null)} className="p-1 hover:bg-slate-100 rounded-full"><X size={16} className="text-slate-500"/></button>
                     </div>
                     <div className="bg-black rounded-b-lg overflow-hidden w-full border-t border-slate-100"><img src={exampleImage.url} alt="Example" className="w-full max-h-[70vh] object-contain" /></div>

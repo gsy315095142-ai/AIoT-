@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useDeviceLogic } from '../hooks/useDeviceLogic';
 import { DeviceStatus, OpsStatus, AuditStatus, AuditType, Device, Store as StoreModel, Region } from '../types';
-import { STATUS_MAP, SUB_TYPE_MAPPING, ImageManagerModal, ReportDetailModal, EventDetailModal, AuditManagementModal, DeviceDetailCard, AuditGate } from '../components/DeviceComponents';
-import { ChevronDown, ChevronUp, Plus, Search, CheckSquare, Square, X, Settings2, Play, Moon, RotateCcw, Wrench, ClipboardCheck, Check, X as XIcon, ImageIcon, ClipboardList, LayoutDashboard, Monitor, BookOpen, Store, BedDouble, ArrowLeft, ArrowRight, Server } from 'lucide-react';
+import { STATUS_MAP, SUB_TYPE_MAPPING, ImageManagerModal, ReportDetailModal, EventDetailModal, DeviceDetailCard, AuditGate } from '../components/DeviceComponents';
+import { ChevronDown, ChevronUp, Plus, Search, CheckSquare, Square, X, Settings2, Play, Moon, RotateCcw, Wrench, ClipboardCheck, Check, X as XIcon, ImageIcon, ClipboardList, LayoutDashboard, Monitor, BookOpen, Store, BedDouble, ArrowLeft, ArrowRight, Server, MessageSquareWarning } from 'lucide-react';
 import { Dashboard } from './Dashboard';
 
 // --- Sub-Components ---
@@ -47,6 +48,7 @@ interface TypeGroup {
 
 // The original DeviceManagement content, now named DeviceList with hierarchical navigation
 const DeviceList: React.FC = () => {
+  const navigate = useNavigate();
   const {
     // Data
     regions, stores, deviceTypes, suppliers, filteredDevices, availableStores, pendingAuditCount, imageCounts, CATEGORY_LIMITS,
@@ -56,7 +58,7 @@ const DeviceList: React.FC = () => {
     expandedDeviceId, selectedDeviceIds,
     isAddModalOpen, setIsAddModalOpen, editingImageDevice, setEditingImageDevice,
     isControlMenuOpen, setIsControlMenuOpen, isOpsStatusModalOpen, setIsOpsStatusModalOpen,
-    isAuditModalOpen, setIsAuditModalOpen, isInspectionModalOpen, setIsInspectionModalOpen,
+    isInspectionModalOpen, setIsInspectionModalOpen,
     viewingReportDevice, setViewingReportDevice, viewingEventData, setViewingEventData,
     opsChangeStatus, setOpsChangeStatus, opsChangeReason, setOpsChangeReason, complaintType, setComplaintType, opsChangeImages,
     inspResult, setInspResult, inspRemark, setInspRemark, inspImages,
@@ -302,6 +304,15 @@ const DeviceList: React.FC = () => {
                     </div>
                     
                     <div className="flex gap-2 flex-shrink-0">
+                        {/* New Feedback Button */}
+                        <button 
+                            onClick={() => navigate('/device-feedback')}
+                            className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-lg backdrop-blur-sm transition-all border border-white/10"
+                            title="设备反馈"
+                        >
+                            <MessageSquareWarning size={20} />
+                        </button>
+
                         <button 
                             onClick={handleAddDeviceClick}
                             className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-lg backdrop-blur-sm transition-all border border-white/10"
@@ -311,7 +322,7 @@ const DeviceList: React.FC = () => {
                         
                         <AuditGate type="device">
                             <button 
-                                onClick={() => setIsAuditModalOpen(true)}
+                                onClick={() => navigate('/audit')}
                                 className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-lg backdrop-blur-sm transition-all border border-white/10 relative"
                             >
                                 <ClipboardCheck size={20} />
@@ -877,10 +888,6 @@ const DeviceList: React.FC = () => {
                     </div>
                 </div>
              </div>
-        )}
-
-        {isAuditModalOpen && (
-            <AuditManagementModal onClose={() => setIsAuditModalOpen(false)} />
         )}
 
         {viewingReportDevice && (

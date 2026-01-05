@@ -1,9 +1,11 @@
-// 标记：本次更新修复了采购管理【客户下单】页面中【去结算】栏位置问题，改为fixed定位以确保固定在页面最底部
+// 标记：本次更新新增了【设备反馈】功能模块，包含反馈列表页面及相应的处理逻辑（处理/误报），并在设备管理页面增加了入口
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 import { Dashboard } from './pages/Dashboard';
 import { DeviceManagement } from './pages/DeviceManagement';
+import { DeviceAudit } from './pages/DeviceAudit';
+import { DeviceFeedback } from './pages/DeviceFeedback';
 import { Settings } from './pages/Settings';
 import { RoomManagement } from './pages/RoomManagement';
 import { ProcurementManagement } from './pages/ProcurementManagement';
@@ -17,7 +19,7 @@ const getAccessibleRoutes = (role: UserRole | null): string[] => {
         case 'admin':
         case 'product_director':
             // Removed /dashboard, merged into /devices
-            return ['/devices', '/rooms', '/procurement', '/settings'];
+            return ['/devices', '/audit', '/device-feedback', '/rooms', '/procurement', '/settings'];
         case 'hardware': // Project Manager
             return ['/devices', '/rooms', '/procurement'];
         case 'procurement':
@@ -25,14 +27,16 @@ const getAccessibleRoutes = (role: UserRole | null): string[] => {
         case 'local': // Install Engineer
             return ['/rooms', '/procurement'];
         case 'ops_manager':
+            // Ops Manager needs access to audit and feedback
+            return ['/devices', '/audit', '/device-feedback', '/rooms', '/procurement'];
         case 'business_manager':
-            return ['/devices', '/rooms', '/procurement'];
+            return ['/devices', '/device-feedback', '/rooms', '/procurement'];
         case 'artist':
             return ['/rooms', '/procurement'];
         case 'area_manager':
         case 'area_assistant':
             // Was ['/dashboard', '/rooms', '/procurement'], now giving access to /devices container
-            return ['/devices', '/rooms', '/procurement'];
+            return ['/devices', '/device-feedback', '/rooms', '/procurement'];
         default:
             return [];
     }
@@ -62,6 +66,8 @@ const MobileHeader = () => {
     switch (location.pathname) {
       case '/dashboard': return '数据总览'; // Fallback if reached via url
       case '/devices': return '设备管理';
+      case '/audit': return '设备审核';
+      case '/device-feedback': return '设备反馈';
       case '/rooms': return '客房管理';
       case '/procurement': return '采购管理';
       case '/settings': return '后台配置';
@@ -119,6 +125,8 @@ const AuthenticatedApp: React.FC = () => {
             <Routes>
                 {/* Dashboard route removed, now part of Devices */}
                 {accessibleRoutes.includes('/devices') && <Route path="/devices" element={<DeviceManagement />} />}
+                {accessibleRoutes.includes('/audit') && <Route path="/audit" element={<DeviceAudit />} />}
+                {accessibleRoutes.includes('/device-feedback') && <Route path="/device-feedback" element={<DeviceFeedback />} />}
                 {accessibleRoutes.includes('/rooms') && <Route path="/rooms" element={<RoomManagement />} />}
                 {accessibleRoutes.includes('/procurement') && <Route path="/procurement" element={<ProcurementManagement />} />}
                 {accessibleRoutes.includes('/settings') && <Route path="/settings" element={<Settings />} />}
