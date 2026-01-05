@@ -1,4 +1,4 @@
-// 标记：本次更新修改了复尺进度的计算方式，改为按所有房型的模块总数计算
+// 标记：本次更新在【安装进度详情】增加了安装模块的备注显示，修复了【客房建档】发布任务弹窗问题，并优化了门店列表的进度条对齐样式
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

@@ -916,6 +916,8 @@ export const RoomInstall: React.FC = () => {
                                                     <div className="space-y-4">
                                                         {categories.length > 0 ? categories.map(cat => {
                                                             const images = roomData[cat] || [];
+                                                            const requirement = activeStore.moduleConfig.exampleRequirements?.[cat];
+                                                            
                                                             return (
                                                                 <div key={cat} className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                                                                     <div className="flex justify-between items-center mb-3">
@@ -926,6 +928,15 @@ export const RoomInstall: React.FC = () => {
                                                                             <ImageIcon size={12} /> 示例
                                                                         </button>
                                                                     </div>
+                                                                    
+                                                                    {/* Display Remark/Requirement if exists */}
+                                                                    {requirement && (
+                                                                        <div className="mb-3 bg-blue-50 text-blue-800 text-[10px] p-2 rounded border border-blue-100 flex items-start gap-1">
+                                                                            <Info size={12} className="shrink-0 mt-0.5" />
+                                                                            <div className="whitespace-pre-wrap">{requirement}</div>
+                                                                        </div>
+                                                                    )}
+
                                                                     <div className="grid grid-cols-4 gap-3">
                                                                         {!isLocked && (
                                                                             <div className="aspect-square border-2 border-dashed border-blue-200 rounded-lg bg-white flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50 relative group transition-colors">
