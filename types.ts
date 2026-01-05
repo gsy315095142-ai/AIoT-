@@ -25,6 +25,8 @@ export type RoomMeasurement = {
   checklistValues?: Record<string, string | boolean>; // Key is param.id, Value is input
   status?: RoomMeasurementStatus; // Audit Status
   rejectReason?: string;
+  operator?: string; // New: Operator name
+  operateTime?: string; // New: Operation timestamp
 };
 
 // New Checklist Types

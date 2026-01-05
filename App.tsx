@@ -1,4 +1,4 @@
-// 标记：本次更新在【客房建档】的复尺模块中增加了【发布复尺任务】功能，且【客房复尺】列表现在仅显示已发布任务的门店
+// 标记：本次更新在【客房复尺】评估提交后增加了操作人显示，并在【客房建档】列表中增加了复尺任务进度显示
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

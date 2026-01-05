@@ -214,6 +214,16 @@ const EvaluationPanel: React.FC<EvaluationPanelProps> = (props) => {
                             })}
                         </div>
                     )}
+
+                    {/* Operator Info - New Addition */}
+                    {measurement.operator && (
+                        <div className="border-t border-slate-200/50 pt-2 mt-1 flex justify-end">
+                            <span className="text-[9px] text-slate-400 flex items-center gap-1">
+                                操作人: <span className="font-bold text-slate-500">{measurement.operator}</span> 
+                                {measurement.operateTime && <span>({measurement.operateTime.split(' ')[0]})</span>}
+                            </span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Rejection Reason Display */}
@@ -287,7 +297,7 @@ const EvaluationPanel: React.FC<EvaluationPanelProps> = (props) => {
 
 // --- Main Component ---
 export const RoomMeasure: React.FC = () => {
-  const { regions, stores, updateStore } = useApp();
+  const { regions, stores, updateStore, currentUser } = useApp();
   
   // Navigation State
   const [selectedRegion, setSelectedRegion] = useState('');
@@ -492,7 +502,10 @@ export const RoomMeasure: React.FC = () => {
           remark: editForm.remark,
           checklistValues: editForm.checklistValues,
           status: currentStatus, // Preserve status on edit unless explicitly changing flow
-          rejectReason: currentStatus === 'rejected' ? currentRoomTypeConfig?.measurements?.find(m => m.category === category)?.rejectReason : undefined
+          rejectReason: currentStatus === 'rejected' ? currentRoomTypeConfig?.measurements?.find(m => m.category === category)?.rejectReason : undefined,
+          // Preserve existing operator info on save if it exists
+          operator: currentRoomTypeConfig?.measurements?.find(m => m.category === category)?.operator,
+          operateTime: currentRoomTypeConfig?.measurements?.find(m => m.category === category)?.operateTime,
       };
 
       const updatedTypeConfigs = currentStore.roomTypeConfigs.map(rt => {
@@ -533,7 +546,14 @@ export const RoomMeasure: React.FC = () => {
               const target = existing.find(m => m.category === category);
               if (!target) return rt;
 
-              const updatedMeasurement = { ...target, status: 'pending_stage_1' as RoomMeasurementStatus, rejectReason: undefined };
+              const updatedMeasurement = { 
+                  ...target, 
+                  status: 'pending_stage_1' as RoomMeasurementStatus, 
+                  rejectReason: undefined,
+                  // New: Record Operator Info
+                  operator: currentUser || 'System',
+                  operateTime: new Date().toLocaleString()
+              };
               const others = existing.filter(m => m.category !== category);
               return { ...rt, measurements: [...others, updatedMeasurement] };
           }

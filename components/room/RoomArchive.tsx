@@ -1197,18 +1197,39 @@ export const RoomArchive: React.FC = () => {
                 const roomCount = store.rooms.length;
                 const typeCount = store.roomTypeConfigs ? store.roomTypeConfigs.length : 0;
                 
+                // Calculate measurement task progress if it exists
+                let progressPercent = 0;
+                let isTaskPublished = store.measurementTask?.status === 'published';
+                
+                if (isTaskPublished) {
+                    const activeMods = store.moduleConfig.activeModules.filter(m => (store.moduleConfig.moduleTypes?.[m] || 'measurement') === 'measurement');
+                    const totalTypes = store.roomTypeConfigs.length;
+                    
+                    if (totalTypes > 0 && activeMods.length > 0) {
+                        const completedTypes = store.roomTypeConfigs.filter(rt => {
+                             const measurementCount = rt.measurements ? rt.measurements.filter(m => m.status === 'approved' && activeMods.includes(m.category)).length : 0;
+                             return measurementCount >= activeMods.length;
+                        }).length;
+                        progressPercent = Math.round((completedTypes / totalTypes) * 100);
+                    } else if (totalTypes > 0 && activeMods.length === 0) {
+                        // No measurement modules configured, technically 100% complete or 0% depending on interpretation. 
+                        // Assuming 100% if no requirements.
+                        progressPercent = 100;
+                    }
+                }
+
                 return (
                     <div 
                         key={store.id} 
                         className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 relative group hover:shadow-md transition-all"
                     >
                         <div className="flex justify-between items-start mb-2" onClick={() => setViewingStoreId(store.id)}>
-                            <div className="cursor-pointer">
+                            <div className="cursor-pointer flex-1">
                                 <h4 className="font-bold text-slate-800 text-sm mb-1 flex items-center gap-2">
                                     {store.name}
                                     <ChevronRight size={14} className="text-slate-300" />
                                 </h4>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
                                     <span className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
                                         {regions.find(r => r.id === store.regionId)?.name}
                                     </span>
@@ -1216,8 +1237,24 @@ export const RoomArchive: React.FC = () => {
                                         {roomCount} 间客房 · {typeCount} 种房型
                                     </span>
                                 </div>
+                                {isTaskPublished && (
+                                    <div className="mt-2">
+                                        <div className="flex justify-between items-center text-[10px] mb-1">
+                                            <span className="text-blue-600 font-bold flex items-center gap-1">
+                                                <Ruler size={10} /> 复尺进度: {progressPercent}%
+                                            </span>
+                                            <span className="text-slate-400">截止: {store.measurementTask?.deadline}</span>
+                                        </div>
+                                        <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                            <div 
+                                                className={`h-full rounded-full transition-all duration-500 ${progressPercent === 100 ? 'bg-green-500' : 'bg-blue-500'}`} 
+                                                style={{ width: `${progressPercent}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                            <div className="flex flex-col gap-2">
+                            <div className="flex flex-col gap-2 ml-2">
                                 <button 
                                     onClick={(e) => { e.stopPropagation(); openEditStoreModal(store); }}
                                     className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
