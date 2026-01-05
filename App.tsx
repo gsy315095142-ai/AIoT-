@@ -1,4 +1,4 @@
-// 标记：本次更新修复了【数据总览】和【内容管理】页面丢失的问题，恢复了设备管理页面的多Tab架构
+// 标记：本次更新在【客房建档】的复尺模块中增加了【发布复尺任务】功能，且【客房复尺】列表现在仅显示已发布任务的门店
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

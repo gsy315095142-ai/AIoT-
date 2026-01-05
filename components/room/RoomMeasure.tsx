@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent } from 'react';
-import { Ruler, Store, ChevronDown, ChevronUp, Plus, X, Upload, ClipboardList, Edit3, Check, Save, Filter, BedDouble, HelpCircle, Image as ImageIcon, Send, AlertCircle, CheckCircle, ArrowRight, ArrowLeft, Settings, ListChecks } from 'lucide-react';
+import { Ruler, Store, ChevronDown, ChevronUp, Plus, X, Upload, ClipboardList, Edit3, Check, Save, Filter, BedDouble, HelpCircle, Image as ImageIcon, Send, AlertCircle, CheckCircle, ArrowRight, ArrowLeft, Settings, ListChecks, Calendar } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { RoomImageCategory, RoomImage, RoomMeasurement, MeasurementType, RoomMeasurementStatus, RoomTypeConfig, ChecklistParam, Region } from '../../types';
 import { AuditGate } from '../DeviceComponents';
@@ -313,9 +313,10 @@ export const RoomMeasure: React.FC = () => {
   const [viewingExample, setViewingExample] = useState<{ title: string; url: string } | null>(null);
 
   // Computed Data
-  const filteredStores = selectedRegion 
+  // FILTER MODIFICATION: Only show stores with 'published' measurement task
+  const filteredStores = (selectedRegion 
     ? stores.filter(s => s.regionId === selectedRegion) 
-    : stores;
+    : stores).filter(s => s.measurementTask?.status === 'published');
 
   const currentStore = stores.find(s => s.id === selectedStoreId);
   const currentRoomTypeConfig = currentStore?.roomTypeConfigs.find(rt => rt.name === activeRoomTypeName);
@@ -326,7 +327,7 @@ export const RoomMeasure: React.FC = () => {
 
   // Helper for Region Label with Status Counts
   const getRegionLabel = (region: Region) => {
-      const regionStores = stores.filter(s => s.regionId === region.id);
+      const regionStores = filteredStores.filter(s => s.regionId === region.id);
       const total = regionStores.length;
       
       let p1 = 0; // pending_stage_1
@@ -367,12 +368,12 @@ export const RoomMeasure: React.FC = () => {
   };
 
   const getAllRegionsLabel = () => {
-      const total = stores.length;
+      const total = filteredStores.length;
       let p1 = 0;
       let p2 = 0;
       let completed = 0;
 
-      stores.forEach(s => {
+      filteredStores.forEach(s => {
           // Same logic as getRegionLabel but accumulating globally
           let hasP1 = false;
           let hasP2 = false;
@@ -636,13 +637,21 @@ export const RoomMeasure: React.FC = () => {
                             <div className="flex justify-between items-start mb-2">
                                 <div>
                                     <h4 className="font-bold text-slate-800 text-sm mb-1">{store.name}</h4>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                                            {regions.find(r => r.id === store.regionId)?.name}
-                                        </span>
-                                        <span className="text-[10px] text-slate-400">
-                                            {totalTypes} 种房型
-                                        </span>
+                                    <div className="flex flex-col gap-1.5">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                                {regions.find(r => r.id === store.regionId)?.name}
+                                            </span>
+                                            <span className="text-[10px] text-slate-400">
+                                                {totalTypes} 种房型
+                                            </span>
+                                        </div>
+                                        {/* Show Task Deadline */}
+                                        {store.measurementTask && (
+                                            <div className="text-[10px] text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded font-bold inline-flex items-center gap-1 self-start">
+                                                <Calendar size={10} /> 期望完成: {store.measurementTask.deadline}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                                 <ArrowRight size={16} className="text-slate-300 group-hover:text-blue-500 transition-colors" />

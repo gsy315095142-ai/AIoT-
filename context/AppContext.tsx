@@ -350,6 +350,7 @@ interface AppContextType {
   submitInspectionReport: (deviceId: string, result: 'Qualified' | 'Unqualified', remark: string, images?: string[]) => void;
   approveAudit: (recordId: string) => void;
   rejectAudit: (recordId: string, reason: string) => void;
+  publishMeasurementTask: (storeId: string, deadline: string) => void; // New
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -785,6 +786,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
+  const publishMeasurementTask = (storeId: string, deadline: string) => {
+      setStores(prev => prev.map(s => {
+          if (s.id === storeId) {
+              return {
+                  ...s,
+                  measurementTask: {
+                      status: 'published',
+                      deadline,
+                      publishTime: new Date().toLocaleString()
+                  }
+              };
+          }
+          return s;
+      }));
+  };
+
   // --- Procurement Handlers ---
   const addProcurementProduct = (product: Omit<Product, 'id'>) => {
       setProcurementProducts(prev => [
@@ -880,7 +897,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addStore, updateStore, updateStoreInstallation, removeStore, 
       addDeviceType, removeDeviceType, addSupplier, updateSupplier, removeSupplier,
       addDevice, updateDevice, deleteDeviceEvent,
-      submitOpsStatusChange, submitInspectionReport, approveAudit, rejectAudit
+      submitOpsStatusChange, submitInspectionReport, approveAudit, rejectAudit,
+      publishMeasurementTask
     }}>
       {children}
     </AppContext.Provider>

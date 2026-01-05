@@ -1,6 +1,6 @@
 import React, { useState, ChangeEvent, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Table, Ruler, ArrowLeft, Search, ChevronDown, ChevronRight, Settings, Check, HelpCircle, Image as ImageIcon, ClipboardList, Hammer, ListChecks } from 'lucide-react';
+import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Table, Ruler, ArrowLeft, Search, ChevronDown, ChevronRight, Settings, Check, HelpCircle, Image as ImageIcon, ClipboardList, Hammer, ListChecks, Calendar, Send } from 'lucide-react';
 import { Store as StoreType, Room, RoomImageCategory, RoomImage, RoomTypeConfig, ChecklistParam, ChecklistParamType, ModuleType, Region } from '../../types';
 
 const DEFAULT_MODULES: RoomImageCategory[] = [
@@ -28,7 +28,7 @@ const EXAMPLE_IMAGES: Record<string, string> = {
 };
 
 export const RoomArchive: React.FC = () => {
-  const { regions, stores, addStore, updateStore, removeStore } = useApp();
+  const { regions, stores, addStore, updateStore, removeStore, publishMeasurementTask } = useApp();
 
   // Navigation & Filter State
   const [viewingStoreId, setViewingStoreId] = useState<string | null>(null);
@@ -79,6 +79,10 @@ export const RoomArchive: React.FC = () => {
 
   // Room Detail Modal State
   const [editingRoom, setEditingRoom] = useState<{ storeId: string; room: Room } | null>(null);
+
+  // Task Publish Modal
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [taskDeadline, setTaskDeadline] = useState('');
 
   // Derived State
   const activeStore = stores.find(s => s.id === viewingStoreId);
@@ -485,6 +489,18 @@ export const RoomArchive: React.FC = () => {
       }
   };
 
+  // --- Publish Task Handlers ---
+  const handleOpenTaskModal = () => {
+      setTaskDeadline('');
+      setIsTaskModalOpen(true);
+  };
+
+  const handlePublishTask = () => {
+      if (!activeStore || !taskDeadline) return;
+      publishMeasurementTask(activeStore.id, taskDeadline);
+      setIsTaskModalOpen(false);
+  };
+
   // --- View Switching ---
 
   if (viewingStoreId && activeStore) {
@@ -546,11 +562,27 @@ export const RoomArchive: React.FC = () => {
               <div className="flex-1 overflow-y-auto bg-slate-50 pb-20 p-4 space-y-4">
                   
                   {/* Module 1: Measurement Info - NOW READS FROM ROOM TYPE CONFIG */}
-                  <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
-                      <h3 className="text-xs font-bold text-slate-500 mb-3 flex items-center gap-1 uppercase">
-                          <Ruler size={14} className="text-blue-500" /> 
-                          【复尺模块】
-                      </h3>
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 relative">
+                      <div className="flex justify-between items-center mb-3">
+                          <h3 className="text-xs font-bold text-slate-500 flex items-center gap-1 uppercase">
+                              <Ruler size={14} className="text-blue-500" /> 
+                              【复尺模块】
+                          </h3>
+                          <button 
+                              onClick={handleOpenTaskModal}
+                              className="text-[10px] bg-blue-600 text-white px-2 py-1.5 rounded-lg shadow-sm hover:bg-blue-700 flex items-center gap-1 font-bold transition-colors"
+                          >
+                              {activeStore.measurementTask ? <><Edit2 size={10} /> 更新任务</> : <><Send size={10} /> 发布复尺任务</>}
+                          </button>
+                      </div>
+                      
+                      {activeStore.measurementTask && (
+                          <div className="mb-4 bg-blue-50 border border-blue-100 rounded-lg p-2 text-[10px] flex justify-between items-center text-blue-800">
+                              <span className="font-bold">任务已发布</span>
+                              <span>截止时间: {activeStore.measurementTask.deadline}</span>
+                          </div>
+                      )}
+
                       <div className="space-y-4">
                           {currentRoomTypeConfig ? (
                               measurementModules.map(moduleName => {
@@ -920,367 +952,290 @@ export const RoomArchive: React.FC = () => {
                                                       {/* Checklist Config */}
                                                       <div className="flex flex-col flex-1">
                                                           <div className="flex justify-between items-center mb-1">
-                                                              <label className="text-[10px] text-slate-500 font-bold uppercase flex items-center gap-1">
-                                                                  <ListChecks size={12} /> 必填参数清单
-                                                              </label>
-                                                              {!isAddingChecklist && (
-                                                                  <button 
-                                                                      onClick={() => { setAddingChecklistToCategory(moduleName); setNewChecklistLabel(''); }}
-                                                                      className="text-[10px] text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded hover:bg-blue-100 transition-colors font-bold"
-                                                                  >
-                                                                      + 添加参数
-                                                                  </button>
-                                                              )}
+                                                              <label className="text-[10px] text-slate-500 font-bold uppercase">必填参数清单</label>
+                                                              <button 
+                                                                  onClick={() => setAddingChecklistToCategory(moduleName)}
+                                                                  className="text-[10px] text-blue-600 hover:bg-blue-50 px-1.5 py-0.5 rounded transition-colors"
+                                                              >
+                                                                  + 添加参数
+                                                              </button>
                                                           </div>
                                                           
-                                                          {/* Checklist Items */}
-                                                          <div className="bg-slate-50 rounded-lg border border-slate-200 divide-y divide-slate-100 overflow-hidden">
-                                                              {checklistParams.length > 0 ? checklistParams.map(param => (
-                                                                  <div key={param.id} className="flex justify-between items-center p-2 text-xs bg-white hover:bg-slate-50">
-                                                                      <div className="flex items-center gap-2 overflow-hidden">
-                                                                          <span className="font-medium text-slate-700 truncate">{param.label}</span>
-                                                                          <span className="text-[9px] text-slate-400 bg-slate-100 border border-slate-100 px-1.5 rounded">{param.type === 'text' ? '填空' : '判断'}</span>
-                                                                      </div>
-                                                                      <button onClick={() => handleRemoveChecklistParam(moduleName, param.id)} className="text-slate-300 hover:text-red-500">
-                                                                          <X size={14} />
-                                                                      </button>
-                                                                  </div>
-                                                              )) : (
-                                                                  <div className="p-2 text-center text-[10px] text-slate-400 italic">暂无参数</div>
+                                                          <div className="bg-slate-50 border border-slate-200 rounded-lg p-2 flex-1 overflow-y-auto max-h-32">
+                                                              {checklistParams.length === 0 && !isAddingChecklist && (
+                                                                  <p className="text-[10px] text-slate-400 text-center py-2">暂无参数</p>
                                                               )}
+                                                              
+                                                              <ul className="space-y-1">
+                                                                  {checklistParams.map(param => (
+                                                                      <li key={param.id} className="flex justify-between items-center bg-white border border-slate-100 px-2 py-1 rounded text-xs">
+                                                                          <div className="flex items-center gap-2">
+                                                                              <span className="text-slate-700 font-medium">{param.label}</span>
+                                                                              <span className="text-[9px] text-slate-400 bg-slate-100 px-1 rounded">{param.type === 'boolean' ? '是/否' : '文本'}</span>
+                                                                          </div>
+                                                                          <button onClick={() => handleRemoveChecklistParam(moduleName, param.id)} className="text-slate-300 hover:text-red-500"><X size={12}/></button>
+                                                                      </li>
+                                                                  ))}
+                                                                  
+                                                                  {isAddingChecklist && (
+                                                                      <li className="flex items-center gap-2 bg-blue-50 border border-blue-200 px-2 py-1 rounded animate-fadeIn">
+                                                                          <input 
+                                                                              autoFocus
+                                                                              className="flex-1 text-xs bg-transparent outline-none min-w-0"
+                                                                              placeholder="参数名称"
+                                                                              value={newChecklistLabel}
+                                                                              onChange={(e) => setNewChecklistLabel(e.target.value)}
+                                                                              onKeyDown={(e) => e.key === 'Enter' && handleAddChecklistParam(moduleName)}
+                                                                          />
+                                                                          <select 
+                                                                              className="text-[10px] bg-white border border-slate-200 rounded outline-none"
+                                                                              value={newChecklistType}
+                                                                              onChange={(e) => setNewChecklistType(e.target.value as ChecklistParamType)}
+                                                                          >
+                                                                              <option value="text">文本</option>
+                                                                              <option value="boolean">是/否</option>
+                                                                          </select>
+                                                                          <button onClick={() => handleAddChecklistParam(moduleName)} className="text-green-600"><Check size={14}/></button>
+                                                                          <button onClick={() => setAddingChecklistToCategory(null)} className="text-slate-400"><X size={14}/></button>
+                                                                      </li>
+                                                                  )}
+                                                              </ul>
                                                           </div>
-
-                                                          {/* Add New Checklist Form */}
-                                                          {isAddingChecklist && (
-                                                              <div className="bg-blue-50 p-2 rounded-lg border border-blue-100 animate-fadeIn mt-2 shadow-sm">
-                                                                  <div className="flex gap-2 mb-2">
-                                                                      <input 
-                                                                          autoFocus
-                                                                          type="text" 
-                                                                          className="flex-1 text-xs border border-blue-200 rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-blue-400"
-                                                                          placeholder="参数名称 (如: 墙面宽度)"
-                                                                          value={newChecklistLabel}
-                                                                          onChange={e => setNewChecklistLabel(e.target.value)}
-                                                                      />
-                                                                      <select 
-                                                                          className="text-xs border border-blue-200 rounded px-1 outline-none bg-white w-20 text-slate-600"
-                                                                          value={newChecklistType}
-                                                                          onChange={e => setNewChecklistType(e.target.value as ChecklistParamType)}
-                                                                      >
-                                                                          <option value="text">填空</option>
-                                                                          <option value="boolean">判断</option>
-                                                                      </select>
-                                                                  </div>
-                                                                  <div className="flex gap-2 justify-end">
-                                                                      <button onClick={() => setAddingChecklistToCategory(null)} className="text-[10px] text-slate-500 hover:text-slate-700 px-2 py-1">取消</button>
-                                                                      <button onClick={() => handleAddChecklistParam(moduleName)} className="text-[10px] bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 font-bold shadow-sm">确认添加</button>
-                                                                  </div>
-                                                              </div>
-                                                          )}
                                                       </div>
                                                   </div>
                                               ) : (
-                                                  <div className="flex-1 flex flex-col justify-center items-center text-slate-400 text-sm italic border-l border-slate-100 ml-2 pl-4 bg-slate-50/50 rounded-r-xl">
-                                                      <ImageIcon size={32} className="mb-2 opacity-30" />
+                                                  <div className="flex-1 flex flex-col justify-center items-center text-center text-slate-400 text-xs bg-slate-50 rounded-lg border border-dashed border-slate-200 h-32">
                                                       <p>安装类模块仅需配置示例图</p>
-                                                      <p className="text-xs opacity-60 mt-1">用于指导现场安装拍照</p>
+                                                      <p className="opacity-70 mt-1">现场安装人员将参考此图进行作业</p>
                                                   </div>
                                               )}
                                           </div>
                                       </div>
                                   );
-                              })}
-                              {activeStore.moduleConfig.activeModules.filter(m => (activeStore.moduleConfig.moduleTypes?.[m] || 'measurement') === activeModuleTab).length === 0 && (
-                                  <div className="text-center py-12 text-slate-400 text-xs border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 flex flex-col items-center gap-2">
-                                      <div className="bg-white p-3 rounded-full shadow-sm"><ListChecks size={24} className="opacity-20" /></div>
-                                      <p>暂无{activeModuleTab === 'measurement' ? '复尺' : '安装'}类模块</p>
-                                      <button onClick={() => setIsAddingModule(true)} className="text-blue-500 hover:text-blue-600 font-bold mt-1">点击右上角添加</button>
-                                  </div>
-                              )}
+                                })}
                           </div>
                       </div>
                   </div>
               )}
+
+              {/* Add Store Modal */}
+              {!viewingStoreId && (
+                  <>
+                    <button 
+                        onClick={openAddStoreModal}
+                        className="fixed bottom-24 right-4 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition-colors z-30"
+                    >
+                        <Plus size={24} />
+                    </button>
+
+                    {isStoreModalOpen && (
+                        <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
+                            <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[85vh] animate-scaleIn">
+                                <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
+                                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                                        <StoreIcon size={20} className="text-blue-600" />
+                                        {editingStoreId ? '编辑门店' : '新增门店'}
+                                    </h3>
+                                    <button onClick={() => setIsStoreModalOpen(false)}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
+                                </div>
+                                <form onSubmit={handleStoreSubmit} className="p-5 space-y-4 overflow-y-auto flex-1">
+                                    {!editingStoreId && (
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">门店ID *</label>
+                                            <input required className="w-full border border-slate-200 rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" value={storeForm.id} onChange={e => setStoreForm({...storeForm, id: e.target.value})} placeholder="例如: s1" />
+                                        </div>
+                                    )}
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">门店名称 *</label>
+                                        <input required className="w-full border border-slate-200 rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" value={storeForm.name} onChange={e => setStoreForm({...storeForm, name: e.target.value})} />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">所属大区 *</label>
+                                        <select required className="w-full border border-slate-200 rounded p-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" value={storeForm.regionId} onChange={e => setStoreForm({...storeForm, regionId: e.target.value})}>
+                                            <option value="">选择大区</option>
+                                            {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                                        </select>
+                                    </div>
+                                    
+                                    <div>
+                                        <div className="flex justify-between items-center mb-2">
+                                            <label className="text-xs font-bold text-slate-500 uppercase">房间列表</label>
+                                            <button type="button" onClick={addRoomRow} className="text-[10px] text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors">+ 添加房间</button>
+                                        </div>
+                                        <div className="bg-slate-50 rounded-lg p-2 max-h-40 overflow-y-auto border border-slate-200 space-y-2">
+                                            {storeForm.rooms.map((room, idx) => (
+                                                <div key={room.key} className="flex gap-2">
+                                                    <input 
+                                                        className="flex-1 border border-slate-200 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-500"
+                                                        placeholder="房间号"
+                                                        value={room.number}
+                                                        onChange={e => updateRoomRow(idx, e.target.value)}
+                                                    />
+                                                    <button type="button" onClick={() => removeRoomRow(idx)} className="text-slate-400 hover:text-red-500 px-1"><X size={16}/></button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <div className="flex justify-between items-center mb-2">
+                                            <label className="text-xs font-bold text-slate-500 uppercase">房型配置</label>
+                                            {!editingStoreId && (
+                                                <div className="flex gap-1">
+                                                    <input 
+                                                        className="w-24 border border-slate-200 rounded px-2 py-0.5 text-xs outline-none focus:border-blue-500" 
+                                                        placeholder="新房型名称"
+                                                        value={newRoomTypeName}
+                                                        onChange={e => setNewRoomTypeName(e.target.value)}
+                                                    />
+                                                    <button type="button" onClick={addFormRoomType} className="bg-blue-600 text-white rounded px-2 text-xs hover:bg-blue-700">+</button>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {storeForm.roomTypes.map(rt => (
+                                                <div key={rt.id} className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded border border-blue-100 flex items-center gap-1">
+                                                    {rt.name}
+                                                    {!editingStoreId && <button type="button" onClick={() => removeFormRoomType(rt.id)} className="hover:text-red-500"><X size={10}/></button>}
+                                                </div>
+                                            ))}
+                                            {storeForm.roomTypes.length === 0 && <span className="text-xs text-slate-400 italic">暂无房型</span>}
+                                        </div>
+                                        {editingStoreId && <p className="text-[10px] text-slate-400 mt-1">* 编辑模式下请在详情页管理房型</p>}
+                                    </div>
+
+                                    <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-md hover:bg-blue-700 transition-colors mt-4">
+                                        {editingStoreId ? '保存更改' : '确认添加'}
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+                  </>
+              )}
+
+              {/* Publish Task Modal */}
+              {isTaskModalOpen && (
+                  <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
+                      <div className="bg-white rounded-xl shadow-2xl w-full max-w-xs overflow-hidden flex flex-col animate-scaleIn">
+                          <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
+                              <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                                  <Send size={18} className="text-blue-600" />
+                                  发布复尺任务
+                              </h3>
+                              <button onClick={() => setIsTaskModalOpen(false)}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
+                          </div>
+                          
+                          <div className="p-5 space-y-4">
+                              <div>
+                                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">期望完成复尺的时间</label>
+                                  <input 
+                                      type="date" 
+                                      className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50"
+                                      value={taskDeadline}
+                                      onChange={(e) => setTaskDeadline(e.target.value)}
+                                  />
+                              </div>
+                              
+                              <p className="text-xs text-slate-400 leading-relaxed">
+                                  发布任务后，该门店将出现在【客房复尺】列表中，供复尺人员查看和执行。
+                              </p>
+
+                              <button 
+                                  onClick={handlePublishTask}
+                                  disabled={!taskDeadline}
+                                  className="w-full bg-blue-600 text-white font-bold py-2.5 rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                  确定发布
+                              </button>
+                          </div>
+                      </div>
+                  </div>
+              )}
+
           </div>
       );
   }
 
-  // --- List View: Store List ---
+  // --- VIEW 1: Store List ---
   return (
-    <div className="h-full flex flex-col relative">
-         {/* Sticky Header Section */}
-        <div className="sticky top-0 z-10 bg-slate-50 pb-2 -mt-4 pt-4 px-4">
-             {/* 1.1 Add Button Top Left */}
-            <div className="flex justify-between items-center mb-4">
-                <button 
-                    onClick={openAddStoreModal}
-                    className="bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-blue-700 transition-colors shadow-md"
+    <div className="h-full flex flex-col">
+        {/* Header / Filter */}
+        <div className="bg-white p-4 shrink-0 shadow-sm border-b border-slate-100 z-10">
+            <h3 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-1">
+                <StoreIcon size={12} /> 门店列表
+            </h3>
+            <div className="relative mb-3">
+                <select 
+                    className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={regionFilter}
+                    onChange={(e) => setRegionFilter(e.target.value)}
                 >
-                    <Plus size={16} /> 新增门店
-                </button>
+                    <option value="">全部大区</option>
+                    {regions.map(r => <option key={r.id} value={r.id}>{getRegionLabel(r)}</option>)}
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
             </div>
-
-            {/* 1.2 Search & Filter Bar */}
-            <div className="space-y-2">
-                {/* Search Bar */}
-                <div className="bg-white p-2 rounded-xl shadow-sm border border-slate-100">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input 
-                            type="text" 
-                            placeholder="搜索门店名称..."
-                            className="w-full bg-slate-50 border-none rounded-lg py-2 pl-9 pr-4 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                        {searchQuery && (
-                            <button 
-                                onClick={() => setSearchQuery('')}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                            >
-                                <X size={14} />
-                            </button>
-                        )}
-                    </div>
-                </div>
-
-                {/* Filter Bar */}
-                <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-100">
-                    <div className="relative">
-                        <select 
-                            className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            value={regionFilter}
-                            onChange={(e) => setRegionFilter(e.target.value)}
-                        >
-                            <option value="">全部大区 ({stores.length}家)</option>
-                            {regions.map(r => <option key={r.id} value={r.id}>{getRegionLabel(r)}</option>)}
-                        </select>
-                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
-                    </div>
-                </div>
+            <div className="relative">
+                <input 
+                    type="text" 
+                    placeholder="搜索门店名称..."
+                    className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs py-2 pl-8 pr-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
             </div>
         </div>
 
-        {/* 1.3 Store List */}
-        <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-3">
-             {filteredStores.length === 0 && (
+        {/* List */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {filteredStores.length === 0 && (
                 <div className="text-center py-10 text-slate-400 text-xs">没有找到符合条件的门店</div>
             )}
-            {filteredStores.map(s => {
-                const regionName = regions.find(r => r.id === s.regionId)?.name || '未知大区';
-                const roomCount = s.rooms?.length || 0;
-                
-                // Calculate Progress
-                // Measurement
-                const measureConfigs = s.roomTypeConfigs || [];
-                const activeModules = s.moduleConfig.activeModules || DEFAULT_MODULES;
-                // Filter only measurement modules for progress
-                const measurementModules = activeModules.filter(m => (s.moduleConfig.moduleTypes?.[m] || 'measurement') === 'measurement');
-                
-                const completedMeasureCount = measureConfigs.filter(config => {
-                    const approvedCount = config.measurements?.filter(m => m.status === 'approved' && measurementModules.includes(m.category)).length || 0;
-                    return approvedCount >= measurementModules.length;
-                }).length;
-                const measureProgress = measureConfigs.length > 0 ? Math.round((completedMeasureCount / measureConfigs.length) * 100) : 0;
-
-                // Installation
-                const installNodes = s.installation?.nodes || [];
-                const completedInstallNodes = installNodes.filter(n => n.completed).length;
-                const installProgress = installNodes.length > 0 ? Math.round((completedInstallNodes / installNodes.length) * 100) : 0;
+            {filteredStores.map(store => {
+                const roomCount = store.rooms.length;
+                const typeCount = store.roomTypeConfigs ? store.roomTypeConfigs.length : 0;
                 
                 return (
-                    // 1.4 Store Item Layout (Click to Open Detail)
                     <div 
-                        key={s.id} 
-                        onClick={() => { 
-                            setViewingStoreId(s.id); 
-                            const initialType = s.roomTypeConfigs?.[0]?.name || '';
-                            setActiveRoomTypeName(initialType);
-                        }}
-                        className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between cursor-pointer group hover:shadow-md transition-all active:scale-[0.99]"
+                        key={store.id} 
+                        className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 relative group hover:shadow-md transition-all"
                     >
-                        <div className="flex-1">
-                            <h4 className="font-bold text-slate-800 text-sm mb-1 group-hover:text-blue-600 transition-colors">{s.name}</h4>
-                            <div className="flex items-center gap-2 text-xs text-slate-500 mb-2">
-                                <span className="bg-slate-100 px-1.5 rounded">{regionName}</span>
-                                <span className="text-slate-300">|</span>
-                                <span className="flex items-center gap-1"><BedDouble size={12}/> {roomCount} 间客房</span>
+                        <div className="flex justify-between items-start mb-2" onClick={() => setViewingStoreId(store.id)}>
+                            <div className="cursor-pointer">
+                                <h4 className="font-bold text-slate-800 text-sm mb-1 flex items-center gap-2">
+                                    {store.name}
+                                    <ChevronRight size={14} className="text-slate-300" />
+                                </h4>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                        {regions.find(r => r.id === store.regionId)?.name}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400">
+                                        {roomCount} 间客房 · {typeCount} 种房型
+                                    </span>
+                                </div>
                             </div>
-                            
-                            <div className="flex gap-2">
-                                 <div className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded border border-indigo-100 font-bold">
-                                     房型复尺进度: {measureProgress}%
-                                 </div>
-                                 <div className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold">
-                                     安装进度: {installProgress}%
-                                 </div>
+                            <div className="flex flex-col gap-2">
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); openEditStoreModal(store); }}
+                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                >
+                                    <Edit2 size={16} />
+                                </button>
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); handleDeleteStore(store.id, store.name); }}
+                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
                             </div>
-                        </div>
-
-                        <div className="flex items-center gap-1 pl-3 border-l border-slate-50">
-                            {/* 1.5 Edit & Delete Buttons */}
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); openEditStoreModal(s); }}
-                                className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
-                            >
-                                <Edit2 size={16} />
-                            </button>
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); handleDeleteStore(s.id, s.name); }}
-                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                            >
-                                <Trash2 size={16} />
-                            </button>
-                            <ChevronRight size={16} className="text-slate-300 ml-1" />
                         </div>
                     </div>
                 );
             })}
         </div>
-
-        {/* Store Add/Edit Modal (Reused) */}
-        {isStoreModalOpen && (
-            <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
-                <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-scaleIn max-h-[90vh]">
-                    <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center flex-shrink-0">
-                        <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                            <Store size={20} className="text-blue-600" />
-                            {editingStoreId ? '编辑门店' : '新增门店'}
-                        </h3>
-                        <button onClick={() => setIsStoreModalOpen(false)}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
-                    </div>
-                    <form onSubmit={handleStoreSubmit} className="p-5 space-y-4 overflow-y-auto flex-1">
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">门店ID *</label>
-                            <input 
-                                required
-                                type="text" 
-                                className={`w-full border rounded p-2 text-sm focus:outline-none ${editingStoreId ? 'bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed' : 'bg-white border-slate-200 focus:ring-2 focus:ring-blue-500'}`}
-                                value={storeForm.id}
-                                onChange={e => setStoreForm({...storeForm, id: e.target.value})}
-                                disabled={!!editingStoreId}
-                                placeholder="输入唯一ID (例如: S001)"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">门店名称 *</label>
-                            <input 
-                                required
-                                type="text" 
-                                className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                value={storeForm.name}
-                                onChange={e => setStoreForm({...storeForm, name: e.target.value})}
-                                placeholder="输入门店名称"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">所属大区 *</label>
-                            <select 
-                                required
-                                className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
-                                value={storeForm.regionId}
-                                onChange={e => setStoreForm({...storeForm, regionId: e.target.value})}
-                            >
-                                <option value="">请选择大区</option>
-                                {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                            </select>
-                        </div>
-                        
-                        {/* Room Type Config Section */}
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">房型设置 *</label>
-                            <div className="flex gap-2 mb-2">
-                                <input 
-                                    type="text" 
-                                    placeholder="输入房型名称"
-                                    className="flex-1 border border-slate-200 rounded p-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={newRoomTypeName}
-                                    onChange={e => setNewRoomTypeName(e.target.value)}
-                                />
-                                <button type="button" onClick={addFormRoomType} className="bg-blue-600 text-white px-3 rounded hover:bg-blue-700 text-xs font-bold">添加</button>
-                            </div>
-                            <div className="border border-slate-200 rounded-lg overflow-hidden bg-slate-50 max-h-32 overflow-y-auto">
-                                <ul className="divide-y divide-slate-100">
-                                    {storeForm.roomTypes.map(rt => (
-                                        <li key={rt.id} className="p-2 flex justify-between items-center hover:bg-white text-xs">
-                                            <span className="font-bold text-slate-700">{rt.name}</span>
-                                            <button type="button" onClick={() => removeFormRoomType(rt.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={14} /></button>
-                                        </li>
-                                    ))}
-                                    {storeForm.roomTypes.length === 0 && (
-                                        <li className="p-3 text-center text-xs text-red-400">请添加至少一种房型</li>
-                                    )}
-                                </ul>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">客房列表 (动态添加)</label>
-                            <div className="border border-slate-200 rounded-lg overflow-hidden flex flex-col">
-                                <div className="bg-slate-50 px-3 py-2 border-b border-slate-200 flex justify-between items-center">
-                                    <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                                        <Table size={12} /> 房间号列表
-                                    </span>
-                                    <button 
-                                        type="button" 
-                                        onClick={addRoomRow} 
-                                        className="text-blue-600 bg-blue-50 hover:bg-blue-100 p-1.5 rounded transition-colors flex items-center gap-1 text-[10px] font-bold"
-                                    >
-                                        <Plus size={12} /> 添加行
-                                    </button>
-                                </div>
-                                <div className="max-h-48 overflow-y-auto p-0 bg-white">
-                                    <table className="w-full text-sm">
-                                        <tbody className="divide-y divide-slate-50">
-                                            {storeForm.rooms.map((room, index) => (
-                                                <tr key={room.key} className="group hover:bg-slate-50/80">
-                                                    <td className="p-0">
-                                                        <input 
-                                                            type="text"
-                                                            className="w-full px-3 py-2.5 bg-transparent focus:outline-none focus:bg-blue-50/30 transition-colors text-sm text-slate-700"
-                                                            value={room.number}
-                                                            onChange={(e) => updateRoomRow(index, e.target.value)}
-                                                            placeholder="输入房号 (如: 101)"
-                                                            autoFocus={index === storeForm.rooms.length - 1 && room.key.startsWith('new-')}
-                                                        />
-                                                    </td>
-                                                    <td className="w-10 text-center p-0">
-                                                        <button 
-                                                            type="button"
-                                                            onClick={() => removeRoomRow(index)}
-                                                            className="text-slate-300 hover:text-red-500 p-2 transition-colors flex items-center justify-center w-full h-full"
-                                                            title="删除此行"
-                                                        >
-                                                            <Trash2 size={14} />
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                            {storeForm.rooms.length === 0 && (
-                                                <tr>
-                                                    <td colSpan={2} className="p-6 text-center text-xs text-slate-400 cursor-pointer hover:text-blue-500 hover:bg-slate-50 border-b border-transparent transition-all" onClick={addRoomRow}>
-                                                        <div className="flex flex-col items-center gap-1">
-                                                            <Plus size={20} className="opacity-50" />
-                                                            <span>点击此处添加第一个客房</span>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div className="pt-2 flex-shrink-0">
-                            <button type="submit" className="w-full bg-blue-600 text-white font-bold py-2.5 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
-                                {editingStoreId ? '保存更改' : '确认添加'}
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        )}
     </div>
   );
 };
