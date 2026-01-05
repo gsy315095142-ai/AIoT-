@@ -5,13 +5,14 @@ import { MessageSquareWarning, ArrowLeft, CheckCircle, XCircle, Wrench, AlertCir
 import { OpsStatus, DeviceFeedback as DeviceFeedbackModel } from '../types';
 
 export const DeviceFeedback: React.FC = () => {
-    const { feedbacks, resolveFeedback, updateDevice, currentUser } = useApp();
+    const { feedbacks, resolveFeedback, submitOpsStatusChange, currentUser } = useApp();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<'pending' | 'resolved'>('pending');
     
     // UI state for expanding a feedback item to modify status
     const [expandedFeedbackId, setExpandedFeedbackId] = useState<string | null>(null);
     const [selectedOpsStatus, setSelectedOpsStatus] = useState<OpsStatus>(OpsStatus.REPAIRING);
+    const [complaintType, setComplaintType] = useState<string>('');
 
     const pendingFeedbacks = feedbacks.filter(f => f.status === 'pending');
     const resolvedFeedbacks = feedbacks.filter(f => f.status !== 'pending');
@@ -19,12 +20,22 @@ export const DeviceFeedback: React.FC = () => {
     const handleResolve = (feedback: DeviceFeedbackModel, type: 'resolved' | 'false_alarm') => {
         resolveFeedback(feedback.id, type, currentUser || 'System');
         setExpandedFeedbackId(null);
+        setComplaintType('');
     };
 
     const handleUpdateStatus = (feedback: DeviceFeedbackModel) => {
-        // Update device status logic here
-        updateDevice(feedback.deviceId, { opsStatus: selectedOpsStatus }, `反馈处理: 修改运维状态为 ${selectedOpsStatus}`);
-        alert('设备运维状态已更新');
+        let reason = `反馈处理`;
+        if (selectedOpsStatus === OpsStatus.HOTEL_COMPLAINT) {
+            if (!complaintType) {
+                alert('请选择客诉类型');
+                return;
+            }
+            reason = `[${complaintType}] ` + reason;
+        }
+
+        // Trigger audit workflow instead of direct update
+        submitOpsStatusChange(feedback.deviceId, selectedOpsStatus, reason);
+        alert('设备运维状态修改进入审核');
     };
 
     const FeedbackItem = ({ feedback, isPending }: { feedback: DeviceFeedbackModel; isPending: boolean }) => {
@@ -52,14 +63,21 @@ export const DeviceFeedback: React.FC = () => {
                             {feedback.content}
                         </div>
 
-                        <div className="flex items-center gap-2 text-[10px] text-slate-400">
-                            <span>{feedback.createTime}</span>
+                        <div className="flex flex-col gap-1 text-[10px] text-slate-400 mt-2">
+                            <div className="flex items-center gap-1">
+                                <span className="font-bold text-slate-500">反馈时间:</span>
+                                <span>{feedback.createTime}</span>
+                            </div>
                             {!isPending && (
                                 <>
-                                    <span>•</span>
-                                    <span>处理人: {feedback.resolver}</span>
-                                    <span>•</span>
-                                    <span>{feedback.resolveTime}</span>
+                                    <div className="flex items-center gap-1">
+                                        <span className="font-bold text-slate-500">解决时间:</span>
+                                        <span>{feedback.resolveTime}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        <span className="font-bold text-slate-500">处理人员:</span>
+                                        <span>{feedback.resolver}</span>
+                                    </div>
                                 </>
                             )}
                         </div>
@@ -85,21 +103,37 @@ export const DeviceFeedback: React.FC = () => {
                             <label className="text-xs font-bold text-slate-600 mb-2 block flex items-center gap-1">
                                 <Wrench size={12} className="text-blue-500" /> 修改设备运维状态
                             </label>
-                            <div className="flex gap-2">
+                            <div className="flex flex-col gap-2">
                                 <select 
-                                    className="flex-1 text-xs border border-slate-300 rounded px-2 py-2 focus:outline-none focus:border-blue-500 bg-white"
+                                    className="w-full text-xs border border-slate-300 rounded px-2 py-2 focus:outline-none focus:border-blue-500 bg-white"
                                     value={selectedOpsStatus}
-                                    onChange={(e) => setSelectedOpsStatus(e.target.value as OpsStatus)}
+                                    onChange={(e) => {
+                                        setSelectedOpsStatus(e.target.value as OpsStatus);
+                                        if (e.target.value !== OpsStatus.HOTEL_COMPLAINT) setComplaintType('');
+                                    }}
                                 >
                                     <option value={OpsStatus.INSPECTED}>正常</option>
                                     <option value={OpsStatus.REPAIRING}>维修</option>
                                     <option value={OpsStatus.HOTEL_COMPLAINT}>客诉</option>
                                 </select>
+
+                                {selectedOpsStatus === OpsStatus.HOTEL_COMPLAINT && (
+                                    <select 
+                                        className="w-full text-xs border border-pink-300 rounded px-2 py-2 focus:outline-none focus:border-pink-500 bg-pink-50 text-pink-700 animate-fadeIn"
+                                        value={complaintType}
+                                        onChange={(e) => setComplaintType(e.target.value)}
+                                    >
+                                        <option value="">请选择客诉类型</option>
+                                        <option value="设备质量故障">设备质量故障</option>
+                                        <option value="其他客诉情况">其他客诉情况</option>
+                                    </select>
+                                )}
+
                                 <button 
                                     onClick={() => handleUpdateStatus(feedback)}
-                                    className="bg-blue-600 text-white text-xs px-3 py-1 rounded font-bold hover:bg-blue-700 shadow-sm"
+                                    className="w-full bg-blue-600 text-white text-xs px-3 py-2 rounded font-bold hover:bg-blue-700 shadow-sm transition-colors mt-1"
                                 >
-                                    更新状态
+                                    提交审核
                                 </button>
                             </div>
                         </div>

@@ -1,4 +1,4 @@
-// 标记：本次更新新增了【设备反馈】功能模块，包含反馈列表页面及相应的处理逻辑（处理/误报），并在设备管理页面增加了入口
+// 标记：本次更新优化了【设备反馈】流程，增加了运维状态修改的审核机制及客诉类型选择，并完善了反馈列表的时间显示
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
