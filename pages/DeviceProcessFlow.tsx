@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { FeedbackMethod, FeedbackProcessData } from '../types';
+import { FeedbackMethod, FeedbackProcessData, FeedbackDiagnosisCategory, FeedbackResolutionStatus } from '../types';
 import { Wrench, ArrowLeft, Check, CheckCircle, Headphones, Calendar, MapPin, Camera, Plus, X, FileText, ChevronLeft, ChevronRight, Play, User, Monitor, Activity, ClipboardList } from 'lucide-react';
 import { AuditGate } from '../components/DeviceComponents';
 
@@ -111,7 +111,22 @@ export const DeviceProcessFlow: React.FC = () => {
         if (stepIdx < 0 || stepIdx >= steps.length) return false;
         const field = steps[stepIdx].field;
         const val = data[field as keyof FeedbackProcessData];
-        if (field === 'siteImages') return Array.isArray(val) && val.length > 0;
+        
+        // Special Checks
+        if (field === 'siteImages') {
+            // Need images AND diagnosis category
+            return (Array.isArray(val) && val.length > 0) && !!data.diagnosisCategory;
+        }
+        if (field === 'problemAnalysis') {
+            // Need text AND diagnosis category
+            return !!val && !!data.diagnosisCategory;
+        }
+        if (field === 'result') {
+            // Need result text AND resolution status
+            return !!val && !!data.resolutionStatus;
+        }
+
+        // Default check for other fields
         return !!val;
     };
 
@@ -167,6 +182,22 @@ export const DeviceProcessFlow: React.FC = () => {
         updateData('siteImages', currentImages.filter((_, i) => i !== index));
     };
 
+    // Generic Image Handler for Problem Analysis and Result
+    const handleSpecificImageUpload = (field: 'resultImages' | 'problemAnalysisImages', e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const url = URL.createObjectURL(e.target.files[0]);
+            const currentImages = data[field] || [];
+            updateData(field, [...currentImages, url]);
+        }
+        e.target.value = '';
+    };
+
+    const removeSpecificImage = (field: 'resultImages' | 'problemAnalysisImages', index: number) => {
+        if (!isEditable) return;
+        const currentImages = data[field] || [];
+        updateData(field, currentImages.filter((_, i) => i !== index));
+    };
+
     // Confirm Step Completion (The "Next" action)
     const handleConfirmStep = () => {
         // Validation 1: Data must be present
@@ -205,20 +236,8 @@ export const DeviceProcessFlow: React.FC = () => {
 
     // Navigation Only (View previous steps)
     const handleNavClick = (idx: number) => {
-        // Can verify restriction here: Only allow navigating to steps <= current active flow step
-        // Find first incomplete step
-        let maxStep = 0;
-        for (let i = 0; i < steps.length; i++) {
-            if (!isStepCompleted(i)) {
-                maxStep = i;
-                break;
-            }
-            if (i === steps.length - 1) maxStep = i;
-        }
-        
-        if (idx <= maxStep) {
-            setCurrentStep(idx);
-        }
+        // Removed restriction to allow viewing any step
+        setCurrentStep(idx);
     };
 
     const handleAuditAction = (action: 'approve' | 'reject') => {
@@ -374,17 +393,63 @@ export const DeviceProcessFlow: React.FC = () => {
                     )}
 
                     {currentField === 'problemAnalysis' && (
-                        <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
-                            <label className="text-xs font-bold text-slate-500 flex items-center gap-1 mb-2">
-                                <Activity size={14} /> 问题分析
-                            </label>
-                            <textarea 
-                                className="w-full border border-slate-200 rounded-xl p-3 text-sm bg-slate-50 h-32 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
-                                placeholder="请记录问题的详细分析过程..."
-                                value={data.problemAnalysis || ''}
-                                onChange={(e) => updateData('problemAnalysis', e.target.value)}
-                                disabled={!isEditable || isCurrentCompleted}
-                            />
+                        <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm space-y-4">
+                            <div>
+                                <label className="text-xs font-bold text-slate-500 flex items-center gap-1 mb-2">
+                                    <Activity size={14} /> 问题分析
+                                </label>
+                                <textarea 
+                                    className="w-full border border-slate-200 rounded-xl p-3 text-sm bg-slate-50 h-32 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
+                                    placeholder="请记录问题的详细分析过程..."
+                                    value={data.problemAnalysis || ''}
+                                    onChange={(e) => updateData('problemAnalysis', e.target.value)}
+                                    disabled={!isEditable || isCurrentCompleted}
+                                />
+                            </div>
+
+                            {/* Diagnosis Category Dropdown */}
+                            <div>
+                                <label className="text-xs font-bold text-slate-500 flex items-center gap-1 mb-2">
+                                    <ClipboardList size={14} /> 问题诊断类别 <span className="text-red-500">*</span>
+                                </label>
+                                <select 
+                                    className="w-full border border-slate-200 rounded-xl p-3 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 appearance-none"
+                                    value={data.diagnosisCategory || ''}
+                                    onChange={(e) => updateData('diagnosisCategory', e.target.value as FeedbackDiagnosisCategory)}
+                                    disabled={!isEditable || isCurrentCompleted}
+                                >
+                                    <option value="">请选择诊断类别...</option>
+                                    <option value="人为损坏">人为损坏</option>
+                                    <option value="设备故障">设备故障</option>
+                                    <option value="其他情况">其他情况</option>
+                                </select>
+                            </div>
+                            
+                            {/* Image Upload for Problem Analysis */}
+                            <div>
+                                <label className="text-xs font-bold text-slate-500 flex items-center gap-1 mb-2 border-t border-slate-50 pt-2">
+                                    <Camera size={14} /> 分析图片 (可选)
+                                </label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {isEditable && !isCurrentCompleted && (
+                                        <div className="aspect-square border-2 border-dashed border-blue-200 rounded-xl flex items-center justify-center cursor-pointer hover:bg-slate-50 relative hover:border-blue-400 transition-colors bg-slate-50 group">
+                                            <input type="file" accept="image/*,video/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleSpecificImageUpload('problemAnalysisImages', e)} />
+                                            <div className="flex flex-col items-center">
+                                                <Plus size={24} className="text-blue-400 group-hover:scale-110 transition-transform" />
+                                                <span className="text-[10px] text-blue-500 font-bold mt-1">上传</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {data.problemAnalysisImages?.map((url: string, i: number) => (
+                                        <div key={i} className="aspect-square rounded-xl border border-slate-200 overflow-hidden relative group shadow-sm bg-slate-100">
+                                            <img src={url} className="w-full h-full object-cover" />
+                                            {isEditable && !isCurrentCompleted && (
+                                                <button onClick={() => removeSpecificImage('problemAnalysisImages', i)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-80 hover:opacity-100"><X size={14} /></button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     )}
 
@@ -436,47 +501,113 @@ export const DeviceProcessFlow: React.FC = () => {
                     )}
 
                     {currentField === 'siteImages' && (
-                        <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
-                            <label className="text-xs font-bold text-slate-500 flex items-center gap-1 mb-3">
-                                <Camera size={14} /> 现场评估 (拍照)
-                            </label>
-                            <div className="grid grid-cols-2 gap-3">
-                                {isEditable && !isCurrentCompleted && (
-                                    <div className="aspect-square border-2 border-dashed border-blue-200 rounded-xl flex items-center justify-center cursor-pointer hover:bg-slate-50 relative hover:border-blue-400 transition-colors bg-slate-50 group">
-                                        <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleImageUpload} />
-                                        <div className="flex flex-col items-center">
-                                            <Plus size={24} className="text-blue-400 group-hover:scale-110 transition-transform" />
-                                            <span className="text-[10px] text-blue-500 font-bold mt-1">上传照片</span>
+                        <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm space-y-4">
+                            <div>
+                                <label className="text-xs font-bold text-slate-500 flex items-center gap-1 mb-3">
+                                    <Camera size={14} /> 现场评估 (拍照)
+                                </label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {isEditable && !isCurrentCompleted && (
+                                        <div className="aspect-square border-2 border-dashed border-blue-200 rounded-xl flex items-center justify-center cursor-pointer hover:bg-slate-50 relative hover:border-blue-400 transition-colors bg-slate-50 group">
+                                            <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleImageUpload} />
+                                            <div className="flex flex-col items-center">
+                                                <Plus size={24} className="text-blue-400 group-hover:scale-110 transition-transform" />
+                                                <span className="text-[10px] text-blue-500 font-bold mt-1">上传照片</span>
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
+                                    {data.siteImages?.map((url: string, i: number) => (
+                                        <div key={i} className="aspect-square rounded-xl border border-slate-200 overflow-hidden relative group shadow-sm bg-slate-100">
+                                            <img src={url} className="w-full h-full object-cover" />
+                                            {isEditable && !isCurrentCompleted && (
+                                                <button onClick={() => removeImage(i)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-80 hover:opacity-100"><X size={14} /></button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                                {(!data.siteImages || data.siteImages.length === 0) && (!isEditable || isCurrentCompleted) && (
+                                    <div className="text-center py-4 text-slate-400 text-xs">暂无照片</div>
                                 )}
-                                {data.siteImages?.map((url: string, i: number) => (
-                                    <div key={i} className="aspect-square rounded-xl border border-slate-200 overflow-hidden relative group shadow-sm bg-slate-100">
-                                        <img src={url} className="w-full h-full object-cover" />
-                                        {isEditable && !isCurrentCompleted && (
-                                            <button onClick={() => removeImage(i)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-80 hover:opacity-100"><X size={14} /></button>
-                                        )}
-                                    </div>
-                                ))}
                             </div>
-                            {(!data.siteImages || data.siteImages.length === 0) && (!isEditable || isCurrentCompleted) && (
-                                <div className="text-center py-4 text-slate-400 text-xs">暂无照片</div>
-                            )}
+
+                            {/* Diagnosis Category Dropdown */}
+                            <div>
+                                <label className="text-xs font-bold text-slate-500 flex items-center gap-1 mb-2 border-t border-slate-50 pt-3">
+                                    <ClipboardList size={14} /> 问题诊断类别 <span className="text-red-500">*</span>
+                                </label>
+                                <select 
+                                    className="w-full border border-slate-200 rounded-xl p-3 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 appearance-none"
+                                    value={data.diagnosisCategory || ''}
+                                    onChange={(e) => updateData('diagnosisCategory', e.target.value as FeedbackDiagnosisCategory)}
+                                    disabled={!isEditable || isCurrentCompleted}
+                                >
+                                    <option value="">请选择诊断类别...</option>
+                                    <option value="人为损坏">人为损坏</option>
+                                    <option value="设备故障">设备故障</option>
+                                    <option value="其他情况">其他情况</option>
+                                </select>
+                            </div>
                         </div>
                     )}
 
                     {currentField === 'result' && (
-                        <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
-                            <label className="text-xs font-bold text-slate-500 flex items-center gap-1 mb-2">
-                                <FileText size={14} /> 处理结果/方案
-                            </label>
-                            <textarea 
-                                className="w-full border border-slate-200 rounded-xl p-3 text-sm bg-slate-50 h-40 resize-none focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-60"
-                                placeholder={method === 'self' ? "请记录自助处理的情况..." : "描述处理过程及结果..."}
-                                value={data.result || ''}
-                                onChange={(e) => updateData('result', e.target.value)}
-                                disabled={!isEditable || isCurrentCompleted}
-                            />
+                        <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm space-y-4">
+                            <div>
+                                <label className="text-xs font-bold text-slate-500 flex items-center gap-1 mb-2">
+                                    <FileText size={14} /> 处理结果/方案
+                                </label>
+                                <textarea 
+                                    className="w-full border border-slate-200 rounded-xl p-3 text-sm bg-slate-50 h-32 resize-none focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-60 mb-3"
+                                    placeholder={method === 'self' ? "请记录自助处理的情况..." : "描述处理过程及结果..."}
+                                    value={data.result || ''}
+                                    onChange={(e) => updateData('result', e.target.value)}
+                                    disabled={!isEditable || isCurrentCompleted}
+                                />
+                            </div>
+
+                            {/* Resolution Status Dropdown */}
+                            <div>
+                                <label className="text-xs font-bold text-slate-500 flex items-center gap-1 mb-2">
+                                    <CheckCircle size={14} /> 处理结果选项 <span className="text-red-500">*</span>
+                                </label>
+                                <select 
+                                    className="w-full border border-slate-200 rounded-xl p-3 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-60 appearance-none"
+                                    value={data.resolutionStatus || ''}
+                                    onChange={(e) => updateData('resolutionStatus', e.target.value as FeedbackResolutionStatus)}
+                                    disabled={!isEditable || isCurrentCompleted}
+                                >
+                                    <option value="">请选择处理结果...</option>
+                                    <option value="已解决">已解决</option>
+                                    <option value="需二次处理">需二次处理</option>
+                                    <option value="无法解决">无法解决</option>
+                                </select>
+                            </div>
+
+                            {/* Image Upload for Result */}
+                            <div>
+                                <label className="text-xs font-bold text-slate-500 flex items-center gap-1 mb-2 mt-2 border-t border-slate-50 pt-3">
+                                    <Camera size={14} /> 结果凭证 (可选)
+                                </label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {isEditable && !isCurrentCompleted && (
+                                        <div className="aspect-square border-2 border-dashed border-blue-200 rounded-xl flex items-center justify-center cursor-pointer hover:bg-slate-50 relative hover:border-blue-400 transition-colors bg-slate-50 group">
+                                            <input type="file" accept="image/*,video/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleSpecificImageUpload('resultImages', e)} />
+                                            <div className="flex flex-col items-center">
+                                                <Plus size={24} className="text-blue-400 group-hover:scale-110 transition-transform" />
+                                                <span className="text-[10px] text-blue-500 font-bold mt-1">上传</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {data.resultImages?.map((url: string, i: number) => (
+                                        <div key={i} className="aspect-square rounded-xl border border-slate-200 overflow-hidden relative group shadow-sm bg-slate-100">
+                                            <img src={url} className="w-full h-full object-cover" />
+                                            {isEditable && !isCurrentCompleted && (
+                                                <button onClick={() => removeSpecificImage('resultImages', i)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-80 hover:opacity-100"><X size={14} /></button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>

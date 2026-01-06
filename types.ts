@@ -269,6 +269,9 @@ export type FeedbackStepMeta = {
     operator: string;
 };
 
+export type FeedbackDiagnosisCategory = '人为损坏' | '设备故障' | '其他情况';
+export type FeedbackResolutionStatus = '已解决' | '需二次处理' | '无法解决';
+
 export type FeedbackProcessData = {
     // Order Taking
     receiveTime?: string;
@@ -276,7 +279,12 @@ export type FeedbackProcessData = {
 
     // Common
     result?: string;
-    problemAnalysis?: string; // New: For Problem Analysis step
+    resultImages?: string[]; 
+    resolutionStatus?: FeedbackResolutionStatus; // New: Resolution Result
+    
+    problemAnalysis?: string; 
+    problemAnalysisImages?: string[]; 
+    diagnosisCategory?: FeedbackDiagnosisCategory; // New: Diagnosis Category (For Analysis/Site Assessment)
     
     // Remote
     connectionTime?: string;

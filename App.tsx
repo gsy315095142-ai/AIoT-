@@ -1,4 +1,4 @@
-// 标记：本次更新优化了设备处理流程，增加了接单机制、问题分析环节、现场评估环节，并实现了严格的环节流转控制和操作记录。
+// 标记：本次更新优化了设备处理流程，支持在未完成前查看任意环节；在登录后默认进入数据总览；并在问题分析、现场评估及处理结果环节增加了必填的诊断分类和处理结果选项。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

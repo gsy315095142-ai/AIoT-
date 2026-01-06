@@ -893,7 +893,8 @@ const DeviceList: React.FC = () => {
 
 // Main Export with Tabs
 export const DeviceManagement: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<'overview' | 'devices' | 'content'>('devices');
+    // Change default activeTab to 'overview'
+    const [activeTab, setActiveTab] = useState<'overview' | 'devices' | 'content'>('overview');
 
     return (
         <div className="flex flex-col h-full">
