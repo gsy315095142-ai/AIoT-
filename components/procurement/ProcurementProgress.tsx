@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent, useMemo } from 'react';
-import { TrendingUp, Package, ChevronRight, CheckCircle, Truck, ClipboardList, Box, MapPin, X, ChevronLeft, Check, Upload, Link, Copy, Clipboard, FileText, Image as ImageIcon, ExternalLink, Calendar, AlertCircle, Plus, Trash2, Edit2, Store, ChevronDown, Camera } from 'lucide-react';
+import { TrendingUp, Package, ChevronRight, CheckCircle, Truck, ClipboardList, Box, MapPin, X, ChevronLeft, Check, Upload, Link, Copy, Clipboard, FileText, Image as ImageIcon, ExternalLink, Calendar, AlertCircle, Plus, Trash2, Edit2, Store, ChevronDown, Camera, Download } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ProcurementOrder, Region } from '../../types';
 import { AuditGate } from '../DeviceComponents';
@@ -102,6 +102,67 @@ export const ProcurementProgress: React.FC = () => {
       if (order) openDetail(order);
   };
 
+  const handleExport = (e: React.MouseEvent, order: ProcurementOrder) => {
+      e.stopPropagation();
+      
+      const headers = ['步骤', '状态', '完成时间', '备注信息'];
+      const rows = STEPS.map(step => {
+          const stepId = step.id;
+          const isCompleted = order.status === 'completed' || (order.status !== 'pending_receive' && order.currentStep > stepId) || (order.currentStep === stepId && order.stepData?.[stepId]?.completionTime);
+          const stepData = order.stepData?.[stepId];
+          const completionTime = stepData?.completionTime || '-';
+          
+          let details = '-';
+          if (stepId === 4) { // Logistics
+              const items = stepData?.logisticsItems || [];
+              if (items.length > 0) {
+                  details = items.map(i => `${i.name}: ${i.url}`).join('; ');
+              } else if (stepData?.logisticsLink) {
+                  details = stepData.logisticsLink;
+              }
+          }
+
+          let statusText = '未开始';
+          // Logic to determine status text
+          if (order.status === 'completed') {
+              statusText = '已完成';
+          } else if (order.status === 'pending_receive') {
+              statusText = '未开始'; // Or '待接收'
+          } else {
+              if (order.currentStep > stepId) statusText = '已完成';
+              else if (order.currentStep === stepId) statusText = '进行中';
+              else statusText = '未开始';
+          }
+          
+          // Exception for step 1 which is implicitly done when moving to purchasing
+          if (stepId === 1 && order.status !== 'pending_receive') statusText = '已完成';
+
+          return [
+              step.label,
+              statusText,
+              completionTime,
+              `"${details}"` // Wrap in quotes to handle commas
+          ].join(',');
+      });
+
+      const csvContent = [
+          `订单号: ${order.id}, 门店: ${order.storeName}, 总价: ${order.totalPrice}`,
+          `下单时间: ${order.createTime}`,
+          '',
+          headers.join(','),
+          ...rows
+      ].join('\n');
+
+      const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `${order.storeName}_采购单_${order.id}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+  };
+
   const openExample = (stepId: number) => {
       const url = EXAMPLE_IMAGES[stepId];
       if (url) {
@@ -175,12 +236,12 @@ export const ProcurementProgress: React.FC = () => {
       const stepData = selectedOrder.stepData?.[4] || {};
       // Backward compatibility: If legacy string exists and items array is empty, wrap it
       if ((!stepData.logisticsItems || stepData.logisticsItems.length === 0) && stepData.logisticsLink) {
-          return [{ id: 'legacy', name: '物流链接', url: stepData.logisticsLink }];
+          return [{ id: 'legacy', name: '物流链接', url: stepData.logisticsLink, images: [] }];
       }
       return stepData.logisticsItems || [];
   };
 
-  const updateLogisticsItems = (items: { id: string; name: string; url: string; }[]) => {
+  const updateLogisticsItems = (items: { id: string; name: string; url: string; images?: string[] }[]) => {
       if (!selectedOrder) return;
       const currentStepData = selectedOrder.stepData?.[4] || {};
       const newStepData = {
@@ -198,7 +259,7 @@ export const ProcurementProgress: React.FC = () => {
 
   const handleAddLogisticsItem = () => {
       const items = getLogisticsItems();
-      const newItem = { id: `log-${Date.now()}`, name: `物流单号 ${items.length + 1}`, url: '' };
+      const newItem = { id: `log-${Date.now()}`, name: `物流单号 ${items.length + 1}`, url: '', images: [] };
       updateLogisticsItems([...items, newItem]);
       setEditingItemId(newItem.id); // Auto-enter edit mode
   };
@@ -212,6 +273,42 @@ export const ProcurementProgress: React.FC = () => {
 
   const handleRemoveLogisticsItem = (id: string) => {
       const items = getLogisticsItems().filter(item => item.id !== id);
+      updateLogisticsItems(items);
+  };
+
+  const handleLogisticsImageUpload = (itemId: string, e: ChangeEvent<HTMLInputElement>) => {
+      if (!selectedOrder) return;
+      if (e.target.files && e.target.files[0]) {
+          const url = URL.createObjectURL(e.target.files[0]);
+          const items = getLogisticsItems().map(item => {
+              if (item.id === itemId) {
+                  return { ...item, images: [...(item.images || []), url] };
+              }
+              return item;
+          });
+          updateLogisticsItems(items);
+          e.target.value = '';
+      }
+  };
+
+  const handleSimulateLogisticsImage = (itemId: string) => {
+      const url = MOCK_ASSETS[Math.floor(Math.random() * MOCK_ASSETS.length)];
+      const items = getLogisticsItems().map(item => {
+          if (item.id === itemId) {
+              return { ...item, images: [...(item.images || []), url] };
+          }
+          return item;
+      });
+      updateLogisticsItems(items);
+  };
+
+  const handleRemoveLogisticsImage = (itemId: string, index: number) => {
+      const items = getLogisticsItems().map(item => {
+          if (item.id === itemId) {
+              return { ...item, images: (item.images || []).filter((_, i) => i !== index) };
+          }
+          return item;
+      });
       updateLogisticsItems(items);
   };
 
@@ -334,8 +431,8 @@ export const ProcurementProgress: React.FC = () => {
             const items = stepData.logisticsItems || [];
             // If legacy link exists and no items, consider it valid
             if (items.length === 0 && stepData.logisticsLink) return true;
-            // Valid if there is at least one item with a URL
-            return items.length > 0 && items.some(i => i.url.trim() !== '');
+            // Valid if there is at least one item and EVERY item has at least one image
+            return items.length > 0 && items.every(i => i.url.trim() !== '' && i.images && i.images.length > 0);
         }
         if (viewingStep === 5) { // Signed
             return stepData.images && stepData.images.length > 0;
@@ -440,8 +537,17 @@ export const ProcurementProgress: React.FC = () => {
                                     )}
                                 </div>
                             </div>
-                            <div className="text-right">
-                                 <div className="font-bold text-orange-600 text-sm">¥ {order.totalPrice.toLocaleString()}</div>
+                            <div className="flex flex-col items-end gap-1">
+                                 <div className="flex items-center gap-2">
+                                     <button 
+                                        onClick={(e) => handleExport(e, order)}
+                                        className="p-1.5 bg-slate-100 hover:bg-blue-100 hover:text-blue-600 text-slate-500 rounded-lg transition-colors"
+                                        title="导出采购流程"
+                                     >
+                                         <Download size={16} />
+                                     </button>
+                                     <div className="font-bold text-orange-600 text-sm">¥ {order.totalPrice.toLocaleString()}</div>
+                                 </div>
                                  <div className="mt-1 text-right">
                                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
                                          isPending ? 'bg-slate-50 text-slate-500 border-slate-200' :
@@ -715,7 +821,7 @@ export const ProcurementProgress: React.FC = () => {
                                              </div>
                                          )}
 
-                                         <div className="space-y-3">
+                                         <div className="space-y-4">
                                              {logisticsItems.map((item, index) => {
                                                  const isEditing = editingItemId === item.id;
                                                  return (
@@ -796,6 +902,42 @@ export const ProcurementProgress: React.FC = () => {
                                                                  </div>
                                                              </div>
                                                          )}
+
+                                                         {/* Image Upload Area for this Logistics Item */}
+                                                         <div className="mt-2 bg-white rounded border border-slate-100 p-2">
+                                                             <label className="text-[9px] text-slate-400 font-bold uppercase mb-2 block">物流凭证 (必填)</label>
+                                                             <div className="grid grid-cols-4 gap-2">
+                                                                 {isEditable && (
+                                                                     <>
+                                                                         <div className="aspect-square border border-dashed border-blue-200 rounded bg-blue-50/50 flex flex-col items-center justify-center relative hover:bg-blue-50 transition-colors cursor-pointer group">
+                                                                             <input type="file" accept="image/*" onChange={(e) => handleLogisticsImageUpload(item.id, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                                                             <Upload size={14} className="text-blue-400 mb-0.5 group-hover:scale-110 transition-transform" />
+                                                                             <span className="text-[8px] text-blue-500 font-bold">上传</span>
+                                                                         </div>
+                                                                         <div 
+                                                                             onClick={() => handleSimulateLogisticsImage(item.id)}
+                                                                             className="aspect-square border border-dashed border-blue-200 rounded bg-blue-50/50 flex flex-col items-center justify-center relative hover:bg-blue-50 transition-colors cursor-pointer group"
+                                                                         >
+                                                                             <Camera size={14} className="text-blue-400 mb-0.5 group-hover:scale-110 transition-transform" />
+                                                                             <span className="text-[8px] text-blue-500 font-bold">拍照</span>
+                                                                         </div>
+                                                                     </>
+                                                                 )}
+                                                                 {item.images?.map((url, imgIdx) => (
+                                                                     <div key={imgIdx} className="aspect-square rounded border border-slate-200 overflow-hidden relative group bg-white">
+                                                                         <img src={url} className="w-full h-full object-cover" />
+                                                                         {isEditable && (
+                                                                             <button 
+                                                                                 onClick={() => handleRemoveLogisticsImage(item.id, imgIdx)} 
+                                                                                 className="absolute top-0.5 right-0.5 bg-red-500 text-white p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                             >
+                                                                                 <X size={8} />
+                                                                             </button>
+                                                                         )}
+                                                                     </div>
+                                                                 ))}
+                                                             </div>
+                                                         </div>
                                                      </div>
                                                  );
                                              })}

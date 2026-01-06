@@ -1,4 +1,4 @@
-// 标记：本次更新在【采购进度详情】页面的【备货】、【出库】、【确认收货】环节中，新增了【拍照】图标，点击后可模拟添加图片
+// 标记：本次更新在【采购进度】界面，为每个采购条目新增了【导出】按钮，支持导出采购流程记录表格到本地
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
