@@ -28,7 +28,7 @@ const EXAMPLE_IMAGES: Record<string, string> = {
 };
 
 export const RoomArchive: React.FC = () => {
-  const { regions, stores, addStore, updateStore, removeStore, publishMeasurementTask } = useApp();
+  const { regions, stores, addStore, updateStore, removeStore, publishMeasurementTask, publishInstallationTask } = useApp();
 
   // Navigation & Filter State
   const [viewingStoreId, setViewingStoreId] = useState<string | null>(null);
@@ -84,6 +84,7 @@ export const RoomArchive: React.FC = () => {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [taskModalStoreId, setTaskModalStoreId] = useState<string | null>(null);
   const [taskDeadline, setTaskDeadline] = useState('');
+  const [activeTaskType, setActiveTaskType] = useState<'measurement' | 'installation' | null>(null);
 
   // Derived State
   const activeStore = stores.find(s => s.id === viewingStoreId);
@@ -491,17 +492,25 @@ export const RoomArchive: React.FC = () => {
   };
 
   // --- Publish Task Handlers ---
-  const handleOpenTaskModal = (storeId: string, currentDeadline?: string) => {
+  const handleOpenTaskModal = (storeId: string, type: 'measurement' | 'installation', currentDeadline?: string) => {
       setTaskModalStoreId(storeId);
+      setActiveTaskType(type);
       setTaskDeadline(currentDeadline || '');
       setIsTaskModalOpen(true);
   };
 
   const handlePublishTask = () => {
-      if (!taskModalStoreId || !taskDeadline) return;
-      publishMeasurementTask(taskModalStoreId, taskDeadline);
+      if (!taskModalStoreId || !taskDeadline || !activeTaskType) return;
+      
+      if (activeTaskType === 'measurement') {
+          publishMeasurementTask(taskModalStoreId, taskDeadline);
+      } else {
+          publishInstallationTask(taskModalStoreId, taskDeadline);
+      }
+      
       setIsTaskModalOpen(false);
       setTaskModalStoreId(null);
+      setActiveTaskType(null);
   };
 
   // --- View Switching ---
@@ -1111,19 +1120,21 @@ export const RoomArchive: React.FC = () => {
 
               {/* Publish Task Modal - Ensures it renders when state is true, regardless of view mode if active */}
               {isTaskModalOpen && (
-                  <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
-                      <div className="bg-white rounded-xl shadow-2xl w-full max-w-xs overflow-hidden flex flex-col animate-scaleIn">
+                  <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm" onClick={(e) => e.stopPropagation()}>
+                      <div className="bg-white rounded-xl shadow-2xl w-full max-w-xs overflow-hidden flex flex-col animate-scaleIn" onClick={(e) => e.stopPropagation()}>
                           <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
                               <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                                  <Send size={18} className="text-blue-600" />
-                                  发布复尺任务
+                                  {activeTaskType === 'measurement' ? <Send size={18} className="text-blue-600" /> : <Hammer size={18} className="text-blue-600" />}
+                                  {activeTaskType === 'measurement' ? '发布复尺任务' : '发布安装任务'}
                               </h3>
                               <button onClick={() => setIsTaskModalOpen(false)}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
                           </div>
                           
                           <div className="p-5 space-y-4">
                               <div>
-                                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">期望完成复尺的时间</label>
+                                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
+                                      {activeTaskType === 'measurement' ? '期望完成复尺的时间' : '预期安装时间'}
+                                  </label>
                                   <input 
                                       type="date" 
                                       className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50"
@@ -1133,7 +1144,10 @@ export const RoomArchive: React.FC = () => {
                               </div>
                               
                               <p className="text-xs text-slate-400 leading-relaxed">
-                                  发布任务后，该门店将出现在【客房复尺】列表中，供复尺人员查看和执行。
+                                  {activeTaskType === 'measurement' 
+                                    ? '发布任务后，该门店将出现在【客房复尺】列表中，供复尺人员查看和执行。'
+                                    : '发布任务后，该门店将出现在【客房安装】列表中，供安装人员查看和执行。'
+                                  }
                               </p>
 
                               <button 
@@ -1214,6 +1228,12 @@ export const RoomArchive: React.FC = () => {
                     }
                 }
 
+                // Installation Progress
+                const installNodes = store.installation?.nodes || [];
+                const installCompleted = installNodes.filter(n => n.completed).length;
+                const installTotal = installNodes.length;
+                const installProgress = installTotal > 0 ? Math.round((installCompleted / installTotal) * 100) : 0;
+
                 return (
                     <div 
                         key={store.id} 
@@ -1253,49 +1273,98 @@ export const RoomArchive: React.FC = () => {
                         </div>
 
                         {/* Bottom Row: Task Info & Progress */}
-                        <div className="mt-3 pt-3 border-t border-slate-50 flex items-center justify-between gap-4">
-                            {isTaskPublished ? (
-                                <>
-                                    <div className="flex-1">
-                                        <div className="flex justify-between items-center text-[10px] mb-1">
-                                            <span className="text-blue-600 font-bold flex items-center gap-1">
-                                                <Ruler size={10} /> 复尺进度: {progressPercent}%
-                                            </span>
-                                            <span className="text-slate-400">截止: {store.measurementTask?.deadline}</span>
+                        <div className="mt-3 pt-3 border-t border-slate-50 flex flex-col gap-3">
+                            {/* Measurement Task Section */}
+                            <div className="flex items-center justify-between gap-4">
+                                {isTaskPublished ? (
+                                    <>
+                                        <div className="flex-1">
+                                            <div className="flex justify-between items-center text-[10px] mb-1">
+                                                <span className="text-blue-600 font-bold flex items-center gap-1">
+                                                    <Ruler size={10} /> 复尺进度: {progressPercent}%
+                                                </span>
+                                                <span className="text-slate-400">截止: {store.measurementTask?.deadline}</span>
+                                            </div>
+                                            <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                                <div 
+                                                    className={`h-full rounded-full transition-all duration-500 ${progressPercent === 100 ? 'bg-green-500' : 'bg-blue-500'}`} 
+                                                    style={{ width: `${progressPercent}%` }}
+                                                ></div>
+                                            </div>
                                         </div>
-                                        <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                                            <div 
-                                                className={`h-full rounded-full transition-all duration-500 ${progressPercent === 100 ? 'bg-green-500' : 'bg-blue-500'}`} 
-                                                style={{ width: `${progressPercent}%` }}
-                                            ></div>
+                                        <button 
+                                            onClick={(e) => { 
+                                                e.stopPropagation(); 
+                                                handleOpenTaskModal(store.id, 'measurement', store.measurementTask?.deadline);
+                                            }}
+                                            className="text-[10px] px-2 py-1.5 rounded-lg shadow-sm flex items-center gap-1 font-bold transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 shrink-0"
+                                        >
+                                            <Edit2 size={10} /> 更新任务
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="text-xs text-slate-400 flex items-center gap-1 opacity-60">
+                                            <Ruler size={12} /> 暂未发布复尺任务
                                         </div>
-                                    </div>
-                                    <button 
-                                        onClick={(e) => { 
-                                            e.stopPropagation(); 
-                                            handleOpenTaskModal(store.id, store.measurementTask?.deadline);
-                                        }}
-                                        className="text-[10px] px-2 py-1.5 rounded-lg shadow-sm flex items-center gap-1 font-bold transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 shrink-0"
-                                    >
-                                        <Edit2 size={10} /> 更新任务
-                                    </button>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="text-xs text-slate-400 flex items-center gap-1 opacity-60">
-                                        <Ruler size={12} /> 暂未发布复尺任务
-                                    </div>
-                                    <button 
-                                        onClick={(e) => { 
-                                            e.stopPropagation(); 
-                                            handleOpenTaskModal(store.id);
-                                        }}
-                                        className="text-[10px] px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1 font-bold transition-colors bg-blue-600 text-white hover:bg-blue-700 shrink-0"
-                                    >
-                                        <Send size={10} /> 发布复尺任务
-                                    </button>
-                                </>
-                            )}
+                                        <button 
+                                            onClick={(e) => { 
+                                                e.stopPropagation(); 
+                                                handleOpenTaskModal(store.id, 'measurement');
+                                            }}
+                                            className="text-[10px] px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1 font-bold transition-colors bg-blue-600 text-white hover:bg-blue-700 shrink-0"
+                                        >
+                                            <Send size={10} /> 发布复尺任务
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+
+                            {/* Installation Task Section */}
+                            <div className="flex items-center justify-between gap-4">
+                                {store.installationTask?.status === 'published' ? (
+                                    <>
+                                        <div className="flex-1">
+                                            <div className="flex justify-between items-center text-[10px] mb-1">
+                                                <span className="text-green-600 font-bold flex items-center gap-1">
+                                                    <Hammer size={10} /> 安装进度: {installProgress}%
+                                                </span>
+                                                <span className="text-slate-400">预期: {store.installationTask.deadline}</span>
+                                            </div>
+                                            <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                                <div 
+                                                    className={`h-full rounded-full transition-all duration-500 bg-green-500`} 
+                                                    style={{ width: `${installProgress}%` }}
+                                                ></div>
+                                            </div>
+                                        </div>
+                                        <button 
+                                            onClick={(e) => { 
+                                                e.stopPropagation(); 
+                                                handleOpenTaskModal(store.id, 'installation', store.installationTask?.deadline);
+                                            }}
+                                            className="text-[10px] px-2 py-1.5 rounded-lg shadow-sm flex items-center gap-1 font-bold transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 shrink-0"
+                                        >
+                                            <Edit2 size={10} /> 更新任务
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="text-xs text-slate-400 flex items-center gap-1 opacity-60">
+                                            <Hammer size={12} /> 暂未发布安装任务
+                                        </div>
+                                        <button 
+                                            onClick={(e) => { 
+                                                e.stopPropagation(); 
+                                                handleOpenTaskModal(store.id, 'installation');
+                                            }}
+                                            className="text-[10px] px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1 font-bold transition-colors bg-blue-50 text-blue-600 hover:bg-blue-100 shrink-0"
+                                        >
+                                            <Send size={10} /> 发布安装任务
+                                        </button>
+                                    </>
+                                )}
+                            </div>
                         </div>
                     </div>
                 );
@@ -1309,14 +1378,16 @@ export const RoomArchive: React.FC = () => {
                     <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
                         <h3 className="font-bold text-slate-800 flex items-center gap-2">
                             <Send size={18} className="text-blue-600" />
-                            发布复尺任务
+                            {activeTaskType === 'measurement' ? '发布复尺任务' : '发布安装任务'}
                         </h3>
                         <button onClick={() => setIsTaskModalOpen(false)}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
                     </div>
                     
                     <div className="p-5 space-y-4">
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">期望完成复尺的时间</label>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
+                                {activeTaskType === 'measurement' ? '期望完成复尺的时间' : '预期安装时间'}
+                            </label>
                             <input 
                                 type="date" 
                                 className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50"
@@ -1326,7 +1397,10 @@ export const RoomArchive: React.FC = () => {
                         </div>
                         
                         <p className="text-xs text-slate-400 leading-relaxed">
-                            发布任务后，该门店将出现在【客房复尺】列表中，供复尺人员查看和执行。
+                            {activeTaskType === 'measurement' 
+                              ? '发布任务后，该门店将出现在【客房复尺】列表中，供复尺人员查看和执行。'
+                              : '发布任务后，该门店将出现在【客房安装】列表中，供安装人员查看和执行。'
+                            }
                         </p>
 
                         <button 

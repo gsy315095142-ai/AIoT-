@@ -351,6 +351,7 @@ interface AppContextType {
   approveAudit: (recordId: string) => void;
   rejectAudit: (recordId: string, reason: string) => void;
   publishMeasurementTask: (storeId: string, deadline: string) => void; // New
+  publishInstallationTask: (storeId: string, deadline: string) => void; // New
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -802,6 +803,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }));
   };
 
+  const publishInstallationTask = (storeId: string, deadline: string) => {
+      setStores(prev => prev.map(s => {
+          if (s.id === storeId) {
+              return {
+                  ...s,
+                  installationTask: {
+                      status: 'published',
+                      deadline,
+                      publishTime: new Date().toLocaleString()
+                  }
+              };
+          }
+          return s;
+      }));
+  };
+
   // --- Procurement Handlers ---
   const addProcurementProduct = (product: Omit<Product, 'id'>) => {
       setProcurementProducts(prev => [
@@ -898,7 +915,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addDeviceType, removeDeviceType, addSupplier, updateSupplier, removeSupplier,
       addDevice, updateDevice, deleteDeviceEvent,
       submitOpsStatusChange, submitInspectionReport, approveAudit, rejectAudit,
-      publishMeasurementTask
+      publishMeasurementTask, publishInstallationTask
     }}>
       {children}
     </AppContext.Provider>

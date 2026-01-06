@@ -107,6 +107,13 @@ export type MeasurementTask = {
   publishTime: string;
 };
 
+// New Installation Task Type
+export type InstallationTask = {
+  status: 'published' | 'completed';
+  deadline: string;
+  publishTime: string;
+};
+
 export type Store = {
   id: string;
   regionId: string;
@@ -116,6 +123,7 @@ export type Store = {
   installation?: StoreInstallation;
   moduleConfig: StoreModuleConfig; // New: Store-wide module configuration
   measurementTask?: MeasurementTask; // New: Measurement Task for the store
+  installationTask?: InstallationTask; // New: Installation Task for the store
 };
 
 export type DeviceType = {

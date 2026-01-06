@@ -38,7 +38,7 @@ export const DeviceFeedback: React.FC = () => {
         alert('设备运维状态修改进入审核');
     };
 
-    const FeedbackItem = ({ feedback, isPending }: { feedback: DeviceFeedbackModel; isPending: boolean }) => {
+    const FeedbackItem: React.FC<{ feedback: DeviceFeedbackModel; isPending: boolean }> = ({ feedback, isPending }) => {
         const isExpanded = expandedFeedbackId === feedback.id;
 
         return (

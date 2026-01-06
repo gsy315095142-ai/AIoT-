@@ -55,6 +55,8 @@ export const RoomInstall: React.FC = () => {
 
   // Filter Logic
   const filteredStores = stores.filter(s => {
+      // 3.1 Only show stores with published installation tasks
+      if (s.installationTask?.status !== 'published') return false;
       if (selectedRegion && s.regionId !== selectedRegion) return false;
       return true;
   });
@@ -80,7 +82,7 @@ export const RoomInstall: React.FC = () => {
 
   // Helper for Region Label with Status Counts
   const getRegionLabel = (region: Region) => {
-      const regionStores = stores.filter(s => s.regionId === region.id);
+      const regionStores = filteredStores.filter(s => s.regionId === region.id);
       const total = regionStores.length;
       
       const p1 = regionStores.filter(s => s.installation?.status === 'pending_review_1').length;
@@ -100,12 +102,12 @@ export const RoomInstall: React.FC = () => {
   };
 
   const getAllRegionsLabel = () => {
-      const total = stores.length;
-      const p1 = stores.filter(s => s.installation?.status === 'pending_review_1').length;
-      const p2 = stores.filter(s => s.installation?.status === 'pending_review_2').length;
-      const p3 = stores.filter(s => s.installation?.status === 'pending_review_3').length;
-      const p4 = stores.filter(s => s.installation?.status === 'pending_review_4').length;
-      const approved = stores.filter(s => s.installation?.status === 'approved').length;
+      const total = filteredStores.length;
+      const p1 = filteredStores.filter(s => s.installation?.status === 'pending_review_1').length;
+      const p2 = filteredStores.filter(s => s.installation?.status === 'pending_review_2').length;
+      const p3 = filteredStores.filter(s => s.installation?.status === 'pending_review_3').length;
+      const p4 = filteredStores.filter(s => s.installation?.status === 'pending_review_4').length;
+      const approved = filteredStores.filter(s => s.installation?.status === 'approved').length;
 
       let label = `全部大区 (总:${total}`;
       if (p1 > 0) label += ` 初审:${p1}`;
@@ -653,6 +655,11 @@ export const RoomInstall: React.FC = () => {
                                         </span>
                                     )}
                                 </div>
+                                {store.installationTask && (
+                                    <div className="text-[10px] text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded font-bold inline-flex items-center gap-1 mt-1.5">
+                                        <Calendar size={10} /> 预期安装: {store.installationTask.deadline}
+                                    </div>
+                                )}
                             </div>
                             
                             {/* Audit Button */}
