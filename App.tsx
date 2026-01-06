@@ -1,4 +1,4 @@
-// 标记：本次更新在【客房复尺】界面的复尺模块中新增了【拍照】功能，点击可模拟添加图片
+// 标记：本次更新在【客房安装进度】页面的各个环节（到店打卡、清点货物、安装、交付）中新增了【拍照】或【录像】的模拟功能
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent, useMemo, useRef } from 'react';
-import { Hammer, Store, ChevronDown, Clock, CheckCircle, Upload, X, Calendar, ClipboardList, AlertCircle, ArrowRight, Gavel, BedDouble, Info, Image as ImageIcon, MapPin, ChevronLeft, ChevronRight, Navigation, Plus, Check, RefreshCw, PlayCircle, Video, ChevronUp, Wifi, FileText, Square, CheckSquare, ListChecks, ToggleLeft, ToggleRight, Download } from 'lucide-react';
+import { Hammer, Store, ChevronDown, Clock, CheckCircle, Upload, X, Calendar, ClipboardList, AlertCircle, ArrowRight, Gavel, BedDouble, Info, Image as ImageIcon, MapPin, ChevronLeft, ChevronRight, Navigation, Plus, Check, RefreshCw, PlayCircle, Video, ChevronUp, Wifi, FileText, Square, CheckSquare, ListChecks, ToggleLeft, ToggleRight, Download, Camera } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Store as StoreType, InstallNode, InstallStatus, RoomImageCategory, Region, InstallationParamKey } from '../../types';
 import { AuditGate } from '../DeviceComponents';
@@ -21,6 +21,12 @@ const EXAMPLE_IMAGES: Record<string, string> = {
     '照片墙处墙面宽高': 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?q=80&w=600&auto=format&fit=crop',
     '玩乐活动区域长宽': 'https://images.unsplash.com/photo-1596178065887-1198b6148b2e?q=80&w=600&auto=format&fit=crop'
 };
+
+const MOCK_ASSETS = [
+    'https://images.unsplash.com/photo-1599690925058-90e1a0b368a4?q=80&w=600&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1550920760-72cb7c2fb74e?q=80&w=600&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1513694203232-719a280e022f?q=80&w=600&auto=format&fit=crop'
+];
 
 export const RoomInstall: React.FC = () => {
   const { regions, stores, updateStoreInstallation, devices, currentUser } = useApp();
@@ -62,7 +68,7 @@ export const RoomInstall: React.FC = () => {
   });
 
   // Helpers
-  const getProgress = (nodes: InstallNode[] = []) => {
+  const getProgress = (nodes: InstallNode[]) => {
       const completed = nodes.filter(n => n.completed).length;
       return Math.round((completed / Math.max(nodes.length, 1)) * 100);
   };
@@ -357,6 +363,20 @@ export const RoomInstall: React.FC = () => {
       }
   };
 
+  const handleSimulateCheckInImage = () => {
+      const url = MOCK_ASSETS[Math.floor(Math.random() * MOCK_ASSETS.length)];
+      const currentNode = activeStore?.installation?.nodes[1];
+      const currentData = (currentNode?.data && typeof currentNode.data === 'object' && !Array.isArray(currentNode.data)) 
+          ? currentNode.data 
+          : { images: [], address: '' };
+      
+      const newData = {
+          ...currentData,
+          images: [...(currentData.images || []), url]
+      };
+      updateNodeData(1, newData);
+  };
+
   const removeCheckInImage = (imgIndex: number) => {
       const currentNode = activeStore?.installation?.nodes[1];
       const currentData = currentNode?.data || { images: [], address: '' };
@@ -388,6 +408,14 @@ export const RoomInstall: React.FC = () => {
           updateNodeData(currentStepIndex, newImages);
           e.target.value = '';
       }
+  };
+
+  const handleSimulateSimpleImage = () => {
+      const url = MOCK_ASSETS[Math.floor(Math.random() * MOCK_ASSETS.length)];
+      const currentNode = activeStore?.installation?.nodes[currentStepIndex];
+      const currentImages: string[] = Array.isArray(currentNode?.data) ? currentNode.data : [];
+      const newImages = [...currentImages, url];
+      updateNodeData(currentStepIndex, newImages);
   };
 
   const removeSimpleImage = (imgIndex: number) => {
@@ -434,6 +462,27 @@ export const RoomInstall: React.FC = () => {
           updateNodeData(currentStepIndex, newData);
           e.target.value = '';
       }
+  };
+
+  const handleSimulateRoomImage = (roomNumber: string, category: RoomImageCategory) => {
+      const url = MOCK_ASSETS[Math.floor(Math.random() * MOCK_ASSETS.length)];
+      const currentNode = activeStore?.installation?.nodes[currentStepIndex];
+      const currentData = (currentNode?.data && typeof currentNode.data === 'object') ? currentNode.data : {};
+      
+      const roomData = currentData[roomNumber] || {};
+      const categoryData = getInstallModuleData(roomData[category]);
+      
+      const newData = {
+          ...currentData,
+          [roomNumber]: {
+              ...roomData,
+              [category]: {
+                  ...categoryData,
+                  images: [...categoryData.images, url]
+              }
+          }
+      };
+      updateNodeData(currentStepIndex, newData);
   };
 
   const removeRoomImage = (roomNumber: string, category: RoomImageCategory, imgIndex: number) => {
@@ -519,6 +568,17 @@ export const RoomInstall: React.FC = () => {
           updateNodeData(currentStepIndex, newItems);
           e.target.value = '';
       }
+  };
+
+  const handleSimulateDeliveryItem = (type: 'image' | 'video') => {
+      const url = MOCK_ASSETS[Math.floor(Math.random() * MOCK_ASSETS.length)];
+      
+      const currentNode = activeStore?.installation?.nodes[currentStepIndex];
+      const currentItems = Array.isArray(currentNode?.data) ? currentNode.data : [];
+      const normalizeItems = currentItems.map((item: any) => typeof item === 'string' ? { url: item, type: 'image' } : item);
+      
+      const newItems = [...normalizeItems, { url, type }];
+      updateNodeData(currentStepIndex, newItems);
   };
 
   const removeDeliveryItem = (index: number) => {
@@ -1016,7 +1076,16 @@ export const RoomInstall: React.FC = () => {
                                                 <div className="aspect-square border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 hover:border-blue-300 relative group transition-all">
                                                     <input type="file" accept="image/*" onChange={handleCheckInImageUpload} className="absolute inset-0 opacity-0 cursor-pointer"/>
                                                     <Upload size={20} className="text-slate-300 group-hover:text-blue-400 mb-1" />
-                                                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 font-bold">上传</span>
+                                                    <span className="text-[9px] text-slate-400 group-hover:text-blue-500 font-bold">上传</span>
+                                                </div>
+                                            )}
+                                            {!isLocked && (
+                                                <div 
+                                                    onClick={handleSimulateCheckInImage}
+                                                    className="aspect-square border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 hover:border-blue-300 relative group transition-all"
+                                                >
+                                                    <Camera size={20} className="text-slate-300 group-hover:text-blue-400 mb-1" />
+                                                    <span className="text-[9px] text-slate-400 group-hover:text-blue-500 font-bold">拍照</span>
                                                 </div>
                                             )}
                                             {(() => {
@@ -1152,6 +1221,15 @@ export const RoomInstall: React.FC = () => {
                                                                                 <input type="file" accept="image/*" onChange={(e) => handleRoomImageUpload(installingRoomNumber, cat, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
                                                                                 <Plus size={20} className="text-blue-400 mb-1 group-hover:scale-110 transition-transform" />
                                                                                 <span className="text-[9px] text-blue-500 font-bold">上传</span>
+                                                                            </div>
+                                                                        )}
+                                                                        {!isLocked && (
+                                                                            <div 
+                                                                                onClick={() => handleSimulateRoomImage(installingRoomNumber, cat)}
+                                                                                className="aspect-square border-2 border-dashed border-blue-200 rounded-lg bg-white flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50 relative group transition-colors"
+                                                                            >
+                                                                                <Camera size={20} className="text-blue-400 mb-1 group-hover:scale-110 transition-transform" />
+                                                                                <span className="text-[9px] text-blue-500 font-bold">拍照</span>
                                                                             </div>
                                                                         )}
                                                                         {images.map((url: string, imgIdx: number) => (
@@ -1296,6 +1374,15 @@ export const RoomInstall: React.FC = () => {
                                                     <span className="text-[10px] text-slate-400 group-hover:text-blue-500 font-bold text-center leading-tight">上传图片<br/>或视频</span>
                                                 </div>
                                             )}
+                                            {!isLocked && (
+                                                <div 
+                                                    onClick={() => handleSimulateDeliveryItem('image')}
+                                                    className="aspect-square border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 hover:border-blue-300 relative group transition-all"
+                                                >
+                                                    <Video size={20} className="text-slate-300 group-hover:text-blue-400 mb-1" />
+                                                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 font-bold text-center leading-tight">录像</span>
+                                                </div>
+                                            )}
                                             {(() => {
                                                 const rawData = currentNode.data;
                                                 const items = Array.isArray(rawData) ? rawData : [];
@@ -1338,6 +1425,15 @@ export const RoomInstall: React.FC = () => {
                                                     <input type="file" accept="image/*" onChange={handleSimpleImageUpload} className="absolute inset-0 opacity-0 cursor-pointer"/>
                                                     <Upload size={20} className="text-slate-300 group-hover:text-blue-400 mb-1" />
                                                     <span className="text-[10px] text-slate-400 group-hover:text-blue-500 font-bold">上传</span>
+                                                </div>
+                                            )}
+                                            {!isLocked && (
+                                                <div 
+                                                    onClick={handleSimulateSimpleImage}
+                                                    className="aspect-square border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 hover:border-blue-300 relative group transition-all"
+                                                >
+                                                    <Camera size={20} className="text-slate-300 group-hover:text-blue-400 mb-1" />
+                                                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 font-bold">拍照</span>
                                                 </div>
                                             )}
                                             {Array.isArray(currentNode.data) && currentNode.data.map((url, imgIdx) => (
