@@ -1,8 +1,14 @@
 import React, { useState, ChangeEvent, useMemo } from 'react';
-import { TrendingUp, Package, ChevronRight, CheckCircle, Truck, ClipboardList, Box, MapPin, X, ChevronLeft, Check, Upload, Link, Copy, Clipboard, FileText, Image as ImageIcon, ExternalLink, Calendar, AlertCircle, Plus, Trash2, Edit2, Store, ChevronDown } from 'lucide-react';
+import { TrendingUp, Package, ChevronRight, CheckCircle, Truck, ClipboardList, Box, MapPin, X, ChevronLeft, Check, Upload, Link, Copy, Clipboard, FileText, Image as ImageIcon, ExternalLink, Calendar, AlertCircle, Plus, Trash2, Edit2, Store, ChevronDown, Camera } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ProcurementOrder, Region } from '../../types';
 import { AuditGate } from '../DeviceComponents';
+
+const MOCK_ASSETS = [
+    'https://images.unsplash.com/photo-1599690925058-90e1a0b368a4?q=80&w=600&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1550920760-72cb7c2fb74e?q=80&w=600&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1513694203232-719a280e022f?q=80&w=600&auto=format&fit=crop'
+];
 
 export const ProcurementProgress: React.FC = () => {
   const { procurementOrders, updateProcurementOrder, approveProcurementOrder, regions, stores } = useApp();
@@ -30,9 +36,9 @@ export const ProcurementProgress: React.FC = () => {
   const STEPS = [
       { id: 1, label: '确认订单', icon: ClipboardList },
       { id: 2, label: '备货', icon: Box },
-      { id: 3, label: '出库打包', icon: Package },
+      { id: 3, label: '出库', icon: Package },
       { id: 4, label: '物流', icon: Truck },
-      { id: 5, label: '签收', icon: CheckCircle },
+      { id: 5, label: '确认收货', icon: CheckCircle },
   ];
 
   // Example Images Map
@@ -125,6 +131,24 @@ export const ProcurementProgress: React.FC = () => {
           setSelectedOrder({ ...selectedOrder, stepData: newStepData });
           e.target.value = '';
       }
+  };
+
+  const handleSimulateImage = (stepId: number) => {
+      if (!selectedOrder) return;
+      const url = MOCK_ASSETS[Math.floor(Math.random() * MOCK_ASSETS.length)];
+      const currentStepData = selectedOrder.stepData?.[stepId] || {};
+      const currentImages = currentStepData.images || [];
+
+      const newStepData = {
+          ...selectedOrder.stepData,
+          [stepId]: {
+              ...currentStepData,
+              images: [...currentImages, url]
+          }
+      };
+
+      updateProcurementOrder(selectedOrder.id, { stepData: newStepData });
+      setSelectedOrder({ ...selectedOrder, stepData: newStepData });
   };
 
   const handleRemoveImage = (stepId: number, imageIndex: number) => {
@@ -455,7 +479,7 @@ export const ProcurementProgress: React.FC = () => {
                                 </div>
                                 <div className="flex justify-between items-center mt-1 text-[10px] text-slate-400">
                                     <span>确认订单</span>
-                                    <span>签收</span>
+                                    <span>确认收货</span>
                                 </div>
                             </div>
                         )}
@@ -619,7 +643,7 @@ export const ProcurementProgress: React.FC = () => {
                                      <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-center">
                                          <div className="flex justify-center items-center gap-2 mb-1">
                                              <p className="text-sm font-bold text-blue-800">
-                                                 {viewingStep === 2 ? '备货清单拍照' : viewingStep === 3 ? '打包现场拍照' : '签收现场拍照'}
+                                                 {viewingStep === 2 ? '备货清单拍照' : viewingStep === 3 ? '出库现场拍照' : '确认收货现场拍照'}
                                              </p>
                                              <button 
                                                 onClick={() => openExample(viewingStep)}
@@ -634,11 +658,20 @@ export const ProcurementProgress: React.FC = () => {
                                          
                                          <div className="grid grid-cols-3 gap-3">
                                              {isEditable && (
-                                                 <div className="aspect-square border-2 border-dashed border-blue-300 rounded-lg bg-white flex flex-col items-center justify-center relative hover:bg-blue-50 transition-colors cursor-pointer group">
-                                                     <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, viewingStep)} className="absolute inset-0 opacity-0 cursor-pointer" />
-                                                     <Upload size={20} className="text-blue-400 group-hover:scale-110 transition-transform" />
-                                                     <span className="text-[9px] text-blue-500 font-bold mt-1">上传</span>
-                                                 </div>
+                                                 <>
+                                                     <div className="aspect-square border-2 border-dashed border-blue-300 rounded-lg bg-white flex flex-col items-center justify-center relative hover:bg-blue-50 transition-colors cursor-pointer group">
+                                                         <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, viewingStep)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                                         <Upload size={20} className="text-blue-400 group-hover:scale-110 transition-transform" />
+                                                         <span className="text-[9px] text-blue-500 font-bold mt-1">上传</span>
+                                                     </div>
+                                                     <div 
+                                                         onClick={() => handleSimulateImage(viewingStep)}
+                                                         className="aspect-square border-2 border-dashed border-blue-300 rounded-lg bg-white flex flex-col items-center justify-center relative hover:bg-blue-50 transition-colors cursor-pointer group"
+                                                     >
+                                                         <Camera size={20} className="text-blue-400 group-hover:scale-110 transition-transform" />
+                                                         <span className="text-[9px] text-blue-500 font-bold mt-1">拍照</span>
+                                                     </div>
+                                                 </>
                                              )}
                                              {selectedOrder.stepData?.[viewingStep]?.images?.map((url, idx) => (
                                                  <div key={idx} className="aspect-square rounded-lg border border-slate-200 overflow-hidden relative group bg-white">
@@ -801,7 +834,7 @@ export const ProcurementProgress: React.FC = () => {
                                         <button onClick={() => setRejectMode(true)} className="w-full py-3 border border-red-200 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition-colors text-sm">驳回订单</button>
                                      </AuditGate>
                                      <AuditGate type="procurement" className="flex-1">
-                                        <button onClick={handleAuditApprove} className="w-full py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-sm transition-colors text-sm">签收通过</button>
+                                        <button onClick={handleAuditApprove} className="w-full py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-sm transition-colors text-sm">确认收货</button>
                                      </AuditGate>
                                  </div>
                              )}
@@ -826,7 +859,7 @@ export const ProcurementProgress: React.FC = () => {
                                             onClick={handleUpdateStep}
                                             className="flex-1 py-3 bg-slate-100 text-blue-600 font-bold rounded-xl hover:bg-blue-50 transition-all border border-blue-200"
                                          >
-                                            更新签收信息
+                                            更新收货信息
                                          </button>
                                          <button 
                                             onClick={handleAuditSubmit}

@@ -1,4 +1,4 @@
-// 标记：本次更新在【货物建档】和【客户下单】的货物选择页面中，调整了筛选布局，将货物类型（全部/硬件/物料）改为页签形式切换
+// 标记：本次更新在【采购进度详情】页面的【备货】、【出库】、【确认收货】环节中，新增了【拍照】图标，点击后可模拟添加图片
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
