@@ -298,6 +298,8 @@ export type ProcurementStepData = {
     logisticsLink?: string; // Legacy: Single string support
     logisticsItems?: { id: string; name: string; url: string; images?: string[] }[]; // New: Multiple links with images
     completionTime?: string; // New field for step completion timestamp
+    artAuditEntered?: boolean; // New: For Step 4 Audit
+    artAuditCompleted?: boolean; // New: For Step 4 Audit
 };
 
 // Procurement Process Steps: 
@@ -305,8 +307,9 @@ export type ProcurementStepData = {
 // 1: Confirmed (确认订单)
 // 2: Stocking (备货)
 // 3: Packing (出库打包)
-// 4: Logistics (物流)
-// 5: Signed (签收)
+// 4: Outbound Audit (出库审核) - NEW
+// 5: Logistics (物流)
+// 6: Signed (签收)
 export type ProcurementOrder = {
   id: string;
   storeId: string;
@@ -316,7 +319,7 @@ export type ProcurementOrder = {
   remark: string;
   expectDeliveryDate?: string; // New field
   status: 'pending_receive' | 'purchasing' | 'completed';
-  currentStep: number; // 0 to 5
+  currentStep: number; // 0 to 6
   createTime: string;
   stepData?: Record<number, ProcurementStepData>; // Stores images/links for each step
   auditStatus?: 'pending' | 'approved' | 'rejected'; // New: Audit after signing

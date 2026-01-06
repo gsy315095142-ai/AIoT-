@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent, useMemo } from 'react';
-import { TrendingUp, Package, ChevronRight, CheckCircle, Truck, ClipboardList, Box, MapPin, X, ChevronLeft, Check, Upload, Link, Copy, Clipboard, FileText, Image as ImageIcon, ExternalLink, Calendar, AlertCircle, Plus, Trash2, Edit2, Store, ChevronDown, Camera, Download } from 'lucide-react';
+import { TrendingUp, Package, ChevronRight, CheckCircle, Truck, ClipboardList, Box, MapPin, X, ChevronLeft, Check, Upload, Link, Copy, Clipboard, FileText, Image as ImageIcon, ExternalLink, Calendar, AlertCircle, Plus, Trash2, Edit2, Store, ChevronDown, Camera, Download, ClipboardCheck, Paintbrush } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ProcurementOrder, Region } from '../../types';
 import { AuditGate } from '../DeviceComponents';
@@ -37,15 +37,16 @@ export const ProcurementProgress: React.FC = () => {
       { id: 1, label: '确认订单', icon: ClipboardList },
       { id: 2, label: '备货', icon: Box },
       { id: 3, label: '出库', icon: Package },
-      { id: 4, label: '物流', icon: Truck },
-      { id: 5, label: '确认收货', icon: CheckCircle },
+      { id: 4, label: '出库审核', icon: ClipboardCheck },
+      { id: 5, label: '物流', icon: Truck },
+      { id: 6, label: '确认收货', icon: CheckCircle },
   ];
 
   // Example Images Map
   const EXAMPLE_IMAGES: Record<number, string> = {
       2: 'https://images.unsplash.com/photo-1553413077-190dd305871c?q=80&w=600&auto=format&fit=crop', // Stocking
       3: 'https://images.unsplash.com/photo-1586864387967-d02ef85d93e8?q=80&w=600&auto=format&fit=crop', // Packing
-      5: 'https://images.unsplash.com/photo-1623126908029-58cb08a2b272?q=80&w=600&auto=format&fit=crop'  // Signed
+      6: 'https://images.unsplash.com/photo-1623126908029-58cb08a2b272?q=80&w=600&auto=format&fit=crop'  // Signed
   };
 
   // --- Helper for Region Label with Detailed Order Counts ---
@@ -113,7 +114,7 @@ export const ProcurementProgress: React.FC = () => {
           const completionTime = stepData?.completionTime || '-';
           
           let details = '-';
-          if (stepId === 4) { // Logistics
+          if (stepId === 5) { // Logistics (Now Step 5)
               const items = stepData?.logisticsItems || [];
               if (items.length > 0) {
                   details = items.map(i => `${i.name}: ${i.url}`).join('; ');
@@ -229,11 +230,40 @@ export const ProcurementProgress: React.FC = () => {
       setSelectedOrder({ ...selectedOrder, stepData: newStepData });
   };
 
-  // --- Logistics Handlers (Step 4) ---
+  // --- Outbound Audit Handlers (Step 4) ---
+  const handleEnterArtAudit = () => {
+      if (!selectedOrder) return;
+      const currentStepData = selectedOrder.stepData?.[4] || {};
+      const newStepData = {
+          ...selectedOrder.stepData,
+          [4]: {
+              ...currentStepData,
+              artAuditEntered: true
+          }
+      };
+      updateProcurementOrder(selectedOrder.id, { stepData: newStepData });
+      setSelectedOrder({ ...selectedOrder, stepData: newStepData });
+  };
+
+  const handleToggleArtAuditComplete = (completed: boolean) => {
+      if (!selectedOrder) return;
+      const currentStepData = selectedOrder.stepData?.[4] || {};
+      const newStepData = {
+          ...selectedOrder.stepData,
+          [4]: {
+              ...currentStepData,
+              artAuditCompleted: completed
+          }
+      };
+      updateProcurementOrder(selectedOrder.id, { stepData: newStepData });
+      setSelectedOrder({ ...selectedOrder, stepData: newStepData });
+  };
+
+  // --- Logistics Handlers (Step 5) ---
 
   const getLogisticsItems = () => {
       if (!selectedOrder) return [];
-      const stepData = selectedOrder.stepData?.[4] || {};
+      const stepData = selectedOrder.stepData?.[5] || {};
       // Backward compatibility: If legacy string exists and items array is empty, wrap it
       if ((!stepData.logisticsItems || stepData.logisticsItems.length === 0) && stepData.logisticsLink) {
           return [{ id: 'legacy', name: '物流链接', url: stepData.logisticsLink, images: [] }];
@@ -243,10 +273,10 @@ export const ProcurementProgress: React.FC = () => {
 
   const updateLogisticsItems = (items: { id: string; name: string; url: string; images?: string[] }[]) => {
       if (!selectedOrder) return;
-      const currentStepData = selectedOrder.stepData?.[4] || {};
+      const currentStepData = selectedOrder.stepData?.[5] || {};
       const newStepData = {
           ...selectedOrder.stepData,
-          [4]: {
+          [5]: {
               ...currentStepData,
               logisticsItems: items,
               // Keep legacy field synced with first item url if available, or clear it
@@ -375,8 +405,8 @@ export const ProcurementProgress: React.FC = () => {
       const currentOrderId = selectedOrder.id;
       let nextState: Partial<ProcurementOrder> = { stepData: newStepData };
 
-      // If we are at the "current" step (not completed yet), move forward unless it's step 5
-      if (viewingStep === selectedOrder.currentStep && selectedOrder.status !== 'completed' && viewingStep < 5) {
+      // If we are at the "current" step (not completed yet), move forward unless it's step 6 (Confirm Receipt)
+      if (viewingStep === selectedOrder.currentStep && selectedOrder.status !== 'completed' && viewingStep < 6) {
           nextState.currentStep = selectedOrder.currentStep + 1;
       }
       
@@ -427,14 +457,17 @@ export const ProcurementProgress: React.FC = () => {
         if (viewingStep === 3) { // Packing
             return stepData.images && stepData.images.length > 0;
         }
-        if (viewingStep === 4) { // Logistics
+        if (viewingStep === 4) { // Outbound Audit
+            return stepData.artAuditCompleted === true;
+        }
+        if (viewingStep === 5) { // Logistics
             const items = stepData.logisticsItems || [];
             // If legacy link exists and no items, consider it valid
             if (items.length === 0 && stepData.logisticsLink) return true;
             // Valid if there is at least one item and EVERY item has at least one image
             return items.length > 0 && items.every(i => i.url.trim() !== '' && i.images && i.images.length > 0);
         }
-        if (viewingStep === 5) { // Signed
+        if (viewingStep === 6) { // Signed
             return stepData.images && stepData.images.length > 0;
         }
         return true;
@@ -447,8 +480,8 @@ export const ProcurementProgress: React.FC = () => {
 
   const getStepLabel = (stepId: number) => STEPS.find(s => s.id === stepId)?.label || '';
 
-  // Is Step 5 completed in data?
-  const isStep5Completed = !!selectedOrder?.stepData?.[5]?.completionTime;
+  // Is Step 6 completed in data?
+  const isStep6Completed = !!selectedOrder?.stepData?.[6]?.completionTime;
   
   // Is Viewing Step completed?
   const isViewingStepCompleted = !!selectedOrder?.stepData?.[viewingStep]?.completionTime;
@@ -743,8 +776,8 @@ export const ProcurementProgress: React.FC = () => {
 
                              {/* Step Specific Inputs */}
                              
-                             {/* Step 2 (Stocking) & Step 3 (Packing) & Step 5 (Signed) - Image Upload */}
-                             {(viewingStep === 2 || viewingStep === 3 || viewingStep === 5) && (
+                             {/* Step 2 (Stocking) & Step 3 (Packing) & Step 6 (Signed) - Image Upload */}
+                             {(viewingStep === 2 || viewingStep === 3 || viewingStep === 6) && (
                                  <div className="space-y-4">
                                      <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-center">
                                          <div className="flex justify-center items-center gap-2 mb-1">
@@ -797,8 +830,50 @@ export const ProcurementProgress: React.FC = () => {
                                  </div>
                              )}
 
-                             {/* Step 4: Logistics (Multiple Links Support) */}
+                             {/* Step 4: Outbound Audit - NEW */}
                              {viewingStep === 4 && (
+                                 <div className="space-y-4">
+                                     <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm text-center py-8">
+                                         {!selectedOrder.stepData?.[4]?.artAuditEntered ? (
+                                             <button 
+                                                 onClick={handleEnterArtAudit}
+                                                 className="bg-indigo-600 text-white font-bold py-3 px-6 rounded-xl hover:bg-indigo-700 shadow-md active:scale-95 transition-all flex items-center gap-2 mx-auto"
+                                             >
+                                                 <Paintbrush size={18} />
+                                                 进入美术审核
+                                             </button>
+                                         ) : (
+                                             <div className="space-y-4 animate-fadeIn">
+                                                 <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-xl">
+                                                     <label className="flex items-center justify-center gap-3 cursor-pointer p-2">
+                                                         <div className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${
+                                                             selectedOrder.stepData?.[4]?.artAuditCompleted 
+                                                                 ? 'bg-indigo-600 border-indigo-600' 
+                                                                 : 'bg-white border-slate-300'
+                                                         }`}>
+                                                             {selectedOrder.stepData?.[4]?.artAuditCompleted && <Check size={16} className="text-white" strokeWidth={3} />}
+                                                         </div>
+                                                         <input 
+                                                             type="checkbox" 
+                                                             className="hidden" 
+                                                             checked={!!selectedOrder.stepData?.[4]?.artAuditCompleted}
+                                                             onChange={(e) => handleToggleArtAuditComplete(e.target.checked)}
+                                                             disabled={!isEditable}
+                                                         />
+                                                         <span className={`font-bold ${selectedOrder.stepData?.[4]?.artAuditCompleted ? 'text-indigo-800' : 'text-slate-500'}`}>
+                                                             美术审核完成
+                                                         </span>
+                                                     </label>
+                                                 </div>
+                                                 <p className="text-xs text-slate-400">请确认出库物品符合美术标准后勾选</p>
+                                             </div>
+                                         )}
+                                     </div>
+                                 </div>
+                             )}
+
+                             {/* Step 5: Logistics (Multiple Links Support) */}
+                             {viewingStep === 5 && (
                                  <div className="space-y-4">
                                      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
                                          <div className="flex justify-between items-center mb-3">
@@ -993,8 +1068,8 @@ export const ProcurementProgress: React.FC = () => {
                                  </button>
                              ) : (
                                  // Logic Handling for Step Actions
-                                 // Step 5 Special Logic: Audit
-                                 (viewingStep === 5 && isStep5Completed && selectedOrder.auditStatus !== 'pending') ? (
+                                 // Step 6 Special Logic: Audit
+                                 (viewingStep === 6 && isStep6Completed && selectedOrder.auditStatus !== 'pending') ? (
                                      <div className="flex gap-2">
                                          {/* Allow updating data always */}
                                          <button 
@@ -1011,7 +1086,7 @@ export const ProcurementProgress: React.FC = () => {
                                          </button>
                                      </div>
                                  ) : (
-                                     // Steps 1-4 or Step 5 not yet done
+                                     // Steps 1-5 or Step 6 not yet done
                                      // If viewing future step (beyond current progress), just show Waiting
                                      (viewingStep > selectedOrder.currentStep && selectedOrder.status !== 'completed') ? (
                                          <button disabled className="w-full py-3 bg-slate-100 text-slate-400 font-bold rounded-xl flex items-center justify-center gap-2 cursor-default">
@@ -1046,7 +1121,7 @@ export const ProcurementProgress: React.FC = () => {
                                      </button>
                                      <button 
                                         onClick={() => navigateStep('next')}
-                                        disabled={viewingStep >= 5} 
+                                        disabled={viewingStep >= 6} 
                                         className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl disabled:opacity-50 flex items-center justify-center gap-1 hover:bg-slate-200 transition-colors"
                                      >
                                          下一环节 <ChevronRight size={16} />

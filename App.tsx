@@ -1,4 +1,4 @@
-// 标记：本次更新在【采购进度】界面，为每个采购条目新增了【导出】按钮，支持导出采购流程记录表格到本地
+// 标记：本次更新在【采购进度】界面，在【出库】与【物流】之间新增了【出库审核】环节，需完成美术审核勾选方可进行下一步
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
