@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent, useMemo, useRef } from 'react';
-import { Hammer, Store, ChevronDown, Clock, CheckCircle, Upload, X, Calendar, ClipboardList, AlertCircle, ArrowRight, Gavel, BedDouble, Info, Image as ImageIcon, MapPin, ChevronLeft, ChevronRight, Navigation, Plus, Check, RefreshCw, PlayCircle, Video, ChevronUp, Wifi, FileText, Square, CheckSquare, ListChecks, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Hammer, Store, ChevronDown, Clock, CheckCircle, Upload, X, Calendar, ClipboardList, AlertCircle, ArrowRight, Gavel, BedDouble, Info, Image as ImageIcon, MapPin, ChevronLeft, ChevronRight, Navigation, Plus, Check, RefreshCw, PlayCircle, Video, ChevronUp, Wifi, FileText, Square, CheckSquare, ListChecks, ToggleLeft, ToggleRight, Download } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Store as StoreType, InstallNode, InstallStatus, RoomImageCategory, Region, InstallationParamKey } from '../../types';
 import { AuditGate } from '../DeviceComponents';
@@ -23,7 +23,7 @@ const EXAMPLE_IMAGES: Record<string, string> = {
 };
 
 export const RoomInstall: React.FC = () => {
-  const { regions, stores, updateStoreInstallation, devices } = useApp();
+  const { regions, stores, updateStoreInstallation, devices, currentUser } = useApp();
   
   const [selectedRegion, setSelectedRegion] = useState('');
   
@@ -146,6 +146,45 @@ export const RoomInstall: React.FC = () => {
 
   const toggleRoomAccordion = (roomNumber: string) => {
       setExpandedRoomNumber(prev => prev === roomNumber ? null : roomNumber);
+  };
+
+  const handleExport = (e: React.MouseEvent, store: StoreType) => {
+      e.stopPropagation();
+      // Generate CSV
+      const headers = ['步骤序号', '步骤名称', '状态', '完成时间', '操作人', '备注详情'];
+      const rows = store.installation?.nodes.map((node, index) => {
+          let details = '';
+          if (node.name === '安装筹备' && node.data?.appointmentTime) details = `预约: ${node.data.appointmentTime}`;
+          else if (node.name === '到店打卡' && node.data?.address) details = `地址: ${node.data.address}`;
+          else if (node.name === '安装') {
+             const roomCount = store.rooms.length;
+             details = `共 ${roomCount} 间客房`;
+          }
+          
+          return [
+              index + 1,
+              node.name,
+              node.completed ? '已完成' : '未完成',
+              node.completionTime || '-',
+              node.operator || '-',
+              `"${details}"` // Escape quotes
+          ].join(',');
+      });
+      
+      const csvContent = [
+          `门店名称: ${store.name}, 所属大区: ${regions.find(r=>r.id===store.regionId)?.name || '-'}`,
+          headers.join(','),
+          ...(rows || [])
+      ].join('\n');
+
+      const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `${store.name}_安装记录.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
   };
 
   // Actions
@@ -576,7 +615,8 @@ export const RoomInstall: React.FC = () => {
       newNodes[currentStepIndex] = { 
           ...currentNode, 
           completed: true,
-          completionTime: new Date().toLocaleString()
+          completionTime: new Date().toLocaleString(),
+          operator: currentUser || 'System'
       };
       
       const newStatus = activeStore.installation.status === 'unstarted' ? 'in_progress' : activeStore.installation.status;
@@ -750,17 +790,27 @@ export const RoomInstall: React.FC = () => {
                                 )}
                             </div>
                             
-                            {/* Audit Button */}
-                            {isPending && (
-                                <AuditGate type="installation" stage={parseInt(install.status.split('_').pop() || '0')}>
-                                    <button 
-                                        onClick={(e) => handleOpenAudit(e, store)}
-                                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1 animate-pulse"
-                                    >
-                                        <Gavel size={14} /> 审核
-                                    </button>
-                                </AuditGate>
-                            )}
+                            <div className="flex flex-col items-end gap-2">
+                                <button 
+                                    onClick={(e) => handleExport(e, store)}
+                                    className="p-1.5 bg-slate-100 hover:bg-blue-100 hover:text-blue-600 text-slate-500 rounded-lg transition-colors"
+                                    title="导出安装记录"
+                                >
+                                    <Download size={16} />
+                                </button>
+
+                                {/* Audit Button */}
+                                {isPending && (
+                                    <AuditGate type="installation" stage={parseInt(install.status.split('_').pop() || '0')}>
+                                        <button 
+                                            onClick={(e) => handleOpenAudit(e, store)}
+                                            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1 animate-pulse"
+                                        >
+                                            <Gavel size={14} /> 审核
+                                        </button>
+                                    </AuditGate>
+                                )}
+                            </div>
                         </div>
 
                         {/* Rejection Reason Display */}
@@ -784,7 +834,7 @@ export const RoomInstall: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-300">
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 pointer-events-none">
                             <ArrowRight size={20} />
                         </div>
                     </div>
@@ -852,9 +902,10 @@ export const RoomInstall: React.FC = () => {
                             <div>
                                 <h2 className="text-xl font-bold text-slate-800">{currentNode.name}</h2>
                                 {currentNode.completed && currentNode.completionTime && (
-                                    <span className="text-[10px] text-green-600 font-bold bg-green-50 px-1.5 py-0.5 rounded mt-1 inline-block">
-                                        完成时间: {currentNode.completionTime}
-                                    </span>
+                                    <div className="text-[10px] bg-green-50 px-1.5 py-0.5 rounded mt-1 inline-block border border-green-100">
+                                        <span className="text-green-600 font-bold">完成时间: {currentNode.completionTime}</span>
+                                        <span className="text-slate-500 font-medium ml-2">操作人: {currentNode.operator || '-'}</span>
+                                    </div>
                                 )}
                             </div>
                             {currentStepIndex > 0 && currentStepIndex <= 5 && currentNode.name !== '安装' && (

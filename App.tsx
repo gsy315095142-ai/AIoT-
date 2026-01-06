@@ -1,4 +1,4 @@
-// 标记：本次更新在【安装进度详情】增加了SN号录入的下拉联想（基于当前房间已有设备），且安装筹备预约时间和发布任务预期时间默认显示今天
+// 标记：本次更新在【安装进度详情】增加了环节完成时的操作人记录显示，并在【客房安装】列表增加了门店安装流程的导出功能
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

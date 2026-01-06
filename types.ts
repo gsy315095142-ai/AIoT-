@@ -79,6 +79,7 @@ export type InstallNode = {
   completed: boolean;
   data?: any; // Changed from string to any to support string (time), string[] (images), or object (complex room images)
   completionTime?: string; // New field for completion timestamp
+  operator?: string; // New: Operator who completed the step
 };
 
 export type StoreInstallation = {
