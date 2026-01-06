@@ -7,15 +7,19 @@ import { DeviceFeedback as DeviceFeedbackModel, FeedbackMethod } from '../types'
 export const DeviceFeedback: React.FC = () => {
     const { feedbacks, resolveFeedback, dispatchFeedback, assignableUsers } = useApp();
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState<'pending' | 'resolved'>('pending');
+    
+    // Tab State: 'unassigned' | 'processing' | 'completed'
+    const [activeTab, setActiveTab] = useState<'unassigned' | 'processing' | 'completed'>('unassigned');
     
     // UI state for expanding a feedback item 
     const [expandedFeedbackId, setExpandedFeedbackId] = useState<string | null>(null);
     const [selectedMethod, setSelectedMethod] = useState<FeedbackMethod>('remote');
     const [selectedAssignee, setSelectedAssignee] = useState('');
 
-    const pendingFeedbacks = feedbacks.filter(f => f.status !== 'resolved' && f.status !== 'false_alarm');
-    const resolvedFeedbacks = feedbacks.filter(f => f.status === 'resolved' || f.status === 'false_alarm');
+    // Filter Logic
+    const unassignedFeedbacks = feedbacks.filter(f => f.status === 'pending_receive');
+    const processingFeedbacks = feedbacks.filter(f => f.status === 'processing' || f.status === 'pending_audit');
+    const completedFeedbacks = feedbacks.filter(f => f.status === 'resolved' || f.status === 'false_alarm');
 
     const handleFalseAlarm = (feedback: DeviceFeedbackModel) => {
         resolveFeedback(feedback.id, 'false_alarm', 'System');
@@ -39,7 +43,7 @@ export const DeviceFeedback: React.FC = () => {
     const getStatusLabel = (status: string) => {
         switch(status) {
             case 'pending_receive': return { text: '待接收', color: 'bg-red-100 text-red-600' };
-            case 'processing': return { text: '待处理', color: 'bg-blue-100 text-blue-600' };
+            case 'processing': return { text: '进行中', color: 'bg-blue-100 text-blue-600' };
             case 'pending_audit': return { text: '待审核', color: 'bg-orange-100 text-orange-600' };
             case 'resolved': return { text: '已解决', color: 'bg-green-100 text-green-600' };
             case 'false_alarm': return { text: '误报', color: 'bg-slate-100 text-slate-500' };
@@ -210,35 +214,62 @@ export const DeviceFeedback: React.FC = () => {
             <div className="p-4 pb-0">
                 <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-100 flex mb-4">
                     <button 
-                        onClick={() => setActiveTab('pending')}
-                        className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${activeTab === 'pending' ? 'bg-blue-50 text-blue-600 shadow-sm border border-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}
+                        onClick={() => setActiveTab('unassigned')}
+                        className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${activeTab === 'unassigned' ? 'bg-blue-50 text-blue-600 shadow-sm border border-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}
                     >
-                        待解决反馈
-                        {pendingFeedbacks.length > 0 && <span className="bg-red-500 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full shadow-sm">{pendingFeedbacks.length}</span>}
+                        <span className="flex items-center gap-1">
+                            待分配客诉
+                            {unassignedFeedbacks.length > 0 && <span className="bg-red-500 text-white text-[9px] w-4 h-4 flex items-center justify-center rounded-full shadow-sm">{unassignedFeedbacks.length}</span>}
+                        </span>
                     </button>
                     <div className="w-px bg-slate-100 my-1 mx-1"></div>
                     <button 
-                        onClick={() => setActiveTab('resolved')}
-                        className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${activeTab === 'resolved' ? 'bg-green-50 text-green-600 shadow-sm border border-green-100' : 'text-slate-500 hover:bg-slate-50'}`}
+                        onClick={() => setActiveTab('processing')}
+                        className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${activeTab === 'processing' ? 'bg-orange-50 text-orange-600 shadow-sm border border-orange-100' : 'text-slate-500 hover:bg-slate-50'}`}
                     >
-                        已解决反馈
+                        <span className="flex items-center gap-1">
+                            待完成工单
+                            {processingFeedbacks.length > 0 && <span className="bg-orange-500 text-white text-[9px] w-4 h-4 flex items-center justify-center rounded-full shadow-sm">{processingFeedbacks.length}</span>}
+                        </span>
+                    </button>
+                    <div className="w-px bg-slate-100 my-1 mx-1"></div>
+                    <button 
+                        onClick={() => setActiveTab('completed')}
+                        className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${activeTab === 'completed' ? 'bg-green-50 text-green-600 shadow-sm border border-green-100' : 'text-slate-500 hover:bg-slate-50'}`}
+                    >
+                        <span className="flex items-center gap-1">
+                            已完成工单
+                        </span>
                     </button>
                 </div>
             </div>
 
             <div className="flex-1 overflow-y-auto px-4 pb-20 space-y-3">
-                {activeTab === 'pending' ? (
-                    pendingFeedbacks.length > 0 ? (
-                        pendingFeedbacks.map(fb => <FeedbackItem key={fb.id} feedback={fb} isPendingTab={true} />)
+                {activeTab === 'unassigned' && (
+                    unassignedFeedbacks.length > 0 ? (
+                        unassignedFeedbacks.map(fb => <FeedbackItem key={fb.id} feedback={fb} isPendingTab={true} />)
                     ) : (
                         <div className="flex flex-col items-center justify-center py-20 text-slate-400">
                             <CheckCircle size={48} className="mb-2 opacity-20 text-green-500" />
-                            <p className="text-xs">暂无待解决反馈</p>
+                            <p className="text-xs">暂无待分配客诉</p>
                         </div>
                     )
-                ) : (
-                    resolvedFeedbacks.length > 0 ? (
-                        resolvedFeedbacks.map(fb => <FeedbackItem key={fb.id} feedback={fb} isPendingTab={false} />)
+                )}
+
+                {activeTab === 'processing' && (
+                    processingFeedbacks.length > 0 ? (
+                        processingFeedbacks.map(fb => <FeedbackItem key={fb.id} feedback={fb} isPendingTab={false} />)
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                            <CheckCircle size={48} className="mb-2 opacity-20 text-green-500" />
+                            <p className="text-xs">暂无待完成工单</p>
+                        </div>
+                    )
+                )}
+
+                {activeTab === 'completed' && (
+                    completedFeedbacks.length > 0 ? (
+                        completedFeedbacks.map(fb => <FeedbackItem key={fb.id} feedback={fb} isPendingTab={false} />)
                     ) : (
                         <div className="flex flex-col items-center justify-center py-20 text-slate-400">
                             <History size={48} className="mb-2 opacity-20" />

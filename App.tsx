@@ -1,4 +1,4 @@
-// 标记：本次更新在客房安装页面优化了审核状态下的交互，支持在审核期间通过导航按钮查看各个环节的详情。
+// 标记：本次更新优化了设备反馈管理页面的工单分类，将反馈分为待分配客诉、待完成工单（含进行中与待审核）和已完成工单三个维度。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
