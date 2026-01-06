@@ -1,4 +1,4 @@
-// 标记：本次更新优化了任务发布流程，新增了“任务指派对象”功能，支持在发布复尺和安装任务时指定负责人，并在列表页显示指派信息。
+// 标记：本次更新在【设备反馈管理】新增了派单指派功能，并在【配置】页面新增了【指派人员】管理模块，支持配置人员账号、名称及权限。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

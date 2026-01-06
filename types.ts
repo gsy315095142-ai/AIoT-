@@ -7,6 +7,13 @@ export type Region = {
 
 export type UserRole = 'admin' | 'product_director' | 'hardware' | 'procurement' | 'local' | 'ops_manager' | 'business_manager' | 'artist' | 'area_manager' | 'area_assistant';
 
+export type AssignableUser = {
+  id: string;
+  name: string;
+  account: string;
+  role: string;
+};
+
 export type RoomImageCategory = string;
 
 export type RoomImage = {
@@ -281,6 +288,7 @@ export type DeviceFeedback = {
   // Process Info
   processMethod?: FeedbackMethod;
   processData?: FeedbackProcessData;
+  assignee?: string; // New: Task Assignee
   
   // Audit Info
   auditStatus?: 'pending' | 'approved' | 'rejected';

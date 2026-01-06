@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent, AuditRecord, AuditStatus, AuditType, StoreInstallation, InstallNode, Product, RoomTypeConfig, ProcurementOrder, ProductSubType, UserRole, StoreModuleConfig, Supplier, DeviceFeedback, FeedbackStatus, FeedbackMethod, FeedbackProcessData } from '../types';
+import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent, AuditRecord, AuditStatus, AuditType, StoreInstallation, InstallNode, Product, RoomTypeConfig, ProcurementOrder, ProductSubType, UserRole, StoreModuleConfig, Supplier, DeviceFeedback, FeedbackStatus, FeedbackMethod, FeedbackProcessData, AssignableUser } from '../types';
 
 // Initial Mock Data
 const MOCK_REGIONS: Region[] = [
@@ -8,13 +8,13 @@ const MOCK_REGIONS: Region[] = [
   { id: 'r3', name: '麒麟大区' },
 ];
 
-// Mock Users for Assignment
-const MOCK_ASSIGNABLE_USERS = [
-    '张大伟 (实施工程师)',
-    '李小龙 (实施工程师)',
-    '王建国 (项目经理)',
-    '赵丽 (业务经理)',
-    '孙悟空 (外包人员)'
+// Mock Users for Assignment (Updated to Object Array)
+const MOCK_ASSIGNABLE_USERS: AssignableUser[] = [
+    { id: 'u1', name: '张大伟', account: 'zhangdw', role: '实施工程师' },
+    { id: 'u2', name: '李小龙', account: 'lixl', role: '实施工程师' },
+    { id: 'u3', name: '王建国', account: 'wangjg', role: '项目经理' },
+    { id: 'u4', name: '赵丽', account: 'zhaoli', role: '业务经理' },
+    { id: 'u5', name: '孙悟空', account: 'sunwk', role: '外包人员' }
 ];
 
 const DEFAULT_NODES: InstallNode[] = [
@@ -322,13 +322,13 @@ interface AppContextType {
   suppliers: Supplier[]; // New Supplier State
   devices: Device[];
   auditRecords: AuditRecord[];
-  assignableUsers: string[]; // List of users to assign tasks to
+  assignableUsers: AssignableUser[]; // Updated Type
   
   // Feedback
   feedbacks: DeviceFeedback[]; 
   addFeedback: (deviceId: string, content: string, images?: string[]) => void; 
   resolveFeedback: (id: string, type: 'resolved' | 'false_alarm', resolver: string) => void;
-  dispatchFeedback: (id: string, method: FeedbackMethod) => void;
+  dispatchFeedback: (id: string, method: FeedbackMethod, assignee?: string) => void; // Updated signature
   updateFeedbackProcess: (id: string, data: Partial<FeedbackProcessData>) => void;
   submitFeedbackAudit: (id: string) => void;
   approveFeedback: (id: string) => void;
@@ -361,6 +361,8 @@ interface AppContextType {
   addSupplier: (name: string) => void; // New
   updateSupplier: (id: string, name: string) => void; // New
   removeSupplier: (id: string) => void; // New
+  addAssignableUser: (user: Omit<AssignableUser, 'id'>) => void; // New
+  removeAssignableUser: (id: string) => void; // New
   addDevice: (device: Omit<Device, 'id' | 'events' | 'status' | 'opsStatus' | 'cpuUsage' | 'memoryUsage' | 'signalStrength' | 'lastTestTime'>) => void;
   updateDevice: (id: string, data: Partial<Device>, customEventMessage?: string, eventMeta?: { remark?: string, images?: string[] }) => void;
   deleteDeviceEvent: (deviceId: string, eventId: string) => void;
@@ -389,6 +391,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [procurementProducts, setProcurementProducts] = useState<Product[]>(MOCK_PRODUCTS);
   const [procurementOrders, setProcurementOrders] = useState<ProcurementOrder[]>([]);
   const [headerRightAction, setHeaderRightAction] = useState<ReactNode>(null);
+  const [assignableUsers, setAssignableUsers] = useState<AssignableUser[]>(MOCK_ASSIGNABLE_USERS); // Manage assignable users state
 
   const login = (username: string, role: UserRole) => {
     setCurrentUser(username);
@@ -493,6 +496,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const removeSupplier = (id: string) => {
     setSuppliers(suppliers.filter(s => s.id !== id));
+  };
+
+  const addAssignableUser = (user: Omit<AssignableUser, 'id'>) => {
+      setAssignableUsers([...assignableUsers, { id: `u${Date.now()}`, ...user }]);
+  };
+
+  const removeAssignableUser = (id: string) => {
+      setAssignableUsers(assignableUsers.filter(u => u.id !== id));
   };
 
   const addDevice = (deviceData: Omit<Device, 'id' | 'events' | 'status' | 'opsStatus' | 'cpuUsage' | 'memoryUsage' | 'signalStrength' | 'lastTestTime'>) => {
@@ -682,13 +693,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }));
   };
 
-  const dispatchFeedback = (id: string, method: FeedbackMethod) => {
+  const dispatchFeedback = (id: string, method: FeedbackMethod, assignee?: string) => {
       setFeedbacks(prev => prev.map(f => {
           if (f.id === id) {
               return {
                   ...f,
                   status: 'processing',
-                  processMethod: method
+                  processMethod: method,
+                  assignee: assignee
               };
           }
           return f;
@@ -1048,7 +1060,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       logout,
       checkAuditPermission,
       regions, stores, deviceTypes, suppliers, devices, auditRecords,
-      assignableUsers: MOCK_ASSIGNABLE_USERS,
+      assignableUsers, // Changed from MOCK_ASSIGNABLE_USERS
       feedbacks, addFeedback, resolveFeedback, dispatchFeedback, updateFeedbackProcess, submitFeedbackAudit, approveFeedback, rejectFeedback,
       procurementProducts, addProcurementProduct, updateProcurementProduct, removeProcurementProduct,
       procurementOrders, addProcurementOrder, updateProcurementOrder, approveProcurementOrder,
@@ -1056,6 +1068,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addRegion, updateRegion, removeRegion, 
       addStore, updateStore, updateStoreInstallation, removeStore, 
       addDeviceType, removeDeviceType, addSupplier, updateSupplier, removeSupplier,
+      addAssignableUser, removeAssignableUser, // New handlers
       addDevice, updateDevice, deleteDeviceEvent,
       submitOpsStatusChange, submitInspectionReport, approveAudit, rejectAudit,
       publishMeasurementTask, republishMeasurementTask, publishInstallationTask, republishInstallationTask

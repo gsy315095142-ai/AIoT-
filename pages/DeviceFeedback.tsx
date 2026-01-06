@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { MessageSquareWarning, ArrowLeft, CheckCircle, XCircle, AlertCircle, History, ChevronRight, Send, Headphones, MapPin, MonitorPlay, Calendar, Camera, FileText, X, Plus, Check, ChevronLeft } from 'lucide-react';
+import { MessageSquareWarning, ArrowLeft, CheckCircle, XCircle, AlertCircle, History, ChevronRight, Send, Headphones, MapPin, MonitorPlay, Calendar, Camera, FileText, X, Plus, Check, ChevronLeft, User, ChevronDown } from 'lucide-react';
 import { DeviceFeedback as DeviceFeedbackModel, FeedbackMethod } from '../types';
 
 export const DeviceFeedback: React.FC = () => {
-    const { feedbacks, resolveFeedback, dispatchFeedback } = useApp();
+    const { feedbacks, resolveFeedback, dispatchFeedback, assignableUsers } = useApp();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<'pending' | 'resolved'>('pending');
     
     // UI state for expanding a feedback item 
     const [expandedFeedbackId, setExpandedFeedbackId] = useState<string | null>(null);
     const [selectedMethod, setSelectedMethod] = useState<FeedbackMethod>('remote');
+    const [selectedAssignee, setSelectedAssignee] = useState('');
 
     const pendingFeedbacks = feedbacks.filter(f => f.status !== 'resolved' && f.status !== 'false_alarm');
     const resolvedFeedbacks = feedbacks.filter(f => f.status === 'resolved' || f.status === 'false_alarm');
@@ -22,8 +23,13 @@ export const DeviceFeedback: React.FC = () => {
     };
 
     const handleDispatch = (feedbackId: string) => {
-        dispatchFeedback(feedbackId, selectedMethod);
+        if (!selectedAssignee) {
+            alert('请选择任务指派对象');
+            return;
+        }
+        dispatchFeedback(feedbackId, selectedMethod, selectedAssignee);
         setExpandedFeedbackId(null);
+        setSelectedAssignee(''); // Reset selection
     };
 
     const handleOpenProcess = (feedbackId: string) => {
@@ -106,6 +112,12 @@ export const DeviceFeedback: React.FC = () => {
                                     <span className="text-blue-600 font-medium">{getMethodLabel(feedback.processMethod)}</span>
                                 </div>
                             )}
+                            {feedback.assignee && (
+                                <div className="flex items-center gap-1">
+                                    <span className="font-bold text-slate-500">处理人员:</span>
+                                    <span className="text-slate-600 font-medium">{feedback.assignee}</span>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -125,16 +137,36 @@ export const DeviceFeedback: React.FC = () => {
                             <label className="text-xs font-bold text-slate-600 mb-2 block flex items-center gap-1">
                                 <Send size={12} className="text-blue-500" /> 选择派单处理方式
                             </label>
-                            <div className="flex flex-col gap-2">
-                                <select 
-                                    className="w-full text-xs border border-slate-300 rounded px-2 py-2 focus:outline-none focus:border-blue-500 bg-white"
-                                    value={selectedMethod}
-                                    onChange={(e) => setSelectedMethod(e.target.value as FeedbackMethod)}
-                                >
-                                    <option value="remote">远程连线处理</option>
-                                    <option value="onsite">上门处理</option>
-                                    <option value="self">自助处理</option>
-                                </select>
+                            <div className="flex flex-col gap-3">
+                                <div>
+                                    <label className="text-[10px] text-slate-500 mb-1 block">处理方式</label>
+                                    <select 
+                                        className="w-full text-xs border border-slate-300 rounded px-2 py-2 focus:outline-none focus:border-blue-500 bg-white"
+                                        value={selectedMethod}
+                                        onChange={(e) => setSelectedMethod(e.target.value as FeedbackMethod)}
+                                    >
+                                        <option value="remote">远程连线处理</option>
+                                        <option value="onsite">上门处理</option>
+                                        <option value="self">自助处理</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="text-[10px] text-slate-500 mb-1 block">任务指派对象</label>
+                                    <div className="relative">
+                                        <select 
+                                            className="w-full text-xs border border-slate-300 rounded px-2 py-2 focus:outline-none focus:border-blue-500 bg-white appearance-none"
+                                            value={selectedAssignee}
+                                            onChange={(e) => setSelectedAssignee(e.target.value)}
+                                        >
+                                            <option value="">请选择负责人...</option>
+                                            {assignableUsers.map(user => (
+                                                <option key={user.id} value={user.name}>{user.name} ({user.role})</option>
+                                            ))}
+                                        </select>
+                                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                                    </div>
+                                </div>
 
                                 <button 
                                     onClick={() => handleDispatch(feedback.id)}

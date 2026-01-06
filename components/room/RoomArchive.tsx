@@ -1423,7 +1423,7 @@ export const RoomArchive: React.FC = () => {
                                 >
                                     <option value="">请选择负责人...</option>
                                     {useApp().assignableUsers.map(user => (
-                                        <option key={user} value={user}>{user}</option>
+                                        <option key={user.id} value={user.name}>{user.name} ({user.role})</option>
                                     ))}
                                 </select>
                                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
