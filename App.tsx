@@ -1,4 +1,4 @@
-// 标记：本次更新在【设备反馈管理】新增了派单指派功能，并在【配置】页面新增了【指派人员】管理模块，支持配置人员账号、名称及权限。
+// 标记：本次更新优化了设备处理流程，增加了接单机制、问题分析环节、现场评估环节，并实现了严格的环节流转控制和操作记录。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

@@ -263,9 +263,20 @@ export type AuditRecord = {
 export type FeedbackStatus = 'pending_receive' | 'processing' | 'pending_audit' | 'resolved' | 'false_alarm';
 export type FeedbackMethod = 'remote' | 'onsite' | 'self';
 
+export type FeedbackStepMeta = {
+    completed: boolean;
+    completionTime: string;
+    operator: string;
+};
+
 export type FeedbackProcessData = {
+    // Order Taking
+    receiveTime?: string;
+    receiver?: string;
+
     // Common
     result?: string;
+    problemAnalysis?: string; // New: For Problem Analysis step
     
     // Remote
     connectionTime?: string;
@@ -275,6 +286,9 @@ export type FeedbackProcessData = {
     checkInTime?: string;
     checkInLocation?: string;
     siteImages?: string[];
+    
+    // Step Tracking (Step ID -> Meta)
+    stepsMeta?: Record<number, FeedbackStepMeta>;
 };
 
 export type DeviceFeedback = {
