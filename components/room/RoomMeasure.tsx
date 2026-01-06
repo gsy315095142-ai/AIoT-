@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent } from 'react';
-import { Ruler, Store, ChevronDown, ChevronUp, Plus, X, Upload, ClipboardList, Edit3, Check, Save, Filter, BedDouble, HelpCircle, Image as ImageIcon, Send, AlertCircle, CheckCircle, ArrowRight, ArrowLeft, Settings, ListChecks, Calendar, Camera } from 'lucide-react';
+import { Ruler, Store, ChevronDown, ChevronUp, Plus, X, Upload, ClipboardList, Edit3, Check, Save, Filter, BedDouble, HelpCircle, Image as ImageIcon, Send, AlertCircle, CheckCircle, ArrowRight, ArrowLeft, Settings, ListChecks, Calendar, Camera, User } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { RoomImageCategory, RoomImage, RoomMeasurement, MeasurementType, RoomMeasurementStatus, RoomTypeConfig, ChecklistParam, Region } from '../../types';
 import { AuditGate } from '../DeviceComponents';
@@ -705,10 +705,17 @@ export const RoomMeasure: React.FC = () => {
                                                 {roomTypes.length} 种房型
                                             </span>
                                         </div>
-                                        {/* Show Task Deadline */}
+                                        {/* Show Task Deadline & Assignee */}
                                         {store.measurementTask && (
-                                            <div className="text-[10px] text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded font-bold inline-flex items-center gap-1 self-start">
-                                                <Calendar size={10} /> 期望完成: {store.measurementTask.deadline}
+                                            <div className="flex gap-2">
+                                                <div className="text-[10px] text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded font-bold inline-flex items-center gap-1 self-start">
+                                                    <Calendar size={10} /> 期望完成: {store.measurementTask.deadline}
+                                                </div>
+                                                {store.measurementTask.assignee && (
+                                                    <div className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded font-bold inline-flex items-center gap-1 self-start">
+                                                        <User size={10} /> 负责人: {store.measurementTask.assignee}
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </div>

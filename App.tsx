@@ -1,4 +1,4 @@
-// 标记：本次更新将【添加新设备】弹窗改为独立页面，并将【设备处理流程】的功能提取为独立脚本和页面，优化了代码结构。
+// 标记：本次更新优化了任务发布流程，新增了“任务指派对象”功能，支持在发布复尺和安装任务时指定负责人，并在列表页显示指派信息。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

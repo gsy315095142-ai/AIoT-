@@ -1,6 +1,6 @@
 import React, { useState, ChangeEvent, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Table, Ruler, ArrowLeft, Search, ChevronDown, ChevronRight, Settings, Check, HelpCircle, Image as ImageIcon, ClipboardList, Hammer, ListChecks, Calendar, Send, ToggleLeft, ToggleRight, RotateCcw } from 'lucide-react';
+import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Table, Ruler, ArrowLeft, Search, ChevronDown, ChevronRight, Settings, Check, HelpCircle, Image as ImageIcon, ClipboardList, Hammer, ListChecks, Calendar, Send, ToggleLeft, ToggleRight, RotateCcw, User } from 'lucide-react';
 import { Store as StoreType, Room, RoomImageCategory, RoomImage, RoomTypeConfig, ChecklistParam, ChecklistParamType, ModuleType, Region, InstallationParamKey } from '../../types';
 
 const DEFAULT_MODULES: RoomImageCategory[] = [
@@ -28,7 +28,7 @@ const EXAMPLE_IMAGES: Record<string, string> = {
 };
 
 export const RoomArchive: React.FC = () => {
-  const { regions, stores, addStore, updateStore, removeStore, publishMeasurementTask, republishMeasurementTask, publishInstallationTask, republishInstallationTask } = useApp();
+  const { regions, stores, assignableUsers, addStore, updateStore, removeStore, publishMeasurementTask, republishMeasurementTask, publishInstallationTask, republishInstallationTask } = useApp();
 
   // Navigation & Filter State
   const [viewingStoreId, setViewingStoreId] = useState<string | null>(null);
@@ -84,6 +84,7 @@ export const RoomArchive: React.FC = () => {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [taskModalStoreId, setTaskModalStoreId] = useState<string | null>(null);
   const [taskDeadline, setTaskDeadline] = useState('');
+  const [taskAssignee, setTaskAssignee] = useState(''); // New Assignee State
   const [activeTaskType, setActiveTaskType] = useState<'measurement' | 'installation' | 'republish_measurement' | 'republish_installation' | null>(null);
 
   // Derived State
@@ -527,6 +528,7 @@ export const RoomArchive: React.FC = () => {
   const handleOpenTaskModal = (storeId: string, type: 'measurement' | 'installation' | 'republish_measurement' | 'republish_installation', currentDeadline?: string) => {
       setTaskModalStoreId(storeId);
       setActiveTaskType(type);
+      setTaskAssignee(''); // Reset assignee when opening
       
       // Default to Today if no current deadline is set
       if (currentDeadline && !type.startsWith('republish_')) {
@@ -547,18 +549,19 @@ export const RoomArchive: React.FC = () => {
       if (!taskModalStoreId || !taskDeadline || !activeTaskType) return;
       
       if (activeTaskType === 'measurement') {
-          publishMeasurementTask(taskModalStoreId, taskDeadline);
+          publishMeasurementTask(taskModalStoreId, taskDeadline, taskAssignee);
       } else if (activeTaskType === 'republish_measurement') {
-          republishMeasurementTask(taskModalStoreId, taskDeadline);
+          republishMeasurementTask(taskModalStoreId, taskDeadline, taskAssignee);
       } else if (activeTaskType === 'republish_installation') {
-          republishInstallationTask(taskModalStoreId, taskDeadline);
+          republishInstallationTask(taskModalStoreId, taskDeadline, taskAssignee);
       } else {
-          publishInstallationTask(taskModalStoreId, taskDeadline);
+          publishInstallationTask(taskModalStoreId, taskDeadline, taskAssignee);
       }
       
       setIsTaskModalOpen(false);
       setTaskModalStoreId(null);
       setActiveTaskType(null);
+      setTaskAssignee('');
   };
 
   // --- View Switching ---
@@ -1409,6 +1412,23 @@ export const RoomArchive: React.FC = () => {
                                 onChange={(e) => setTaskDeadline(e.target.value)}
                             />
                         </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">任务指派对象</label>
+                            <div className="relative">
+                                <select 
+                                    className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 appearance-none"
+                                    value={taskAssignee}
+                                    onChange={(e) => setTaskAssignee(e.target.value)}
+                                >
+                                    <option value="">请选择负责人...</option>
+                                    {useApp().assignableUsers.map(user => (
+                                        <option key={user} value={user}>{user}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                            </div>
+                        </div>
                         
                         <p className="text-xs text-slate-400 leading-relaxed">
                             {activeTaskType === 'measurement' 
@@ -1423,7 +1443,7 @@ export const RoomArchive: React.FC = () => {
 
                         <button 
                             onClick={handlePublishTask}
-                            disabled={!taskDeadline}
+                            disabled={!taskDeadline || !taskAssignee}
                             className={`w-full text-white font-bold py-2.5 rounded-lg shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${activeTaskType?.includes('republish') ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'}`}
                         >
                             {activeTaskType?.includes('republish') ? '重发任务' : '确定发布'}

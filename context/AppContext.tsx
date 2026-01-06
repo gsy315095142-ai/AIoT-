@@ -8,6 +8,15 @@ const MOCK_REGIONS: Region[] = [
   { id: 'r3', name: '麒麟大区' },
 ];
 
+// Mock Users for Assignment
+const MOCK_ASSIGNABLE_USERS = [
+    '张大伟 (实施工程师)',
+    '李小龙 (实施工程师)',
+    '王建国 (项目经理)',
+    '赵丽 (业务经理)',
+    '孙悟空 (外包人员)'
+];
+
 const DEFAULT_NODES: InstallNode[] = [
     { 
         name: '安装筹备', // Changed from 预约安装时间
@@ -313,6 +322,7 @@ interface AppContextType {
   suppliers: Supplier[]; // New Supplier State
   devices: Device[];
   auditRecords: AuditRecord[];
+  assignableUsers: string[]; // List of users to assign tasks to
   
   // Feedback
   feedbacks: DeviceFeedback[]; 
@@ -358,10 +368,10 @@ interface AppContextType {
   submitInspectionReport: (deviceId: string, result: 'Qualified' | 'Unqualified', remark: string, images?: string[]) => void;
   approveAudit: (recordId: string) => void;
   rejectAudit: (recordId: string, reason: string) => void;
-  publishMeasurementTask: (storeId: string, deadline: string) => void; 
-  republishMeasurementTask: (storeId: string, deadline: string) => void; 
-  publishInstallationTask: (storeId: string, deadline: string) => void; 
-  republishInstallationTask: (storeId: string, deadline: string) => void; // New Action
+  publishMeasurementTask: (storeId: string, deadline: string, assignee: string) => void; 
+  republishMeasurementTask: (storeId: string, deadline: string, assignee: string) => void; 
+  publishInstallationTask: (storeId: string, deadline: string, assignee: string) => void; 
+  republishInstallationTask: (storeId: string, deadline: string, assignee: string) => void; // New Action
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -866,7 +876,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  const publishMeasurementTask = (storeId: string, deadline: string) => {
+  const publishMeasurementTask = (storeId: string, deadline: string, assignee: string) => {
       setStores(prev => prev.map(s => {
           if (s.id === storeId) {
               return {
@@ -874,6 +884,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                   measurementTask: {
                       status: 'published',
                       deadline,
+                      assignee,
                       publishTime: new Date().toLocaleString()
                   }
               };
@@ -882,7 +893,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }));
   };
 
-  const republishMeasurementTask = (storeId: string, deadline: string) => {
+  const republishMeasurementTask = (storeId: string, deadline: string, assignee: string) => {
       setStores(prev => prev.map(s => {
           if (s.id === storeId) {
               const updatedRoomConfigs = s.roomTypeConfigs.map(rt => ({
@@ -902,6 +913,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                   measurementTask: {
                       status: 'published',
                       deadline,
+                      assignee,
                       publishTime: new Date().toLocaleString()
                   }
               };
@@ -910,7 +922,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }));
   };
 
-  const publishInstallationTask = (storeId: string, deadline: string) => {
+  const publishInstallationTask = (storeId: string, deadline: string, assignee: string) => {
       setStores(prev => prev.map(s => {
           if (s.id === storeId) {
               return {
@@ -918,6 +930,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                   installationTask: {
                       status: 'published',
                       deadline,
+                      assignee,
                       publishTime: new Date().toLocaleString()
                   }
               };
@@ -926,7 +939,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }));
   };
 
-  const republishInstallationTask = (storeId: string, deadline: string) => {
+  const republishInstallationTask = (storeId: string, deadline: string, assignee: string) => {
       setStores(prev => prev.map(s => {
           if (s.id === storeId) {
               return {
@@ -939,6 +952,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                   installationTask: {
                       status: 'published',
                       deadline,
+                      assignee,
                       publishTime: new Date().toLocaleString()
                   }
               };
@@ -1034,6 +1048,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       logout,
       checkAuditPermission,
       regions, stores, deviceTypes, suppliers, devices, auditRecords,
+      assignableUsers: MOCK_ASSIGNABLE_USERS,
       feedbacks, addFeedback, resolveFeedback, dispatchFeedback, updateFeedbackProcess, submitFeedbackAudit, approveFeedback, rejectFeedback,
       procurementProducts, addProcurementProduct, updateProcurementProduct, removeProcurementProduct,
       procurementOrders, addProcurementOrder, updateProcurementOrder, approveProcurementOrder,

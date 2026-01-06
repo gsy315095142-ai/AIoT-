@@ -108,6 +108,7 @@ export type MeasurementTask = {
   status: 'published' | 'completed';
   deadline: string;
   publishTime: string;
+  assignee?: string; // New field: Assigned User
 };
 
 // New Installation Task Type
@@ -115,6 +116,7 @@ export type InstallationTask = {
   status: 'published' | 'completed';
   deadline: string;
   publishTime: string;
+  assignee?: string; // New field: Assigned User
 };
 
 export type Store = {
