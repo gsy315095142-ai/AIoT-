@@ -280,33 +280,8 @@ const INITIAL_PRODUCTS: Product[] = MOCK_DEVICE_TYPES.map(dt => ({
 
 const MOCK_PRODUCTS: Product[] = [...INITIAL_PRODUCTS];
 
-// Mock Feedbacks
-const MOCK_FEEDBACKS: DeviceFeedback[] = [
-    {
-        id: 'fb-1',
-        deviceId: 'd2',
-        deviceSn: 'DT-2023-9999',
-        deviceName: '地投01号',
-        storeName: '上海南京路店',
-        roomNumber: '102',
-        content: '投影画面闪烁，偶尔黑屏',
-        createTime: '2025-08-26 10:00:00',
-        status: 'pending_receive' // Initial State
-    },
-    {
-        id: 'fb-2',
-        deviceId: 'd1',
-        deviceSn: 'D2H412121212',
-        deviceName: '桌显01号',
-        storeName: '上海南京路店',
-        roomNumber: '2101',
-        content: '客人反映无法启动游戏',
-        createTime: '2025-08-25 14:30:00',
-        status: 'resolved',
-        resolveTime: '2025-08-25 16:00:00',
-        resolver: '张晓梦'
-    }
-];
+// Mock Feedbacks - Cleared initial data
+const MOCK_FEEDBACKS: DeviceFeedback[] = [];
 
 export type AuditPermissionType = 'procurement' | 'measurement' | 'installation' | 'device';
 

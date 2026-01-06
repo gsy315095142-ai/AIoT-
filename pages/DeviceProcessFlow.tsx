@@ -114,8 +114,8 @@ export const DeviceProcessFlow: React.FC = () => {
         
         // Special Checks
         if (field === 'siteImages') {
-            // Need images AND diagnosis category
-            return (Array.isArray(val) && val.length > 0) && !!data.diagnosisCategory;
+            // Need images AND diagnosis category AND problem analysis text
+            return (Array.isArray(val) && val.length > 0) && !!data.diagnosisCategory && !!data.problemAnalysis;
         }
         if (field === 'problemAnalysis') {
             // Need text AND diagnosis category
@@ -394,20 +394,7 @@ export const DeviceProcessFlow: React.FC = () => {
 
                     {currentField === 'problemAnalysis' && (
                         <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm space-y-4">
-                            <div>
-                                <label className="text-xs font-bold text-slate-500 flex items-center gap-1 mb-2">
-                                    <Activity size={14} /> 问题分析
-                                </label>
-                                <textarea 
-                                    className="w-full border border-slate-200 rounded-xl p-3 text-sm bg-slate-50 h-32 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
-                                    placeholder="请记录问题的详细分析过程..."
-                                    value={data.problemAnalysis || ''}
-                                    onChange={(e) => updateData('problemAnalysis', e.target.value)}
-                                    disabled={!isEditable || isCurrentCompleted}
-                                />
-                            </div>
-
-                            {/* Diagnosis Category Dropdown */}
+                            {/* Diagnosis Category Dropdown - Moved to Top */}
                             <div>
                                 <label className="text-xs font-bold text-slate-500 flex items-center gap-1 mb-2">
                                     <ClipboardList size={14} /> 问题诊断类别 <span className="text-red-500">*</span>
@@ -423,6 +410,20 @@ export const DeviceProcessFlow: React.FC = () => {
                                     <option value="设备故障">设备故障</option>
                                     <option value="其他情况">其他情况</option>
                                 </select>
+                            </div>
+
+                            {/* Problem Analysis Textarea - Moved Below */}
+                            <div>
+                                <label className="text-xs font-bold text-slate-500 flex items-center gap-1 mb-2">
+                                    <Activity size={14} /> 问题分析
+                                </label>
+                                <textarea 
+                                    className="w-full border border-slate-200 rounded-xl p-3 text-sm bg-slate-50 h-32 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
+                                    placeholder="请记录问题的详细分析过程..."
+                                    value={data.problemAnalysis || ''}
+                                    onChange={(e) => updateData('problemAnalysis', e.target.value)}
+                                    disabled={!isEditable || isCurrentCompleted}
+                                />
                             </div>
                             
                             {/* Image Upload for Problem Analysis */}
@@ -502,8 +503,42 @@ export const DeviceProcessFlow: React.FC = () => {
 
                     {currentField === 'siteImages' && (
                         <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm space-y-4">
+                            
+                            {/* Diagnosis Category Dropdown - Moved to Top */}
                             <div>
-                                <label className="text-xs font-bold text-slate-500 flex items-center gap-1 mb-3">
+                                <label className="text-xs font-bold text-slate-500 flex items-center gap-1 mb-2">
+                                    <ClipboardList size={14} /> 问题诊断类别 <span className="text-red-500">*</span>
+                                </label>
+                                <select 
+                                    className="w-full border border-slate-200 rounded-xl p-3 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 appearance-none"
+                                    value={data.diagnosisCategory || ''}
+                                    onChange={(e) => updateData('diagnosisCategory', e.target.value as FeedbackDiagnosisCategory)}
+                                    disabled={!isEditable || isCurrentCompleted}
+                                >
+                                    <option value="">请选择诊断类别...</option>
+                                    <option value="人为损坏">人为损坏</option>
+                                    <option value="设备故障">设备故障</option>
+                                    <option value="其他情况">其他情况</option>
+                                </select>
+                            </div>
+
+                            {/* Problem Analysis Text - Added for Onsite */}
+                            <div>
+                                <label className="text-xs font-bold text-slate-500 flex items-center gap-1 mb-2">
+                                    <Activity size={14} /> 问题分析 <span className="text-red-500">*</span>
+                                </label>
+                                <textarea 
+                                    className="w-full border border-slate-200 rounded-xl p-3 text-sm bg-slate-50 h-32 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
+                                    placeholder="请记录现场评估的问题分析..."
+                                    value={data.problemAnalysis || ''}
+                                    onChange={(e) => updateData('problemAnalysis', e.target.value)}
+                                    disabled={!isEditable || isCurrentCompleted}
+                                />
+                            </div>
+
+                            {/* Site Images */}
+                            <div>
+                                <label className="text-xs font-bold text-slate-500 flex items-center gap-1 mb-3 border-t border-slate-50 pt-3">
                                     <Camera size={14} /> 现场评估 (拍照)
                                 </label>
                                 <div className="grid grid-cols-2 gap-3">
@@ -529,43 +564,12 @@ export const DeviceProcessFlow: React.FC = () => {
                                     <div className="text-center py-4 text-slate-400 text-xs">暂无照片</div>
                                 )}
                             </div>
-
-                            {/* Diagnosis Category Dropdown */}
-                            <div>
-                                <label className="text-xs font-bold text-slate-500 flex items-center gap-1 mb-2 border-t border-slate-50 pt-3">
-                                    <ClipboardList size={14} /> 问题诊断类别 <span className="text-red-500">*</span>
-                                </label>
-                                <select 
-                                    className="w-full border border-slate-200 rounded-xl p-3 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 appearance-none"
-                                    value={data.diagnosisCategory || ''}
-                                    onChange={(e) => updateData('diagnosisCategory', e.target.value as FeedbackDiagnosisCategory)}
-                                    disabled={!isEditable || isCurrentCompleted}
-                                >
-                                    <option value="">请选择诊断类别...</option>
-                                    <option value="人为损坏">人为损坏</option>
-                                    <option value="设备故障">设备故障</option>
-                                    <option value="其他情况">其他情况</option>
-                                </select>
-                            </div>
                         </div>
                     )}
 
                     {currentField === 'result' && (
                         <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm space-y-4">
-                            <div>
-                                <label className="text-xs font-bold text-slate-500 flex items-center gap-1 mb-2">
-                                    <FileText size={14} /> 处理结果/方案
-                                </label>
-                                <textarea 
-                                    className="w-full border border-slate-200 rounded-xl p-3 text-sm bg-slate-50 h-32 resize-none focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-60 mb-3"
-                                    placeholder={method === 'self' ? "请记录自助处理的情况..." : "描述处理过程及结果..."}
-                                    value={data.result || ''}
-                                    onChange={(e) => updateData('result', e.target.value)}
-                                    disabled={!isEditable || isCurrentCompleted}
-                                />
-                            </div>
-
-                            {/* Resolution Status Dropdown */}
+                            {/* Resolution Status Dropdown - Moved to Top */}
                             <div>
                                 <label className="text-xs font-bold text-slate-500 flex items-center gap-1 mb-2">
                                     <CheckCircle size={14} /> 处理结果选项 <span className="text-red-500">*</span>
@@ -581,6 +585,20 @@ export const DeviceProcessFlow: React.FC = () => {
                                     <option value="需二次处理">需二次处理</option>
                                     <option value="无法解决">无法解决</option>
                                 </select>
+                            </div>
+
+                            {/* Result Textarea - Moved Below */}
+                            <div>
+                                <label className="text-xs font-bold text-slate-500 flex items-center gap-1 mb-2">
+                                    <FileText size={14} /> 处理结果/方案
+                                </label>
+                                <textarea 
+                                    className="w-full border border-slate-200 rounded-xl p-3 text-sm bg-slate-50 h-32 resize-none focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-60 mb-3"
+                                    placeholder={method === 'self' ? "请记录自助处理的情况..." : "描述处理过程及结果..."}
+                                    value={data.result || ''}
+                                    onChange={(e) => updateData('result', e.target.value)}
+                                    disabled={!isEditable || isCurrentCompleted}
+                                />
                             </div>
 
                             {/* Image Upload for Result */}

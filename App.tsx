@@ -1,4 +1,4 @@
-// 标记：本次更新优化了设备处理流程，支持在未完成前查看任意环节；在登录后默认进入数据总览；并在问题分析、现场评估及处理结果环节增加了必填的诊断分类和处理结果选项。
+// 标记：本次更新清空了设备反馈初始数据；调整了远程、上门、自助处理流程的UI布局，将诊断分类和结果选项置顶；并在上门处理的现场评估环节增加了问题分析输入。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
