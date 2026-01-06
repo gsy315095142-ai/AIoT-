@@ -352,8 +352,9 @@ interface AppContextType {
   approveAudit: (recordId: string) => void;
   rejectAudit: (recordId: string, reason: string) => void;
   publishMeasurementTask: (storeId: string, deadline: string) => void; 
-  republishMeasurementTask: (storeId: string, deadline: string) => void; // New Action
+  republishMeasurementTask: (storeId: string, deadline: string) => void; 
   publishInstallationTask: (storeId: string, deadline: string) => void; 
+  republishInstallationTask: (storeId: string, deadline: string) => void; // New Action
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -849,6 +850,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }));
   };
 
+  const republishInstallationTask = (storeId: string, deadline: string) => {
+      setStores(prev => prev.map(s => {
+          if (s.id === storeId) {
+              return {
+                  ...s,
+                  installation: {
+                      ...s.installation!,
+                      status: 'in_progress', // Reset to in_progress to allow resubmission, keeping node data
+                      rejectReason: undefined
+                  },
+                  installationTask: {
+                      status: 'published',
+                      deadline,
+                      publishTime: new Date().toLocaleString()
+                  }
+              };
+          }
+          return s;
+      }));
+  };
+
   // --- Procurement Handlers ---
   const addProcurementProduct = (product: Omit<Product, 'id'>) => {
       setProcurementProducts(prev => [
@@ -945,7 +967,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addDeviceType, removeDeviceType, addSupplier, updateSupplier, removeSupplier,
       addDevice, updateDevice, deleteDeviceEvent,
       submitOpsStatusChange, submitInspectionReport, approveAudit, rejectAudit,
-      publishMeasurementTask, republishMeasurementTask, publishInstallationTask
+      publishMeasurementTask, republishMeasurementTask, publishInstallationTask, republishInstallationTask
     }}>
       {children}
     </AppContext.Provider>

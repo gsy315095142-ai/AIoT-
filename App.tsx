@@ -1,4 +1,4 @@
-// 标记：本次更新在【客房建档】增加了复尺任务完成后可【重发复尺任务】的功能，重发后保留已录入信息但需重新提交审核
+// 标记：本次更新在【客房建档】增加了安装任务完成后可【重发安装任务】的功能，重发后保留已录入信息但需重新提交审核
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
