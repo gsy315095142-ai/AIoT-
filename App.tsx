@@ -1,4 +1,4 @@
-// 标记：本次更新在【模块配置】增加了安装类模块的参数配置（SN号、通电自启），并在【安装进度详情】的安装环节支持这些参数的录入和校验
+// 标记：本次更新在【安装进度详情】增加了SN号录入的下拉联想（基于当前房间已有设备），且安装筹备预约时间和发布任务预期时间默认显示今天
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

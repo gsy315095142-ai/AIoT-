@@ -527,7 +527,19 @@ export const RoomArchive: React.FC = () => {
   const handleOpenTaskModal = (storeId: string, type: 'measurement' | 'installation', currentDeadline?: string) => {
       setTaskModalStoreId(storeId);
       setActiveTaskType(type);
-      setTaskDeadline(currentDeadline || '');
+      
+      // Default to Today if no current deadline is set
+      if (currentDeadline) {
+          setTaskDeadline(currentDeadline);
+      } else {
+          // Get today's date in local YYYY-MM-DD format
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          setTaskDeadline(`${year}-${month}-${day}`);
+      }
+      
       setIsTaskModalOpen(true);
   };
 
@@ -1112,147 +1124,6 @@ export const RoomArchive: React.FC = () => {
                                       </div>
                                   );
                                 })}
-                          </div>
-                      </div>
-                  </div>
-              )}
-
-              {/* Add Store Modal */}
-              {!viewingStoreId && (
-                  <>
-                    <button 
-                        onClick={openAddStoreModal}
-                        className="fixed bottom-24 right-4 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition-colors z-30"
-                    >
-                        <Plus size={24} />
-                    </button>
-
-                    {isStoreModalOpen && (
-                        <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
-                            <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[85vh] animate-scaleIn">
-                                <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
-                                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                                        <StoreIcon size={20} className="text-blue-600" />
-                                        {editingStoreId ? '编辑门店' : '新增门店'}
-                                    </h3>
-                                    <button onClick={() => setIsStoreModalOpen(false)}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
-                                </div>
-                                <form onSubmit={handleStoreSubmit} className="p-5 space-y-4 overflow-y-auto flex-1">
-                                    {/* ... existing form fields ... */}
-                                    {!editingStoreId && (
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">门店ID *</label>
-                                            <input required className="w-full border border-slate-200 rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" value={storeForm.id} onChange={e => setStoreForm({...storeForm, id: e.target.value})} placeholder="例如: s1" />
-                                        </div>
-                                    )}
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">门店名称 *</label>
-                                        <input required className="w-full border border-slate-200 rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" value={storeForm.name} onChange={e => setStoreForm({...storeForm, name: e.target.value})} />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">所属大区 *</label>
-                                        <select required className="w-full border border-slate-200 rounded p-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" value={storeForm.regionId} onChange={e => setStoreForm({...storeForm, regionId: e.target.value})}>
-                                            <option value="">选择大区</option>
-                                            {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                                        </select>
-                                    </div>
-                                    
-                                    <div>
-                                        <div className="flex justify-between items-center mb-2">
-                                            <label className="text-xs font-bold text-slate-500 uppercase">房间列表</label>
-                                            <button type="button" onClick={addRoomRow} className="text-[10px] text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors">+ 添加房间</button>
-                                        </div>
-                                        <div className="bg-slate-50 rounded-lg p-2 max-h-40 overflow-y-auto border border-slate-200 space-y-2">
-                                            {storeForm.rooms.map((room, idx) => (
-                                                <div key={room.key} className="flex gap-2">
-                                                    <input 
-                                                        className="flex-1 border border-slate-200 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-500"
-                                                        placeholder="房间号"
-                                                        value={room.number}
-                                                        onChange={e => updateRoomRow(idx, e.target.value)}
-                                                    />
-                                                    <button type="button" onClick={() => removeRoomRow(idx)} className="text-slate-400 hover:text-red-500 px-1"><X size={16}/></button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <div className="flex justify-between items-center mb-2">
-                                            <label className="text-xs font-bold text-slate-500 uppercase">房型配置</label>
-                                            {!editingStoreId && (
-                                                <div className="flex gap-1">
-                                                    <input 
-                                                        className="w-24 border border-slate-200 rounded px-2 py-0.5 text-xs outline-none focus:border-blue-500" 
-                                                        placeholder="新房型名称"
-                                                        value={newRoomTypeName}
-                                                        onChange={e => setNewRoomTypeName(e.target.value)}
-                                                    />
-                                                    <button type="button" onClick={addFormRoomType} className="bg-blue-600 text-white rounded px-2 text-xs hover:bg-blue-700">+</button>
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="flex flex-wrap gap-2">
-                                            {storeForm.roomTypes.map(rt => (
-                                                <div key={rt.id} className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded border border-blue-100 flex items-center gap-1">
-                                                    {rt.name}
-                                                    {!editingStoreId && <button type="button" onClick={() => removeFormRoomType(rt.id)} className="hover:text-red-500"><X size={10}/></button>}
-                                                </div>
-                                            ))}
-                                            {storeForm.roomTypes.length === 0 && <span className="text-xs text-slate-400 italic">暂无房型</span>}
-                                        </div>
-                                        {editingStoreId && <p className="text-[10px] text-slate-400 mt-1">* 编辑模式下请在详情页管理房型</p>}
-                                    </div>
-
-                                    <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-md hover:bg-blue-700 transition-colors mt-4">
-                                        {editingStoreId ? '保存更改' : '确认添加'}
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    )}
-                  </>
-              )}
-
-              {/* Publish Task Modal - Ensures it renders when state is true, regardless of view mode if active */}
-              {isTaskModalOpen && (
-                  <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm" onClick={(e) => e.stopPropagation()}>
-                      <div className="bg-white rounded-xl shadow-2xl w-full max-w-xs overflow-hidden flex flex-col animate-scaleIn" onClick={(e) => e.stopPropagation()}>
-                          <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
-                              <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                                  {activeTaskType === 'measurement' ? <Send size={18} className="text-blue-600" /> : <Hammer size={18} className="text-blue-600" />}
-                                  {activeTaskType === 'measurement' ? '发布复尺任务' : '发布安装任务'}
-                              </h3>
-                              <button onClick={() => setIsTaskModalOpen(false)}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
-                          </div>
-                          
-                          <div className="p-5 space-y-4">
-                              <div>
-                                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
-                                      {activeTaskType === 'measurement' ? '期望完成复尺的时间' : '预期安装时间'}
-                                  </label>
-                                  <input 
-                                      type="date" 
-                                      className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50"
-                                      value={taskDeadline}
-                                      onChange={(e) => setTaskDeadline(e.target.value)}
-                                  />
-                              </div>
-                              
-                              <p className="text-xs text-slate-400 leading-relaxed">
-                                  {activeTaskType === 'measurement' 
-                                    ? '发布任务后，该门店将出现在【客房复尺】列表中，供复尺人员查看和执行。'
-                                    : '发布任务后，该门店将出现在【客房安装】列表中，供安装人员查看和执行。'
-                                  }
-                              </p>
-
-                              <button 
-                                  onClick={handlePublishTask}
-                                  disabled={!taskDeadline}
-                                  className="w-full bg-blue-600 text-white font-bold py-2.5 rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                  确定发布
-                              </button>
                           </div>
                       </div>
                   </div>

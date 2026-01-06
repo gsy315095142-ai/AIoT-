@@ -23,7 +23,7 @@ const EXAMPLE_IMAGES: Record<string, string> = {
 };
 
 export const RoomInstall: React.FC = () => {
-  const { regions, stores, updateStoreInstallation } = useApp();
+  const { regions, stores, updateStoreInstallation, devices } = useApp();
   
   const [selectedRegion, setSelectedRegion] = useState('');
   
@@ -153,34 +153,45 @@ export const RoomInstall: React.FC = () => {
       let initialNodes = store.installation?.nodes || [];
       let updatedStore = store;
 
-      // Handle migration/initialization of step 0 data
+      // Check step 0 data for default appointment time
       if (initialNodes.length > 0) {
           const step0 = initialNodes[0];
+          let currentStep0Data = step0.data;
           let needUpdate = false;
-          let newStep0Data = step0.data;
 
-          // If data is missing or is legacy string, convert to new object structure
-          if (!newStep0Data || typeof newStep0Data === 'string') {
-              const now = new Date();
-              now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-              const defaultTime = typeof newStep0Data === 'string' && newStep0Data ? newStep0Data : now.toISOString().slice(0, 16);
-              
-              newStep0Data = {
-                  appointmentTime: defaultTime,
+          // Normalize data structure if legacy string
+          if (typeof currentStep0Data === 'string') {
+              currentStep0Data = {
+                  appointmentTime: currentStep0Data,
+                  checklist: { networkWhitelist: false, roomAvailability: false }
+              };
+              needUpdate = true;
+          } else if (!currentStep0Data) {
+              currentStep0Data = {
+                  appointmentTime: '',
                   checklist: { networkWhitelist: false, roomAvailability: false }
               };
               needUpdate = true;
           }
 
+          // Force default time to today if empty
+          if (!currentStep0Data.appointmentTime) {
+              const now = new Date();
+              now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+              const defaultTime = now.toISOString().slice(0, 16);
+              currentStep0Data.appointmentTime = defaultTime;
+              needUpdate = true;
+          }
+
           if (needUpdate) {
               const newNodes = [...initialNodes];
-              newNodes[0] = { ...step0, data: newStep0Data, name: '安装筹备' }; // Ensure name is updated
+              newNodes[0] = { ...step0, data: currentStep0Data, name: '安装筹备' };
               
               updatedStore = {
                   ...store,
-                  installation: { ...store.installation!, nodes: newNodes, appointmentTime: newStep0Data.appointmentTime }
+                  installation: { ...store.installation!, nodes: newNodes, appointmentTime: currentStep0Data.appointmentTime }
               };
-              updateStoreInstallation(store.id, { nodes: newNodes, appointmentTime: newStep0Data.appointmentTime });
+              updateStoreInstallation(store.id, { nodes: newNodes, appointmentTime: currentStep0Data.appointmentTime });
           }
       }
 
@@ -1033,17 +1044,28 @@ export const RoomInstall: React.FC = () => {
                                                                             </h5>
                                                                             {requiredParams.map(pk => {
                                                                                 if (pk === 'deviceSn') {
+                                                                                    // Find existing devices for suggestions
+                                                                                    const roomDevices = devices.filter(d => d.storeId === activeStore?.id && d.roomNumber === installingRoomNumber);
+                                                                                    const existingSNs = roomDevices.map(d => d.sn).filter(Boolean);
+                                                                                    const listId = `sn-list-${cat}-${installingRoomNumber}`;
+
                                                                                     return (
                                                                                         <div key={pk} className="flex flex-col gap-1">
                                                                                             <label className="text-[10px] text-slate-600 font-bold">设备SN号</label>
                                                                                             <input 
                                                                                                 type="text" 
-                                                                                                placeholder="请输入设备SN号"
+                                                                                                list={listId}
+                                                                                                placeholder="请输入或选择设备SN号"
                                                                                                 className="border border-slate-200 rounded p-1.5 text-xs focus:ring-1 focus:ring-blue-500 outline-none w-full"
                                                                                                 value={params.deviceSn || ''}
                                                                                                 onChange={(e) => handleRoomParamUpdate(installingRoomNumber, cat, 'deviceSn', e.target.value)}
                                                                                                 disabled={isLocked}
                                                                                             />
+                                                                                            <datalist id={listId}>
+                                                                                                {existingSNs.map((sn, i) => (
+                                                                                                    <option key={i} value={sn} />
+                                                                                                ))}
+                                                                                            </datalist>
                                                                                         </div>
                                                                                     );
                                                                                 }
