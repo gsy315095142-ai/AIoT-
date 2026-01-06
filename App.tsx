@@ -1,4 +1,4 @@
-// 标记：本次更新优化了设备管理页面：新增“扫一扫”功能，支持模拟扫描新设备自动录入信息，以及模拟扫描旧设备快速跳转详情。
+// 标记：本次更新将【添加新设备】弹窗改为独立页面，并将【设备处理流程】的功能提取为独立脚本和页面，优化了代码结构。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -10,6 +10,8 @@ import { Settings } from './pages/Settings';
 import { RoomManagement } from './pages/RoomManagement';
 import { ProcurementManagement } from './pages/ProcurementManagement';
 import { Login } from './pages/Login';
+import { AddDevice } from './pages/AddDevice';
+import { DeviceProcessFlow } from './pages/DeviceProcessFlow';
 import { LayoutDashboard, Monitor, Settings as SettingsIcon, LogOut, BedDouble, ShoppingCart } from 'lucide-react';
 import { UserRole } from './types';
 
@@ -63,6 +65,9 @@ const MobileHeader = () => {
   const { headerRightAction, logout, userRole } = useApp();
   
   const getTitle = () => {
+    if (location.pathname.startsWith('/devices/add')) return '添加设备';
+    if (location.pathname.startsWith('/device-process')) return '处理流程';
+    
     switch (location.pathname) {
       case '/dashboard': return '数据总览'; // Fallback if reached via url
       case '/devices': return '设备管理';
@@ -103,8 +108,17 @@ const AuthenticatedApp: React.FC = () => {
   const { userRole } = useApp();
   const accessibleRoutes = getAccessibleRoutes(userRole);
 
+  // Check permission allowing sub-paths (e.g., /devices/add is allowed if /devices is allowed)
+  const isRouteAllowed = (path: string) => {
+      // Special case: /device-process relies on /device-feedback permission
+      if (path.startsWith('/device-process')) {
+          return accessibleRoutes.includes('/device-feedback');
+      }
+      return accessibleRoutes.some(route => path === route || path.startsWith(route + '/'));
+  };
+
   // Redirect to first accessible route if current path is root or unauthorized
-  if (location.pathname === '/' || !accessibleRoutes.includes(location.pathname)) {
+  if (location.pathname === '/' || !isRouteAllowed(location.pathname)) {
       // Special handling: if trying to access old /dashboard, redirect to /devices if allowed
       if (location.pathname === '/dashboard' && accessibleRoutes.includes('/devices')) {
           return <Navigate to="/devices" replace />;
@@ -125,11 +139,17 @@ const AuthenticatedApp: React.FC = () => {
             <Routes>
                 {/* Dashboard route removed, now part of Devices */}
                 {accessibleRoutes.includes('/devices') && <Route path="/devices" element={<DeviceManagement />} />}
+                {accessibleRoutes.includes('/devices') && <Route path="/devices/add" element={<AddDevice />} />}
+                
                 {accessibleRoutes.includes('/audit') && <Route path="/audit" element={<DeviceAudit />} />}
+                
                 {accessibleRoutes.includes('/device-feedback') && <Route path="/device-feedback" element={<DeviceFeedback />} />}
+                {accessibleRoutes.includes('/device-feedback') && <Route path="/device-process/:id" element={<DeviceProcessFlow />} />}
+                
                 {accessibleRoutes.includes('/rooms') && <Route path="/rooms" element={<RoomManagement />} />}
                 {accessibleRoutes.includes('/procurement') && <Route path="/procurement" element={<ProcurementManagement />} />}
                 {accessibleRoutes.includes('/settings') && <Route path="/settings" element={<Settings />} />}
+                
                 <Route path="*" element={<Navigate to={accessibleRoutes[0] || '/'} replace />} />
             </Routes>
         </main>

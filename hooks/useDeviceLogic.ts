@@ -3,28 +3,8 @@ import { useApp } from '../context/AppContext';
 import { DeviceStatus, OpsStatus, DeviceImage, DeviceEvent, Device, AuditStatus, AuditType } from '../types';
 import { CATEGORY_LIMITS } from '../components/DeviceComponents';
 
-interface DeviceFormState {
-  name: string;
-  sn: string;
-  mac: string;
-  regionId: string;
-  storeId: string;
-  typeId: string;
-  subType: string;
-  supplierId: string; // Added supplierId
-  orderId: string; // Added orderId
-  roomNumber: string;
-  softwareName: string;
-  firstStartTime: string; 
-  images: DeviceImage[];
-}
-
-const initialFormState: DeviceFormState = {
-  name: '', sn: '', mac: '', regionId: '', storeId: '', typeId: '', subType: '', supplierId: '', orderId: '', roomNumber: '', softwareName: '', firstStartTime: '', images: []
-};
-
 export const useDeviceLogic = () => {
-  const { devices, regions, stores, deviceTypes, suppliers, updateDevice, addDevice, auditRecords, submitOpsStatusChange, submitInspectionReport, deleteDeviceEvent, addFeedback } = useApp();
+  const { devices, regions, stores, deviceTypes, suppliers, updateDevice, auditRecords, submitOpsStatusChange, submitInspectionReport, deleteDeviceEvent, addFeedback } = useApp();
   
   // Filter States
   const [selectedRegion, setSelectedRegion] = useState('');
@@ -39,7 +19,6 @@ export const useDeviceLogic = () => {
   const [selectedDeviceIds, setSelectedDeviceIds] = useState<Set<string>>(new Set());
   
   // Modal States
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingImageDevice, setEditingImageDevice] = useState<Device | null>(null);
   const [isControlMenuOpen, setIsControlMenuOpen] = useState(false);
   const [isOpsStatusModalOpen, setIsOpsStatusModalOpen] = useState(false);
@@ -65,9 +44,6 @@ export const useDeviceLogic = () => {
   const [inspResult, setInspResult] = useState<'Qualified' | 'Unqualified'>('Qualified');
   const [inspRemark, setInspRemark] = useState('');
   const [inspImages, setInspImages] = useState<string[]>([]);
-
-  // Add Device Form State
-  const [deviceForm, setDeviceForm] = useState<DeviceFormState>(initialFormState);
 
   // Computed Values
   const availableStores = useMemo(() => {
@@ -98,12 +74,6 @@ export const useDeviceLogic = () => {
   }, [devices, selectedRegion, selectedStore, selectedType, selectedStatus, selectedOpsStatus, searchQuery]);
 
   const pendingAuditCount = auditRecords.filter(r => r.auditStatus === AuditStatus.PENDING).length;
-
-  const imageCounts = useMemo(() => {
-    const counts: Record<string, number> = { '设备外观': 0, '安装现场': 0, '其他': 0 };
-    deviceForm.images.forEach(img => { if (counts[img.category] !== undefined) counts[img.category]++; });
-    return counts;
-  }, [deviceForm.images]);
 
   // Actions
   const toggleSelection = (id: string) => {
@@ -221,48 +191,12 @@ export const useDeviceLogic = () => {
       setInspectingDeviceId(null);
   }
 
-  const openAddModal = (initialData?: Partial<DeviceFormState>) => { 
-      setDeviceForm({ ...initialFormState, ...initialData }); 
-      setIsAddModalOpen(true); 
-  };
-
-  const handleAddFormImage = (e: ChangeEvent<HTMLInputElement>) => {
-    const availableCategory = Object.keys(CATEGORY_LIMITS).find(cat => (imageCounts[cat] || 0) < CATEGORY_LIMITS[cat]);
-    if (!availableCategory) { alert("所有分类图片的数量已达上限，无法继续添加"); e.target.value = ''; return; }
-    if (e.target.files && e.target.files[0]) {
-      const url = URL.createObjectURL(e.target.files[0]);
-      const newImage: DeviceImage = { url, category: availableCategory }; 
-      setDeviceForm(prev => ({ ...prev, images: [newImage, ...prev.images] }));
-      e.target.value = '';
-    }
-  };
-
-  const handleRemoveFormImage = (index: number) => setDeviceForm(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }));
-
-  const handleFormImageCategoryChange = (index: number, newCategory: string) => {
-     setDeviceForm(prev => {
-        const updatedImages = [...prev.images];
-        updatedImages[index].category = newCategory;
-        return { ...prev, images: updatedImages };
-     });
-  };
-
-  const handleAddSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!deviceForm.typeId || !deviceForm.name || !deviceForm.sn) return; 
-    const imageUrl = deviceForm.images.length > 0 ? deviceForm.images[0].url : undefined;
-    const fromInputDate = (dateStr: string) => dateStr.replace('T', ' ');
-    const formattedDate = deviceForm.firstStartTime ? fromInputDate(deviceForm.firstStartTime) : new Date().toLocaleString();
-    addDevice({ ...deviceForm, firstStartTime: formattedDate, imageUrl });
-    setIsAddModalOpen(false);
-  };
-
   const hasPendingAudit = (deviceId: string) => auditRecords.some(r => r.deviceId === deviceId && r.auditStatus === AuditStatus.PENDING && r.type === AuditType.OPS_STATUS);
 
   return {
     // Data
     devices, // Export raw devices list for stats calculation
-    regions, stores, deviceTypes, suppliers, filteredDevices, availableStores, auditRecords, pendingAuditCount, imageCounts, CATEGORY_LIMITS,
+    regions, stores, deviceTypes, suppliers, filteredDevices, availableStores, auditRecords, pendingAuditCount, CATEGORY_LIMITS,
     
     // States
     selectedRegion, setSelectedRegion,
@@ -275,7 +209,6 @@ export const useDeviceLogic = () => {
     expandedDeviceId, setExpandedDeviceId, // Exported setter
     selectedDeviceIds,
     
-    isAddModalOpen, setIsAddModalOpen,
     editingImageDevice, setEditingImageDevice,
     isControlMenuOpen, setIsControlMenuOpen,
     isOpsStatusModalOpen, setIsOpsStatusModalOpen,
@@ -297,14 +230,11 @@ export const useDeviceLogic = () => {
     feedbackContent, setFeedbackContent, // New State
     feedbackImages, // New State
     
-    deviceForm, setDeviceForm,
-
     // Actions
     toggleSelection, toggleSelectAll, toggleExpand, hasPendingAudit,
     handleBatchRun, handleBatchSleep, handleBatchRestart, handleBatchFeedback, handleSubmitFeedback, // New Action
     openOpsStatusModal, handleOpsImageUpload, removeOpsImage, handleBatchOpsStatusSubmit,
     openInspectionModal, handleInspImageUpload, removeInspImage, handleSubmitInspection,
     handleFeedbackImageUpload, removeFeedbackImage, // New Actions
-    openAddModal, handleAddFormImage, handleRemoveFormImage, handleFormImageCategoryChange, handleAddSubmit
   };
 };
