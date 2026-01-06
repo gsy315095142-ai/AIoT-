@@ -1,4 +1,4 @@
-// 标记：本次更新在【客房建档】页面，针对处于审核期间的安装任务，增加了当前审核状态（如待初审、待二审等）的显示
+// 标记：本次更新在【客房复尺】界面的复尺模块中新增了【拍照】功能，点击可模拟添加图片
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

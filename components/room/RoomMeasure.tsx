@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent } from 'react';
-import { Ruler, Store, ChevronDown, ChevronUp, Plus, X, Upload, ClipboardList, Edit3, Check, Save, Filter, BedDouble, HelpCircle, Image as ImageIcon, Send, AlertCircle, CheckCircle, ArrowRight, ArrowLeft, Settings, ListChecks, Calendar } from 'lucide-react';
+import { Ruler, Store, ChevronDown, ChevronUp, Plus, X, Upload, ClipboardList, Edit3, Check, Save, Filter, BedDouble, HelpCircle, Image as ImageIcon, Send, AlertCircle, CheckCircle, ArrowRight, ArrowLeft, Settings, ListChecks, Calendar, Camera } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { RoomImageCategory, RoomImage, RoomMeasurement, MeasurementType, RoomMeasurementStatus, RoomTypeConfig, ChecklistParam, Region } from '../../types';
 import { AuditGate } from '../DeviceComponents';
@@ -468,6 +468,29 @@ export const RoomMeasure: React.FC = () => {
       e.target.value = '';
   };
 
+  const handleSimulateCamera = (category: RoomImageCategory) => {
+      if (!currentStore || !activeRoomTypeName) return;
+      
+      // Simulate taking a photo by using a random placeholder image
+      const mockImages = [
+          'https://images.unsplash.com/photo-1599690925058-90e1a0b368a4?q=80&w=600&auto=format&fit=crop',
+          'https://images.unsplash.com/photo-1550920760-72cb7c2fb74e?q=80&w=600&auto=format&fit=crop',
+          'https://images.unsplash.com/photo-1513694203232-719a280e022f?q=80&w=600&auto=format&fit=crop'
+      ];
+      const url = mockImages[Math.floor(Math.random() * mockImages.length)];
+      
+      const newImage: RoomImage = { url, category };
+      
+      const updatedTypeConfigs = currentStore.roomTypeConfigs.map(rt => {
+          if (rt.name === activeRoomTypeName) {
+              return { ...rt, images: [...(rt.images || []), newImage] };
+          }
+          return rt;
+      });
+
+      updateStore(currentStore.id, { roomTypeConfigs: updatedTypeConfigs });
+  };
+
   const handleRemoveImage = (imageToRemove: RoomImage) => {
       if (!currentStore || !activeRoomTypeName) return;
 
@@ -837,6 +860,15 @@ export const RoomMeasure: React.FC = () => {
                                             />
                                             <Upload className="text-blue-400 mb-1 group-hover:scale-110 transition-transform" size={20} />
                                             <span className="text-[10px] text-blue-500 font-bold">上传</span>
+                                        </div>
+
+                                        {/* Camera Button - New */}
+                                        <div 
+                                            onClick={() => handleSimulateCamera(moduleName)}
+                                            className="aspect-square border-2 border-dashed border-blue-200 bg-blue-50/50 rounded-xl flex flex-col items-center justify-center relative hover:bg-blue-100 transition-colors cursor-pointer group"
+                                        >
+                                            <Camera className="text-blue-400 mb-1 group-hover:scale-110 transition-transform" size={20} />
+                                            <span className="text-[10px] text-blue-500 font-bold">拍照</span>
                                         </div>
 
                                         {/* Image List */}
