@@ -266,6 +266,9 @@ export type FeedbackProcessData = {
     checkInTime?: string;
     checkInLocation?: string;
     siteImages?: string[];
+
+    // Process State
+    completedSteps?: number[]; // Track explicit completion of steps
 };
 
 export type DeviceFeedback = {

@@ -1,4 +1,4 @@
-// 标记：本次更新优化了设备处理流程页面：将流程节点改为顶部横向导航；实现了分步向导式操作，确保按顺序完成各个环节；支持左右切换查看模块详情
+// 标记：本次更新优化了设备处理流程页面：强化流程闭环逻辑，环节必须点击“确认完成”才视为完成（顶部打勾），且所有环节均确认完成后才允许提交审核。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
