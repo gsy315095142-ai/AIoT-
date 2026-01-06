@@ -1,7 +1,7 @@
 import React, { useState, ChangeEvent, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Table, Ruler, ArrowLeft, Search, ChevronDown, ChevronRight, Settings, Check, HelpCircle, Image as ImageIcon, ClipboardList, Hammer, ListChecks, Calendar, Send } from 'lucide-react';
-import { Store as StoreType, Room, RoomImageCategory, RoomImage, RoomTypeConfig, ChecklistParam, ChecklistParamType, ModuleType, Region } from '../../types';
+import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Table, Ruler, ArrowLeft, Search, ChevronDown, ChevronRight, Settings, Check, HelpCircle, Image as ImageIcon, ClipboardList, Hammer, ListChecks, Calendar, Send, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Store as StoreType, Room, RoomImageCategory, RoomImage, RoomTypeConfig, ChecklistParam, ChecklistParamType, ModuleType, Region, InstallationParamKey } from '../../types';
 
 const DEFAULT_MODULES: RoomImageCategory[] = [
     '地投环境',
@@ -157,6 +157,10 @@ export const RoomArchive: React.FC = () => {
       delete newChecklistConfigs[moduleName];
       const newModuleTypes = { ...currentConfig.moduleTypes };
       delete newModuleTypes[moduleName];
+      
+      // Clean up installation params
+      const newInstallationParams = { ...(currentConfig.installationParams || {}) };
+      delete newInstallationParams[moduleName];
 
       updateStore(activeStore.id, {
           moduleConfig: {
@@ -164,7 +168,8 @@ export const RoomArchive: React.FC = () => {
               moduleTypes: newModuleTypes,
               exampleImages: newExampleImages,
               exampleRequirements: newExampleRequirements,
-              checklistConfigs: newChecklistConfigs
+              checklistConfigs: newChecklistConfigs,
+              installationParams: newInstallationParams
           }
       });
   };
@@ -195,6 +200,9 @@ export const RoomArchive: React.FC = () => {
       const newChecklistConfigs = { ...currentConfig.checklistConfigs };
       if (newChecklistConfigs[oldName]) { newChecklistConfigs[newName] = newChecklistConfigs[oldName]; delete newChecklistConfigs[oldName]; }
 
+      const newInstallationParams = { ...(currentConfig.installationParams || {}) };
+      if (newInstallationParams[oldName]) { newInstallationParams[newName] = newInstallationParams[oldName]; delete newInstallationParams[oldName]; }
+
       // 2. Migrate Data in RoomTypes (Update category name in measurements and images)
       const updatedRoomTypeConfigs = activeStore.roomTypeConfigs.map(rt => {
           const newImages = (rt.images || []).map(img => 
@@ -212,7 +220,8 @@ export const RoomArchive: React.FC = () => {
               moduleTypes: newModuleTypes,
               exampleImages: newExampleImages,
               exampleRequirements: newRequirements,
-              checklistConfigs: newChecklistConfigs
+              checklistConfigs: newChecklistConfigs,
+              installationParams: newInstallationParams
           },
           roomTypeConfigs: updatedRoomTypeConfigs
       });
@@ -220,7 +229,7 @@ export const RoomArchive: React.FC = () => {
       setEditingModule(null);
   };
 
-  // --- Config Image/Req/Checklist Handlers (Store Level) ---
+  // --- Config Image/Req/Checklist/Params Handlers (Store Level) ---
 
   const handleConfigImageUpload = (category: string, e: ChangeEvent<HTMLInputElement>) => {
       if (!activeStore) return;
@@ -254,6 +263,29 @@ export const RoomArchive: React.FC = () => {
           moduleConfig: {
               ...currentConfig,
               exampleRequirements: { ...currentConfig.exampleRequirements, [category]: value }
+          }
+      });
+  };
+
+  const handleToggleInstallationParam = (category: string, paramKey: InstallationParamKey) => {
+      if (!activeStore) return;
+      const currentConfig = activeStore.moduleConfig;
+      const currentParams = currentConfig.installationParams?.[category] || [];
+      
+      let newParams: InstallationParamKey[];
+      if (currentParams.includes(paramKey)) {
+          newParams = currentParams.filter(p => p !== paramKey);
+      } else {
+          newParams = [...currentParams, paramKey];
+      }
+
+      updateStore(activeStore.id, {
+          moduleConfig: {
+              ...currentConfig,
+              installationParams: {
+                  ...currentConfig.installationParams,
+                  [category]: newParams
+              }
           }
       });
   };
@@ -427,7 +459,7 @@ export const RoomArchive: React.FC = () => {
               regionId: storeForm.regionId,
               roomTypeConfigs: storeForm.roomTypes,
               rooms: mergeRooms([]),
-              moduleConfig: { activeModules: [], moduleTypes: {}, exampleImages: {}, exampleRequirements: {}, checklistConfigs: {} } // Will be handled by addStore defaults usually
+              moduleConfig: { activeModules: [], moduleTypes: {}, exampleImages: {}, exampleRequirements: {}, checklistConfigs: {}, installationParams: {} } // Will be handled by addStore defaults usually
           });
       }
       setIsStoreModalOpen(false);
@@ -718,6 +750,9 @@ export const RoomArchive: React.FC = () => {
 
                                   // Find the '安装' Node
                                   const installNode = activeStore.installation?.nodes.find(n => n.name === '安装');
+                                  // Data structure for room installation in node: 
+                                  // Legacy: { [room]: { [category]: string[] } }
+                                  // New: { [room]: { [category]: { images: string[], params: {} } } }
                                   const roomInstallData = installNode?.data?.[editingRoom.room.number];
 
                                   if (!roomInstallData) {
@@ -734,13 +769,37 @@ export const RoomArchive: React.FC = () => {
                                   return (
                                       <>
                                         {installationModules.length > 0 ? installationModules.map(category => {
-                                            const catImages: string[] = roomInstallData[category] || [];
+                                            const categoryData = roomInstallData[category];
+                                            const catImages: string[] = Array.isArray(categoryData) ? categoryData : (categoryData?.images || []);
+                                            const catParams = !Array.isArray(categoryData) ? categoryData?.params : undefined;
+
                                             return (
                                                 <div key={category} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
                                                     <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-50">
                                                         <Hammer size={14} className="text-blue-500" />
                                                         <span className="text-sm font-bold text-slate-800">{category} (安装现场)</span>
                                                     </div>
+                                                    
+                                                    {/* Display Params if exist */}
+                                                    {catParams && Object.keys(catParams).length > 0 && (
+                                                        <div className="mb-3 grid grid-cols-2 gap-2">
+                                                            {catParams.deviceSn && (
+                                                                <div className="bg-slate-50 p-2 rounded text-[10px]">
+                                                                    <span className="text-slate-400 block">SN号</span>
+                                                                    <span className="font-mono text-slate-700 font-bold">{catParams.deviceSn}</span>
+                                                                </div>
+                                                            )}
+                                                            {catParams.powerOnBoot !== undefined && (
+                                                                <div className="bg-slate-50 p-2 rounded text-[10px]">
+                                                                    <span className="text-slate-400 block">通电自启</span>
+                                                                    <span className={`font-bold ${catParams.powerOnBoot ? 'text-green-600' : 'text-slate-700'}`}>
+                                                                        {catParams.powerOnBoot ? '是' : '否'}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+
                                                     <div className="grid grid-cols-4 gap-2">
                                                         {catImages.map((url, idx) => (
                                                             <div key={idx} className="aspect-square rounded-lg border border-slate-200 relative group overflow-hidden bg-slate-100">
@@ -844,7 +903,7 @@ export const RoomArchive: React.FC = () => {
                       <div className="flex-1 overflow-y-auto p-4 bg-white">
                           <div className="flex justify-between items-center mb-4">
                               <div className="text-xs text-slate-400">
-                                  {activeModuleTab === 'measurement' ? '复尺类模块需配置图片、备注及清单。' : '安装类模块配置示例图和备注。'}
+                                  {activeModuleTab === 'measurement' ? '复尺类模块需配置图片、备注及清单。' : '安装类模块需配置示例图、备注及必填参数。'}
                               </div>
                               
                               {!isAddingModule ? (
@@ -878,6 +937,8 @@ export const RoomArchive: React.FC = () => {
                                   const checklistParams = activeStore.moduleConfig.checklistConfigs[moduleName] || [];
                                   const isAddingChecklist = addingChecklistToCategory === moduleName;
                                   const isEditingName = editingModule?.oldName === moduleName;
+                                  // Installation Params
+                                  const installParams = activeStore.moduleConfig.installationParams?.[moduleName] || [];
                                   
                                   return (
                                       <div key={moduleName} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm relative group/module animate-fadeIn">
@@ -941,7 +1002,7 @@ export const RoomArchive: React.FC = () => {
                                                   <p className="text-[10px] text-center text-slate-400">标准参考图</p>
                                               </div>
 
-                                              {/* Right Column: Config (Shared for both Measurement and Installation now) */}
+                                              {/* Right Column: Config */}
                                               <div className="flex-1 flex flex-col gap-3 min-w-0">
                                                   {/* Text Requirement / Remark */}
                                                   <div className="flex flex-col">
@@ -955,6 +1016,41 @@ export const RoomArchive: React.FC = () => {
                                                           onChange={(e) => handleConfigRequirementChange(moduleName, e.target.value)}
                                                       />
                                                   </div>
+
+                                                  {/* Installation Parameters Config */}
+                                                  {activeModuleTab === 'installation' && (
+                                                      <div className="flex flex-col flex-1">
+                                                          <div className="flex justify-between items-center mb-1">
+                                                              <label className="text-[10px] text-slate-500 font-bold uppercase">参数配置 (安装需填)</label>
+                                                          </div>
+                                                          <div className="bg-slate-50 border border-slate-200 rounded-lg p-2 flex flex-col gap-2">
+                                                              <div className="flex items-center gap-2">
+                                                                  <div 
+                                                                    onClick={() => handleToggleInstallationParam(moduleName, 'deviceSn')}
+                                                                    className={`w-4 h-4 rounded border cursor-pointer flex items-center justify-center transition-colors ${
+                                                                        installParams.includes('deviceSn') ? 'bg-blue-600 border-blue-600' : 'bg-white border-slate-300'
+                                                                    }`}
+                                                                  >
+                                                                      {installParams.includes('deviceSn') && <Check size={12} className="text-white" strokeWidth={3} />}
+                                                                  </div>
+                                                                  <span className="text-xs text-slate-700">填写设备SN号</span>
+                                                                  <span className="text-[9px] text-slate-400 bg-slate-100 px-1 rounded">填空</span>
+                                                              </div>
+                                                              <div className="flex items-center gap-2">
+                                                                  <div 
+                                                                    onClick={() => handleToggleInstallationParam(moduleName, 'powerOnBoot')}
+                                                                    className={`w-4 h-4 rounded border cursor-pointer flex items-center justify-center transition-colors ${
+                                                                        installParams.includes('powerOnBoot') ? 'bg-blue-600 border-blue-600' : 'bg-white border-slate-300'
+                                                                    }`}
+                                                                  >
+                                                                      {installParams.includes('powerOnBoot') && <Check size={12} className="text-white" strokeWidth={3} />}
+                                                                  </div>
+                                                                  <span className="text-xs text-slate-700">通电自启</span>
+                                                                  <span className="text-[9px] text-slate-400 bg-slate-100 px-1 rounded">是/否</span>
+                                                              </div>
+                                                          </div>
+                                                      </div>
+                                                  )}
 
                                                   {/* Checklist Config - ONLY FOR MEASUREMENT */}
                                                   {activeModuleTab === 'measurement' && (

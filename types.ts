@@ -90,6 +90,7 @@ export type StoreInstallation = {
 // --------------------------
 
 export type ModuleType = 'measurement' | 'installation';
+export type InstallationParamKey = 'deviceSn' | 'powerOnBoot';
 
 // Store-level Module Configuration (Universal for all room types in the store)
 export type StoreModuleConfig = {
@@ -98,6 +99,7 @@ export type StoreModuleConfig = {
   exampleImages: Record<string, string>;
   exampleRequirements: Record<string, string>;
   checklistConfigs: Record<string, ChecklistParam[]>;
+  installationParams?: Record<string, InstallationParamKey[]>; // Key: Module Name, Value: Array of enabled keys
 };
 
 // New Measurement Task Type

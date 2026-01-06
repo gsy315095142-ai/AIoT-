@@ -79,7 +79,8 @@ const createDefaultModuleConfig = (): StoreModuleConfig => {
             '桌显': 'https://images.unsplash.com/photo-1593640408182-31c70c8268f5?q=80&w=600&auto=format&fit=crop'
         },
         exampleRequirements: {},
-        checklistConfigs: {}
+        checklistConfigs: {},
+        installationParams: {} // Initialize empty
     };
 };
 

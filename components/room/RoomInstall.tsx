@@ -1,7 +1,7 @@
 import React, { useState, ChangeEvent, useMemo, useRef } from 'react';
-import { Hammer, Store, ChevronDown, Clock, CheckCircle, Upload, X, Calendar, ClipboardList, AlertCircle, ArrowRight, Gavel, BedDouble, Info, Image as ImageIcon, MapPin, ChevronLeft, ChevronRight, Navigation, Plus, Check, RefreshCw, PlayCircle, Video, ChevronUp, Wifi, FileText, Square, CheckSquare } from 'lucide-react';
+import { Hammer, Store, ChevronDown, Clock, CheckCircle, Upload, X, Calendar, ClipboardList, AlertCircle, ArrowRight, Gavel, BedDouble, Info, Image as ImageIcon, MapPin, ChevronLeft, ChevronRight, Navigation, Plus, Check, RefreshCw, PlayCircle, Video, ChevronUp, Wifi, FileText, Square, CheckSquare, ListChecks, ToggleLeft, ToggleRight } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { Store as StoreType, InstallNode, InstallStatus, RoomImageCategory, Region } from '../../types';
+import { Store as StoreType, InstallNode, InstallStatus, RoomImageCategory, Region, InstallationParamKey } from '../../types';
 import { AuditGate } from '../DeviceComponents';
 
 // Moved outside component to avoid scope/re-creation issues
@@ -347,21 +347,38 @@ export const RoomInstall: React.FC = () => {
       updateNodeData(currentStepIndex, newImages);
   };
 
+  // Helper to normalize room install data structure
+  const getInstallModuleData = (rawData: any) => {
+      if (Array.isArray(rawData)) {
+          return { images: rawData, params: {} };
+      } else if (typeof rawData === 'object' && rawData) {
+          return { 
+              images: rawData.images || [], 
+              params: rawData.params || {} 
+          };
+      }
+      return { images: [], params: {} };
+  };
+
   // Complex Node: Install Complete (Step 3)
   const handleRoomImageUpload = (roomNumber: string, category: RoomImageCategory, e: ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files[0]) {
           const url = URL.createObjectURL(e.target.files[0]);
           const currentNode = activeStore?.installation?.nodes[currentStepIndex];
-          const currentData = (currentNode?.data && typeof currentNode.data === 'object' && !Array.isArray(currentNode.data)) ? currentNode.data : {};
+          const currentData = (currentNode?.data && typeof currentNode.data === 'object') ? currentNode.data : {};
           
           const roomData = currentData[roomNumber] || {};
-          const categoryImages = roomData[category] || [];
+          // Normalize to object structure
+          const categoryData = getInstallModuleData(roomData[category]);
           
           const newData = {
               ...currentData,
               [roomNumber]: {
                   ...roomData,
-                  [category]: [...categoryImages, url]
+                  [category]: {
+                      ...categoryData,
+                      images: [...categoryData.images, url]
+                  }
               }
           };
           updateNodeData(currentStepIndex, newData);
@@ -373,13 +390,39 @@ export const RoomInstall: React.FC = () => {
       const currentNode = activeStore?.installation?.nodes[currentStepIndex];
       const currentData = currentNode?.data || {};
       const roomData = currentData[roomNumber] || {};
-      const categoryImages = roomData[category] || [];
+      const categoryData = getInstallModuleData(roomData[category]);
       
       const newData = {
           ...currentData,
           [roomNumber]: {
               ...roomData,
-              [category]: categoryImages.filter((_: string, i: number) => i !== imgIndex)
+              [category]: {
+                  ...categoryData,
+                  images: categoryData.images.filter((_: string, i: number) => i !== imgIndex)
+              }
+          }
+      };
+      updateNodeData(currentStepIndex, newData);
+  };
+
+  // New: Handle Parameter Input
+  const handleRoomParamUpdate = (roomNumber: string, category: RoomImageCategory, paramKey: string, value: any) => {
+      const currentNode = activeStore?.installation?.nodes[currentStepIndex];
+      const currentData = currentNode?.data || {};
+      const roomData = currentData[roomNumber] || {};
+      const categoryData = getInstallModuleData(roomData[category]);
+
+      const newData = {
+          ...currentData,
+          [roomNumber]: {
+              ...roomData,
+              [category]: {
+                  ...categoryData,
+                  params: {
+                      ...categoryData.params,
+                      [paramKey]: value
+                  }
+              }
           }
       };
       updateNodeData(currentStepIndex, newData);
@@ -472,7 +515,24 @@ export const RoomInstall: React.FC = () => {
           if (rooms.length > 0) {
               return rooms.every(room => {
                   const rData = roomData[room.number] || {};
-                  return installationModules.every(cat => Array.isArray(rData[cat]) && rData[cat].length > 0);
+                  return installationModules.every(cat => {
+                      const modData = getInstallModuleData(rData[cat]);
+                      const hasImages = modData.images.length > 0;
+                      
+                      // Check Params if configured
+                      const requiredParams = activeStore.moduleConfig.installationParams?.[cat] || [];
+                      let hasParams = true;
+                      if (requiredParams.length > 0) {
+                          hasParams = requiredParams.every(pk => {
+                              const val = modData.params[pk];
+                              if (pk === 'deviceSn') return !!val && val.trim() !== '';
+                              if (pk === 'powerOnBoot') return val !== undefined; // boolean check
+                              return true;
+                          });
+                      }
+
+                      return hasImages && hasParams;
+                  });
               });
           } else {
               return true; 
@@ -564,7 +624,24 @@ export const RoomInstall: React.FC = () => {
       // Get Dynamic Installation Modules
       const installationModules = activeStore?.moduleConfig.activeModules.filter(m => activeStore.moduleConfig.moduleTypes?.[m] === 'installation') || [];
       if (installationModules.length === 0) return true;
-      return installationModules.every(cat => Array.isArray(roomData[cat]) && roomData[cat].length > 0);
+      
+      return installationModules.every(cat => {
+          const modData = getInstallModuleData(roomData[cat]);
+          const hasImages = modData.images.length > 0;
+          
+          // Check Params if configured
+          const requiredParams = activeStore.moduleConfig.installationParams?.[cat] || [];
+          let hasParams = true;
+          if (requiredParams.length > 0) {
+              hasParams = requiredParams.every(pk => {
+                  const val = modData.params[pk];
+                  if (pk === 'deviceSn') return !!val && val.trim() !== '';
+                  if (pk === 'powerOnBoot') return val !== undefined; 
+                  return true;
+              });
+          }
+          return hasImages && hasParams;
+      });
   };
 
   const isDebugRoomCompleted = (rData: any) => rData?.network && rData?.log;
@@ -922,8 +999,12 @@ export const RoomInstall: React.FC = () => {
                                                 return (
                                                     <div className="space-y-4">
                                                         {categories.length > 0 ? categories.map(cat => {
-                                                            const images = roomData[cat] || [];
+                                                            const catData = getInstallModuleData(roomData[cat]);
+                                                            const images = catData.images;
+                                                            const params = catData.params;
+                                                            
                                                             const requirement = activeStore.moduleConfig.exampleRequirements?.[cat];
+                                                            const requiredParams = activeStore.moduleConfig.installationParams?.[cat] || [];
                                                             
                                                             return (
                                                                 <div key={cat} className="bg-slate-50 p-4 rounded-xl border border-slate-100">
@@ -941,6 +1022,54 @@ export const RoomInstall: React.FC = () => {
                                                                         <div className="mb-3 bg-blue-50 text-blue-800 text-[10px] p-2 rounded border border-blue-100 flex items-start gap-1">
                                                                             <Info size={12} className="shrink-0 mt-0.5" />
                                                                             <div className="whitespace-pre-wrap">{requirement}</div>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {/* Parameter Input Fields */}
+                                                                    {requiredParams.length > 0 && (
+                                                                        <div className="mb-4 space-y-2 bg-white p-3 rounded-lg border border-slate-200">
+                                                                            <h5 className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
+                                                                                <ListChecks size={10} /> 必填参数
+                                                                            </h5>
+                                                                            {requiredParams.map(pk => {
+                                                                                if (pk === 'deviceSn') {
+                                                                                    return (
+                                                                                        <div key={pk} className="flex flex-col gap-1">
+                                                                                            <label className="text-[10px] text-slate-600 font-bold">设备SN号</label>
+                                                                                            <input 
+                                                                                                type="text" 
+                                                                                                placeholder="请输入设备SN号"
+                                                                                                className="border border-slate-200 rounded p-1.5 text-xs focus:ring-1 focus:ring-blue-500 outline-none w-full"
+                                                                                                value={params.deviceSn || ''}
+                                                                                                onChange={(e) => handleRoomParamUpdate(installingRoomNumber, cat, 'deviceSn', e.target.value)}
+                                                                                                disabled={isLocked}
+                                                                                            />
+                                                                                        </div>
+                                                                                    );
+                                                                                }
+                                                                                if (pk === 'powerOnBoot') {
+                                                                                    return (
+                                                                                        <div key={pk} className="flex items-center justify-between py-1">
+                                                                                            <label className="text-[10px] text-slate-600 font-bold">通电自启</label>
+                                                                                            <div className="flex gap-2">
+                                                                                                <button 
+                                                                                                    onClick={() => !isLocked && handleRoomParamUpdate(installingRoomNumber, cat, 'powerOnBoot', true)}
+                                                                                                    className={`px-2 py-1 rounded text-[10px] border transition-colors flex items-center gap-1 ${params.powerOnBoot === true ? 'bg-green-100 border-green-200 text-green-700 font-bold' : 'bg-white border-slate-200 text-slate-500'}`}
+                                                                                                >
+                                                                                                    <ToggleRight size={12} /> 是
+                                                                                                </button>
+                                                                                                <button 
+                                                                                                    onClick={() => !isLocked && handleRoomParamUpdate(installingRoomNumber, cat, 'powerOnBoot', false)}
+                                                                                                    className={`px-2 py-1 rounded text-[10px] border transition-colors flex items-center gap-1 ${params.powerOnBoot === false ? 'bg-red-100 border-red-200 text-red-700 font-bold' : 'bg-white border-slate-200 text-slate-500'}`}
+                                                                                                >
+                                                                                                    <ToggleLeft size={12} /> 否
+                                                                                                </button>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    );
+                                                                                }
+                                                                                return null;
+                                                                            })}
                                                                         </div>
                                                                     )}
 

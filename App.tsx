@@ -1,4 +1,4 @@
-// 标记：本次更新在【客房建档】页面，针对已发布安装任务的门店，在条目上增加了安装进度的显示
+// 标记：本次更新在【模块配置】增加了安装类模块的参数配置（SN号、通电自启），并在【安装进度详情】的安装环节支持这些参数的录入和校验
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
