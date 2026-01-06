@@ -1,4 +1,4 @@
-// 标记：本次更新优化了设备处理流程页面：增加环节节点展示；修复处理结果输入问题；实现打卡位置模拟功能
+// 标记：本次更新优化了设备处理流程页面：将流程节点改为顶部横向导航；实现了分步向导式操作，确保按顺序完成各个环节；支持左右切换查看模块详情
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
