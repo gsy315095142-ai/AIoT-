@@ -1,4 +1,4 @@
-// 标记：本次更新在【客房安装进度】页面的各个环节（到店打卡、清点货物、安装、交付）中新增了【拍照】或【录像】的模拟功能
+// 标记：本次更新在【货物建档】和【客户下单】的货物选择页面中，调整了筛选布局，将货物类型（全部/硬件/物料）改为页签形式切换
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

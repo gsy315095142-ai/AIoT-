@@ -1,5 +1,5 @@
 import React, { useState, useMemo, ChangeEvent } from 'react';
-import { Package, Search, Plus, Edit2, Trash2, X, ChevronDown, Image as ImageIcon } from 'lucide-react';
+import { Package, Search, Plus, Edit2, Trash2, X, ChevronDown, Image as ImageIcon, Box } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Product, ProductType, ProductSubType } from '../../types';
 
@@ -123,41 +123,48 @@ export const ProcurementProduct: React.FC = () => {
             </div>
 
             {/* Filter Bar */}
-            <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 mb-2 flex flex-col gap-3">
-                <div className="grid grid-cols-2 gap-3">
-                    <div className="relative">
-                        <select 
-                            className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            value={filterType}
-                            onChange={(e) => { setFilterType(e.target.value); setFilterSubType(''); }}
+            <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-100 mb-2 flex flex-col">
+                {/* Tabs */}
+                <div className="flex p-1 gap-1">
+                    <button 
+                        onClick={() => { setFilterType(''); setFilterSubType(''); }}
+                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${!filterType ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-50'}`}
+                    >
+                        全部类型
+                    </button>
+                    {PRODUCT_TYPES.map(t => (
+                        <button 
+                            key={t}
+                            onClick={() => { setFilterType(t); setFilterSubType(''); }}
+                            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${filterType === t ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-50'}`}
                         >
-                            <option value="">全部类型</option>
-                            {PRODUCT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                        </select>
-                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
-                    </div>
+                            {t}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="p-3 pt-1 grid grid-cols-2 gap-3">
                     <div className="relative">
                         <select 
                             className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                             value={filterSubType}
                             onChange={(e) => setFilterSubType(e.target.value)}
-                            disabled={!filterType && false}
                         >
                             <option value="">全部子类</option>
                             {getSubTypes(filterType).map(t => <option key={t} value={t}>{t}</option>)}
                         </select>
                         <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
                     </div>
-                </div>
-                <div className="relative">
-                    <input 
-                        type="text" 
-                        placeholder="搜索货物名称..."
-                        className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs py-2 pl-8 pr-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                    <div className="relative">
+                        <input 
+                            type="text" 
+                            placeholder="搜索货物名称..."
+                            className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs py-2 pl-8 pr-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                    </div>
                 </div>
             </div>
         </div>

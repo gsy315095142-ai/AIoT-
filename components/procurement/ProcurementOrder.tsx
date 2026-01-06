@@ -337,24 +337,31 @@ export const ProcurementOrder: React.FC = () => {
             </div>
 
             {/* Filters */}
-            <div className="grid grid-cols-2 gap-3 mb-2">
-                <div className="relative">
-                    <select 
-                        className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={filterType}
-                        onChange={(e) => { setFilterType(e.target.value); setFilterSubType(''); }}
+            <div className="flex flex-col gap-2 mb-2">
+                {/* Tabs */}
+                <div className="flex bg-slate-50 p-1 rounded-lg">
+                    <button 
+                        onClick={() => { setFilterType(''); setFilterSubType(''); }}
+                        className={`flex-1 py-2 text-xs font-bold rounded-md transition-colors ${!filterType ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:bg-slate-200'}`}
                     >
-                        <option value="">全部类型</option>
-                        {PRODUCT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                        全部类型
+                    </button>
+                    {PRODUCT_TYPES.map(t => (
+                        <button 
+                            key={t}
+                            onClick={() => { setFilterType(t); setFilterSubType(''); }}
+                            className={`flex-1 py-2 text-xs font-bold rounded-md transition-colors ${filterType === t ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:bg-slate-200'}`}
+                        >
+                            {t}
+                        </button>
+                    ))}
                 </div>
+
                 <div className="relative">
                     <select 
                         className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                         value={filterSubType}
                         onChange={(e) => setFilterSubType(e.target.value)}
-                        disabled={!filterType}
                     >
                         <option value="">全部子类</option>
                         {getSubTypes(filterType).map(t => <option key={t} value={t}>{t}</option>)}
