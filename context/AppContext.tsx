@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent, AuditRecord, AuditStatus, AuditType, StoreInstallation, InstallNode, Product, RoomTypeConfig, ProcurementOrder, ProductSubType, UserRole, StoreModuleConfig, Supplier, DeviceFeedback, FeedbackStatus } from '../types';
+import { Device, DeviceType, Region, Store, DeviceStatus, OpsStatus, DeviceEvent, AuditRecord, AuditStatus, AuditType, StoreInstallation, InstallNode, Product, RoomTypeConfig, ProcurementOrder, ProductSubType, UserRole, StoreModuleConfig, Supplier, DeviceFeedback, FeedbackStatus, FeedbackMethod, FeedbackProcessData } from '../types';
 
 // Initial Mock Data
 const MOCK_REGIONS: Region[] = [
@@ -282,7 +282,7 @@ const MOCK_FEEDBACKS: DeviceFeedback[] = [
         roomNumber: '102',
         content: '投影画面闪烁，偶尔黑屏',
         createTime: '2025-08-26 10:00:00',
-        status: 'pending'
+        status: 'pending_receive' // Initial State
     },
     {
         id: 'fb-2',
@@ -313,9 +313,16 @@ interface AppContextType {
   suppliers: Supplier[]; // New Supplier State
   devices: Device[];
   auditRecords: AuditRecord[];
-  feedbacks: DeviceFeedback[]; // New Feedback State
-  addFeedback: (deviceId: string, content: string) => void; // New Feedback Action
-  resolveFeedback: (id: string, type: 'resolved' | 'false_alarm', resolver: string) => void; 
+  
+  // Feedback
+  feedbacks: DeviceFeedback[]; 
+  addFeedback: (deviceId: string, content: string, images?: string[]) => void; 
+  resolveFeedback: (id: string, type: 'resolved' | 'false_alarm', resolver: string) => void;
+  dispatchFeedback: (id: string, method: FeedbackMethod) => void;
+  updateFeedbackProcess: (id: string, data: Partial<FeedbackProcessData>) => void;
+  submitFeedbackAudit: (id: string) => void;
+  approveFeedback: (id: string) => void;
+  rejectFeedback: (id: string, reason: string) => void;
   
   // Procurement
   procurementProducts: Product[];
@@ -630,7 +637,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // --- Feedback Workflow ---
-  const addFeedback = (deviceId: string, content: string) => {
+  const addFeedback = (deviceId: string, content: string, images?: string[]) => {
       const device = devices.find(d => d.id === deviceId);
       if (!device) return;
       const store = stores.find(s => s.id === device.storeId);
@@ -644,7 +651,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           roomNumber: device.roomNumber,
           content: content,
           createTime: new Date().toLocaleString(),
-          status: 'pending'
+          status: 'pending_receive',
+          images: images || [],
+          processData: {}
       };
       setFeedbacks(prev => [newFeedback, ...prev]);
   };
@@ -657,6 +666,73 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                   status: type,
                   resolveTime: new Date().toLocaleString(),
                   resolver
+              };
+          }
+          return f;
+      }));
+  };
+
+  const dispatchFeedback = (id: string, method: FeedbackMethod) => {
+      setFeedbacks(prev => prev.map(f => {
+          if (f.id === id) {
+              return {
+                  ...f,
+                  status: 'processing',
+                  processMethod: method
+              };
+          }
+          return f;
+      }));
+  };
+
+  const updateFeedbackProcess = (id: string, data: Partial<FeedbackProcessData>) => {
+      setFeedbacks(prev => prev.map(f => {
+          if (f.id === id) {
+              return {
+                  ...f,
+                  processData: { ...f.processData, ...data }
+              };
+          }
+          return f;
+      }));
+  };
+
+  const submitFeedbackAudit = (id: string) => {
+      setFeedbacks(prev => prev.map(f => {
+          if (f.id === id) {
+              return {
+                  ...f,
+                  status: 'pending_audit',
+                  auditStatus: 'pending'
+              };
+          }
+          return f;
+      }));
+  };
+
+  const approveFeedback = (id: string) => {
+      setFeedbacks(prev => prev.map(f => {
+          if (f.id === id) {
+              return {
+                  ...f,
+                  status: 'resolved',
+                  auditStatus: 'approved',
+                  resolveTime: new Date().toLocaleString(),
+                  resolver: currentUser || 'System'
+              };
+          }
+          return f;
+      }));
+  };
+
+  const rejectFeedback = (id: string, reason: string) => {
+      setFeedbacks(prev => prev.map(f => {
+          if (f.id === id) {
+              return {
+                  ...f,
+                  status: 'processing', // Send back to processing
+                  auditStatus: 'rejected',
+                  rejectReason: reason
               };
           }
           return f;
@@ -958,7 +1034,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       logout,
       checkAuditPermission,
       regions, stores, deviceTypes, suppliers, devices, auditRecords,
-      feedbacks, addFeedback, resolveFeedback,
+      feedbacks, addFeedback, resolveFeedback, dispatchFeedback, updateFeedbackProcess, submitFeedbackAudit, approveFeedback, rejectFeedback,
       procurementProducts, addProcurementProduct, updateProcurementProduct, removeProcurementProduct,
       procurementOrders, addProcurementOrder, updateProcurementOrder, approveProcurementOrder,
       headerRightAction, setHeaderRightAction,

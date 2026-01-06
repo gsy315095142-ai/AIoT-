@@ -1,4 +1,4 @@
-// 标记：本次更新在【采购进度】界面，在【出库】与【物流】之间新增了【出库审核】环节，需完成美术审核勾选方可进行下一步
+// 标记：本次更新优化了设备反馈流程：新增反馈弹窗（含图文）；重构反馈管理为【待接收-派单-处理-审核-解决】闭环；根据远程/上门/自助不同方式配置差异化处理流程
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

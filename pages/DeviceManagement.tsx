@@ -58,16 +58,18 @@ const DeviceList: React.FC = () => {
     expandedDeviceId, selectedDeviceIds,
     isAddModalOpen, setIsAddModalOpen, editingImageDevice, setEditingImageDevice,
     isControlMenuOpen, setIsControlMenuOpen, isOpsStatusModalOpen, setIsOpsStatusModalOpen,
-    isInspectionModalOpen, setIsInspectionModalOpen,
+    isInspectionModalOpen, setIsInspectionModalOpen, isFeedbackModalOpen, setIsFeedbackModalOpen,
     viewingReportDevice, setViewingReportDevice, viewingEventData, setViewingEventData,
     opsChangeStatus, setOpsChangeStatus, opsChangeReason, setOpsChangeReason, complaintType, setComplaintType, opsChangeImages,
     inspResult, setInspResult, inspRemark, setInspRemark, inspImages,
+    feedbackContent, setFeedbackContent, feedbackImages,
     deviceForm, setDeviceForm,
     // Actions
     toggleSelection, toggleSelectAll, toggleExpand, hasPendingAudit,
-    handleBatchRun, handleBatchSleep, handleBatchRestart, handleBatchFeedback,
+    handleBatchRun, handleBatchSleep, handleBatchRestart, handleBatchFeedback, handleSubmitFeedback,
     openOpsStatusModal, handleOpsImageUpload, removeOpsImage, handleBatchOpsStatusSubmit,
     openInspectionModal, handleInspImageUpload, removeInspImage, handleSubmitInspection,
+    handleFeedbackImageUpload, removeFeedbackImage,
     openAddModal, handleAddFormImage, handleRemoveFormImage, handleFormImageCategoryChange, handleAddSubmit
   } = useDeviceLogic();
 
@@ -611,6 +613,52 @@ const DeviceList: React.FC = () => {
         )}
 
         {/* Modals */}
+        
+        {/* Feedback Submission Modal - New */}
+        {isFeedbackModalOpen && (
+            <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-5 animate-scaleIn">
+                    <h3 className="font-bold text-lg mb-4 text-slate-800 flex items-center gap-2">
+                        <MessageSquareWarning size={20} className="text-orange-600" />
+                        提交设备反馈
+                    </h3>
+                    
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">反馈内容 *</label>
+                            <textarea 
+                                className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none h-24 resize-none"
+                                placeholder="请描述设备遇到的问题..."
+                                value={feedbackContent}
+                                onChange={e => setFeedbackContent(e.target.value)}
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">上传图片/视频 (可选)</label>
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+                                <div className="w-16 h-16 border-2 border-dashed border-slate-200 rounded bg-slate-50 flex items-center justify-center flex-shrink-0 cursor-pointer relative hover:bg-blue-50 hover:border-blue-200 transition-colors">
+                                    <input type="file" accept="image/*,video/*" onChange={handleFeedbackImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                    <ImageIcon size={20} className="text-slate-400" />
+                                </div>
+                                {feedbackImages.map((url, idx) => (
+                                    <div key={idx} className="w-16 h-16 rounded border border-slate-200 overflow-hidden flex-shrink-0 relative group bg-black">
+                                        <img src={url} className="w-full h-full object-cover" />
+                                        <button onClick={() => removeFeedbackImage(idx)} className="absolute top-0 right-0 bg-red-500 text-white rounded-bl p-0.5 opacity-80 hover:opacity-100"><X size={12} /></button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2 pt-2">
+                             <button onClick={() => setIsFeedbackModalOpen(false)} className="flex-1 py-2 border border-slate-200 rounded text-slate-600 font-bold hover:bg-slate-50">取消</button>
+                             <button onClick={handleSubmitFeedback} className="flex-1 py-2 bg-orange-600 text-white rounded font-bold hover:bg-orange-700 shadow-md">确认反馈</button>
+                        </div>
+                    </div>
+                </div>
+             </div>
+        )}
+
         {isAddModalOpen && (
             <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
                 <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[85vh]">

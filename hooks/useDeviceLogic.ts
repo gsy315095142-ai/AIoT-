@@ -45,6 +45,11 @@ export const useDeviceLogic = () => {
   const [isOpsStatusModalOpen, setIsOpsStatusModalOpen] = useState(false);
   const [isInspectionModalOpen, setIsInspectionModalOpen] = useState(false);
   const [inspectingDeviceId, setInspectingDeviceId] = useState<string | null>(null);
+  
+  // Feedback Modal States
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+  const [feedbackContent, setFeedbackContent] = useState('');
+  const [feedbackImages, setFeedbackImages] = useState<string[]>([]);
 
   // Detail Modal States
   const [viewingReportDevice, setViewingReportDevice] = useState<Device | null>(null);
@@ -133,15 +138,35 @@ export const useDeviceLogic = () => {
     setIsControlMenuOpen(false); setSelectedDeviceIds(new Set());
   };
 
+  // Open feedback modal logic
   const handleBatchFeedback = () => {
     if (selectedDeviceIds.size === 0) return;
-    selectedDeviceIds.forEach(id => {
-        addFeedback(id, "手动上报设备问题");
-    });
-    alert("已上报该设备问题");
+    setFeedbackContent('');
+    setFeedbackImages([]);
+    setIsFeedbackModalOpen(true);
     setIsControlMenuOpen(false);
-    setSelectedDeviceIds(new Set());
   };
+
+  // Submit feedback logic
+  const handleSubmitFeedback = () => {
+      if (!feedbackContent.trim()) { alert("请输入反馈内容"); return; }
+      selectedDeviceIds.forEach(id => {
+          addFeedback(id, feedbackContent, feedbackImages);
+      });
+      alert("已确认反馈，请前往【设备反馈管理】查看");
+      setIsFeedbackModalOpen(false);
+      setSelectedDeviceIds(new Set());
+  };
+
+  const handleFeedbackImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          const url = URL.createObjectURL(e.target.files[0]);
+          setFeedbackImages(prev => [...prev, url]);
+      }
+      e.target.value = '';
+  }
+
+  const removeFeedbackImage = (idx: number) => setFeedbackImages(prev => prev.filter((_, i) => i !== idx));
 
   const openOpsStatusModal = () => {
     if (selectedDeviceIds.size === 0) return;
@@ -255,6 +280,7 @@ export const useDeviceLogic = () => {
     isControlMenuOpen, setIsControlMenuOpen,
     isOpsStatusModalOpen, setIsOpsStatusModalOpen,
     isInspectionModalOpen, setIsInspectionModalOpen,
+    isFeedbackModalOpen, setIsFeedbackModalOpen, // New State
     
     viewingReportDevice, setViewingReportDevice,
     viewingEventData, setViewingEventData,
@@ -268,13 +294,17 @@ export const useDeviceLogic = () => {
     inspRemark, setInspRemark,
     inspImages,
     
+    feedbackContent, setFeedbackContent, // New State
+    feedbackImages, // New State
+    
     deviceForm, setDeviceForm,
 
     // Actions
     toggleSelection, toggleSelectAll, toggleExpand, hasPendingAudit,
-    handleBatchRun, handleBatchSleep, handleBatchRestart, handleBatchFeedback,
+    handleBatchRun, handleBatchSleep, handleBatchRestart, handleBatchFeedback, handleSubmitFeedback, // New Action
     openOpsStatusModal, handleOpsImageUpload, removeOpsImage, handleBatchOpsStatusSubmit,
     openInspectionModal, handleInspImageUpload, removeInspImage, handleSubmitInspection,
+    handleFeedbackImageUpload, removeFeedbackImage, // New Actions
     openAddModal, handleAddFormImage, handleRemoveFormImage, handleFormImageCategoryChange, handleAddSubmit
   };
 };

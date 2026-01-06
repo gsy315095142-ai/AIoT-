@@ -251,7 +251,22 @@ export type AuditRecord = {
 };
 
 // --- Feedback Types ---
-export type FeedbackStatus = 'pending' | 'resolved' | 'false_alarm';
+export type FeedbackStatus = 'pending_receive' | 'processing' | 'pending_audit' | 'resolved' | 'false_alarm';
+export type FeedbackMethod = 'remote' | 'onsite' | 'self';
+
+export type FeedbackProcessData = {
+    // Common
+    result?: string;
+    
+    // Remote
+    connectionTime?: string;
+    
+    // On-site
+    appointmentTime?: string;
+    checkInTime?: string;
+    checkInLocation?: string;
+    siteImages?: string[];
+};
 
 export type DeviceFeedback = {
   id: string;
@@ -259,8 +274,16 @@ export type DeviceFeedback = {
   content: string; // The feedback issue description
   createTime: string;
   status: FeedbackStatus;
-  images?: string[];
+  images?: string[]; // Feedback images
   
+  // Process Info
+  processMethod?: FeedbackMethod;
+  processData?: FeedbackProcessData;
+  
+  // Audit Info
+  auditStatus?: 'pending' | 'approved' | 'rejected';
+  rejectReason?: string;
+
   // Resolution Info
   resolveTime?: string;
   resolver?: string;
