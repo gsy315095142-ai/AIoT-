@@ -1207,6 +1207,14 @@ export const RoomArchive: React.FC = () => {
 
                 const isMeasurementCompleted = progressPercent === 100;
                 const isInstallCompleted = store.installation?.status === 'approved';
+                const installStatus = store.installation?.status;
+                
+                let installAuditLabel = null;
+                if (installStatus === 'pending_review_1') installAuditLabel = '待初审';
+                else if (installStatus === 'pending_review_2') installAuditLabel = '待二审';
+                else if (installStatus === 'pending_review_3') installAuditLabel = '待三审';
+                else if (installStatus === 'pending_review_4') installAuditLabel = '待终审';
+                else if (installStatus === 'rejected') installAuditLabel = '已驳回';
 
                 return (
                     <div 
@@ -1314,6 +1322,11 @@ export const RoomArchive: React.FC = () => {
                                             <div className="flex justify-between items-center text-[10px] mb-1">
                                                 <span className="text-green-600 font-bold flex items-center gap-1">
                                                     <Hammer size={10} /> 安装进度: {installProgress}%
+                                                    {installAuditLabel && (
+                                                        <span className={`text-[9px] px-1.5 rounded ml-1 ${installStatus === 'rejected' ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600 animate-pulse'}`}>
+                                                            {installAuditLabel}
+                                                        </span>
+                                                    )}
                                                 </span>
                                                 <span className="text-slate-400">预期: {store.installationTask.deadline}</span>
                                             </div>
