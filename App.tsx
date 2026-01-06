@@ -1,4 +1,4 @@
-// 标记：本次更新优化了设备反馈流程：新增反馈弹窗（含图文）；重构反馈管理为【待接收-派单-处理-审核-解决】闭环；根据远程/上门/自助不同方式配置差异化处理流程
+// 标记：本次更新优化了设备处理流程页面：增加环节节点展示；修复处理结果输入问题；实现打卡位置模拟功能
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

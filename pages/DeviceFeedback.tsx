@@ -1,8 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { MessageSquareWarning, ArrowLeft, CheckCircle, XCircle, Wrench, AlertCircle, History, ChevronRight, Send, Headphones, MapPin, MonitorPlay, Clock, Camera, FileText, X, Calendar, Plus } from 'lucide-react';
-import { DeviceFeedback as DeviceFeedbackModel, FeedbackMethod } from '../types';
+import { MessageSquareWarning, ArrowLeft, CheckCircle, XCircle, Wrench, AlertCircle, History, ChevronRight, Send, Headphones, MapPin, MonitorPlay, Clock, Camera, FileText, X, Calendar, Plus, Check } from 'lucide-react';
+import { DeviceFeedback as DeviceFeedbackModel, FeedbackMethod, FeedbackProcessData } from '../types';
 import { AuditGate } from '../components/DeviceComponents';
 
 export const DeviceFeedback: React.FC = () => {
@@ -16,8 +16,8 @@ export const DeviceFeedback: React.FC = () => {
     // Dispatch State
     const [selectedMethod, setSelectedMethod] = useState<FeedbackMethod>('remote');
 
-    // Process Flow Modal State
-    const [activeProcessingFeedback, setActiveProcessingFeedback] = useState<DeviceFeedbackModel | null>(null);
+    // Process Flow Modal State: Using ID to ensure reactivity
+    const [activeProcessingFeedbackId, setActiveProcessingFeedbackId] = useState<string | null>(null);
     
     // Rejection State
     const [rejectMode, setRejectMode] = useState(false);
@@ -25,6 +25,9 @@ export const DeviceFeedback: React.FC = () => {
 
     const pendingFeedbacks = feedbacks.filter(f => f.status !== 'resolved' && f.status !== 'false_alarm');
     const resolvedFeedbacks = feedbacks.filter(f => f.status === 'resolved' || f.status === 'false_alarm');
+
+    // Derive the active feedback object from the fresh context list
+    const activeProcessingFeedback = feedbacks.find(f => f.id === activeProcessingFeedbackId) || null;
 
     const handleFalseAlarm = (feedback: DeviceFeedbackModel) => {
         resolveFeedback(feedback.id, 'false_alarm', 'System');
@@ -36,8 +39,8 @@ export const DeviceFeedback: React.FC = () => {
         setExpandedFeedbackId(null);
     };
 
-    const handleOpenProcess = (feedback: DeviceFeedbackModel) => {
-        setActiveProcessingFeedback(feedback);
+    const handleOpenProcess = (feedbackId: string) => {
+        setActiveProcessingFeedbackId(feedbackId);
         setRejectMode(false);
         setRejectReason('');
     };
@@ -69,6 +72,28 @@ export const DeviceFeedback: React.FC = () => {
         const isEditable = feedback.status === 'processing';
         const isAudit = feedback.status === 'pending_audit';
         
+        // Define Steps for Visual Progress
+        const getSteps = (m: FeedbackMethod) => {
+            switch (m) {
+                case 'remote': return [
+                    { label: '客户连线', isDone: (d: FeedbackProcessData) => !!d.connectionTime },
+                    { label: '处理结果', isDone: (d: FeedbackProcessData) => !!d.result }
+                ];
+                case 'onsite': return [
+                    { label: '预约上门', isDone: (d: FeedbackProcessData) => !!d.appointmentTime },
+                    { label: '到店打卡', isDone: (d: FeedbackProcessData) => !!d.checkInTime },
+                    { label: '现场拍照', isDone: (d: FeedbackProcessData) => !!d.siteImages && d.siteImages.length > 0 },
+                    { label: '处理结果', isDone: (d: FeedbackProcessData) => !!d.result }
+                ];
+                case 'self': return [
+                    { label: '处理结果', isDone: (d: FeedbackProcessData) => !!d.result }
+                ];
+                default: return [];
+            }
+        };
+
+        const steps = getSteps(method);
+
         // Update helper
         const updateData = (key: string, value: any) => {
             if (!isEditable) return;
@@ -124,9 +149,43 @@ export const DeviceFeedback: React.FC = () => {
                     <button onClick={onClose} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"><X size={20} className="text-slate-500" /></button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-5 bg-slate-50 space-y-4">
+                {/* Step Progress Bar */}
+                <div className="bg-slate-50 px-6 py-4 border-b border-slate-100">
+                    <div className="flex items-center justify-between relative">
+                        {/* Background Line */}
+                        <div className="absolute left-0 right-0 top-1/2 h-0.5 bg-slate-200 -z-0 -translate-y-1/2 rounded-full"></div>
+                        
+                        {steps.map((step, idx) => {
+                            const isDone = step.isDone(data);
+                            // Determine if this step is "active" (next to be done)
+                            // A step is active if it's not done, and previous one is done (or it's first)
+                            const prevDone = idx === 0 || steps[idx - 1].isDone(data);
+                            const isActive = !isDone && prevDone;
+
+                            return (
+                                <div key={idx} className="relative z-10 flex flex-col items-center">
+                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all ${
+                                        isDone ? 'bg-green-500 border-green-500 text-white' : 
+                                        isActive ? 'bg-white border-blue-500 text-blue-500 scale-110 shadow-sm' : 
+                                        'bg-white border-slate-300 text-slate-300'
+                                    }`}>
+                                        {isDone ? <Check size={14} strokeWidth={3} /> : <span className="text-[10px] font-bold">{idx + 1}</span>}
+                                    </div>
+                                    <span className={`absolute top-7 text-[10px] whitespace-nowrap font-medium ${
+                                        isDone ? 'text-green-600' : isActive ? 'text-blue-600' : 'text-slate-400'
+                                    }`}>
+                                        {step.label}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <div className="h-4"></div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-5 bg-white space-y-4">
                     {/* Context Info */}
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 space-y-2">
+                    <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 space-y-2">
                         <div className="flex justify-between text-xs">
                             <span className="text-slate-500">反馈内容</span>
                             <span className="text-slate-700 font-bold">{feedback.content}</span>
@@ -150,7 +209,7 @@ export const DeviceFeedback: React.FC = () => {
                                 </div>
                                 <input 
                                     type="datetime-local" 
-                                    className="w-full border border-slate-200 rounded p-2 text-sm bg-slate-50"
+                                    className="w-full border border-slate-200 rounded p-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     value={data.connectionTime || ''}
                                     onChange={(e) => updateData('connectionTime', e.target.value)}
                                     disabled={!isEditable}
@@ -161,7 +220,7 @@ export const DeviceFeedback: React.FC = () => {
                                     <FileText size={16} className="text-green-500" /> 处理结果
                                 </div>
                                 <textarea 
-                                    className="w-full border border-slate-200 rounded p-2 text-sm bg-slate-50 h-24 resize-none"
+                                    className="w-full border border-slate-200 rounded p-2 text-sm bg-slate-50 h-24 resize-none focus:outline-none focus:ring-2 focus:ring-green-500"
                                     placeholder="描述远程处理过程及结果..."
                                     value={data.result || ''}
                                     onChange={(e) => updateData('result', e.target.value)}
@@ -180,7 +239,7 @@ export const DeviceFeedback: React.FC = () => {
                                 </div>
                                 <input 
                                     type="datetime-local" 
-                                    className="w-full border border-slate-200 rounded p-2 text-sm bg-slate-50"
+                                    className="w-full border border-slate-200 rounded p-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     value={data.appointmentTime || ''}
                                     onChange={(e) => updateData('appointmentTime', e.target.value)}
                                     disabled={!isEditable}
@@ -191,21 +250,24 @@ export const DeviceFeedback: React.FC = () => {
                                     <MapPin size={16} className="text-orange-500" /> 到店打卡
                                 </div>
                                 {data.checkInTime ? (
-                                    <div className="text-xs bg-green-50 text-green-700 p-2 rounded border border-green-100">
-                                        已打卡: {data.checkInTime}
-                                        {data.checkInLocation && <div className="mt-1 opacity-80">{data.checkInLocation}</div>}
+                                    <div className="text-xs bg-green-50 text-green-700 p-2 rounded border border-green-100 flex items-start gap-2">
+                                        <CheckCircle size={14} className="mt-0.5 shrink-0" />
+                                        <div>
+                                            <div className="font-bold">{data.checkInTime}</div>
+                                            <div className="mt-1 opacity-80">{data.checkInLocation}</div>
+                                        </div>
                                     </div>
                                 ) : (
                                     <button 
                                         onClick={() => {
                                             if(!isEditable) return;
                                             updateData('checkInTime', new Date().toLocaleString());
-                                            updateData('checkInLocation', '已定位: 当前门店位置');
+                                            updateData('checkInLocation', '已定位: 上海市南京东路888号 (31.2304° N, 121.4737° E)');
                                         }}
                                         disabled={!isEditable}
-                                        className="w-full py-2 bg-blue-50 text-blue-600 text-xs font-bold rounded hover:bg-blue-100"
+                                        className="w-full py-2.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 flex items-center justify-center gap-2 border border-blue-100"
                                     >
-                                        点击打卡
+                                        <MapPin size={14} /> 点击模拟打卡
                                     </button>
                                 )}
                             </div>
@@ -235,7 +297,7 @@ export const DeviceFeedback: React.FC = () => {
                                     <FileText size={16} className="text-green-500" /> 处理结果
                                 </div>
                                 <textarea 
-                                    className="w-full border border-slate-200 rounded p-2 text-sm bg-slate-50 h-24 resize-none"
+                                    className="w-full border border-slate-200 rounded p-2 text-sm bg-slate-50 h-24 resize-none focus:outline-none focus:ring-2 focus:ring-green-500"
                                     placeholder="描述处理过程及结果..."
                                     value={data.result || ''}
                                     onChange={(e) => updateData('result', e.target.value)}
@@ -252,7 +314,7 @@ export const DeviceFeedback: React.FC = () => {
                                 <MonitorPlay size={16} className="text-blue-500" /> 处理结果
                             </div>
                             <textarea 
-                                className="w-full border border-slate-200 rounded p-2 text-sm bg-slate-50 h-32 resize-none"
+                                className="w-full border border-slate-200 rounded p-2 text-sm bg-slate-50 h-32 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 placeholder="请记录自助处理的情况..."
                                 value={data.result || ''}
                                 onChange={(e) => updateData('result', e.target.value)}
@@ -320,7 +382,7 @@ export const DeviceFeedback: React.FC = () => {
                     onClick={() => {
                         // For 'processing' and 'audit' states, click opens detail directly
                         if (isProcessing || isPendingAudit) {
-                            handleOpenProcess(feedback);
+                            handleOpenProcess(feedback.id);
                         } else if (isPendingReceive) {
                             setExpandedFeedbackId(isExpanded ? null : feedback.id);
                         }
@@ -482,7 +544,7 @@ export const DeviceFeedback: React.FC = () => {
             {activeProcessingFeedback && (
                 <ProcessFlowModal 
                     feedback={activeProcessingFeedback} 
-                    onClose={() => setActiveProcessingFeedback(null)} 
+                    onClose={() => setActiveProcessingFeedbackId(null)} 
                 />
             )}
         </div>
