@@ -1,4 +1,4 @@
-// 标记：本次更新修复了【安装进度】页面底部操作按钮丢失的问题；再次确认并修复了首次登录默认跳转至【设备管理】（而非设备反馈）的逻辑。
+// 标记：本次更新在客房安装页面优化了审核状态下的交互，支持在审核期间通过导航按钮查看各个环节的详情。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

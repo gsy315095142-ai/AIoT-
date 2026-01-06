@@ -1392,10 +1392,10 @@ export const RoomInstall: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Footer Navigation & Actions - RESTORED */}
+                {/* Footer Navigation & Actions - UPDATED: Nav Buttons Always Visible */}
                 <div className="p-4 bg-white border-t border-slate-100 flex-shrink-0 flex flex-col gap-3 sticky bottom-0 z-20">
                     
-                    {/* Mode 1: Audit (Pending Review) */}
+                    {/* Action Area: Differs by Mode */}
                     {isAuditMode ? (
                         <div className="flex flex-col gap-3">
                             <div className="flex gap-3 justify-between items-center mb-1">
@@ -1430,63 +1430,60 @@ export const RoomInstall: React.FC = () => {
                             )}
                         </div>
                     ) : (
-                        /* Mode 2: Installation Execution / View */
-                        <>
-                            {/* Main Action Button */}
-                            {!isApproved && !isRejected && (
-                                <>
-                                    {/* Confirm Step Button */}
-                                    {!currentNode.completed ? (
+                        /* Installation Mode Actions */
+                        !isApproved && !isRejected && (
+                            <>
+                                {/* Confirm Step Button */}
+                                {!currentNode.completed ? (
+                                    <button 
+                                        onClick={handleConfirmStep}
+                                        disabled={!canCompleteStep}
+                                        className={`w-full py-3 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-1
+                                            ${!canCompleteStep
+                                                ? 'bg-slate-300 cursor-not-allowed shadow-none' 
+                                                : 'bg-blue-600 hover:bg-blue-700 active:scale-95'}`}
+                                    >
+                                        确认完成此环节 <CheckCircle size={16} />
+                                    </button>
+                                ) : (
+                                    // If completed and it's the last step, show Submit
+                                    currentStepIndex === activeStore.installation.nodes.length - 1 ? (
                                         <button 
-                                            onClick={handleConfirmStep}
-                                            disabled={!canCompleteStep}
-                                            className={`w-full py-3 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-1
-                                                ${!canCompleteStep
-                                                    ? 'bg-slate-300 cursor-not-allowed shadow-none' 
-                                                    : 'bg-blue-600 hover:bg-blue-700 active:scale-95'}`}
+                                            onClick={handleSubmit}
+                                            className="w-full py-3 bg-green-600 text-white font-bold rounded-xl shadow-lg hover:bg-green-700 active:scale-95 transition-all flex items-center justify-center gap-1 animate-pulse"
                                         >
-                                            确认完成此环节 <CheckCircle size={16} />
+                                            提交审核 <Check size={16} />
                                         </button>
                                     ) : (
-                                        // If completed and it's the last step, show Submit
-                                        currentStepIndex === activeStore.installation.nodes.length - 1 ? (
-                                            <button 
-                                                onClick={handleSubmit}
-                                                className="w-full py-3 bg-green-600 text-white font-bold rounded-xl shadow-lg hover:bg-green-700 active:scale-95 transition-all flex items-center justify-center gap-1 animate-pulse"
-                                            >
-                                                提交审核 <Check size={16} />
-                                            </button>
-                                        ) : (
-                                            <div className="w-full py-3 bg-green-50 text-green-600 border border-green-200 font-bold rounded-xl flex items-center justify-center gap-1">
-                                                <CheckCircle size={16} /> 本环节已完成
-                                            </div>
-                                        )
-                                    )}
-                                </>
-                            )}
-
-                            {/* Navigation Buttons */}
-                            <div className="flex gap-3">
-                                <button 
-                                    onClick={goPrevStep}
-                                    disabled={currentStepIndex === 0}
-                                    className={`flex-1 py-3 font-bold rounded-xl flex items-center justify-center gap-1 transition-colors
-                                        ${currentStepIndex === 0 ? 'bg-slate-50 text-slate-300 cursor-not-allowed' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                                >
-                                    <ChevronLeft size={16} /> 上一步
-                                </button>
-                                
-                                <button 
-                                    onClick={goNextStep}
-                                    disabled={currentStepIndex === activeStore.installation.nodes.length - 1}
-                                    className={`flex-1 py-3 font-bold rounded-xl flex items-center justify-center gap-1 transition-colors
-                                        ${currentStepIndex === activeStore.installation.nodes.length - 1 ? 'bg-slate-50 text-slate-300 cursor-not-allowed' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                                >
-                                    下一步 <ChevronRight size={16} />
-                                </button>
-                            </div>
-                        </>
+                                        <div className="w-full py-3 bg-green-50 text-green-600 border border-green-200 font-bold rounded-xl flex items-center justify-center gap-1">
+                                            <CheckCircle size={16} /> 本环节已完成
+                                        </div>
+                                    )
+                                )}
+                            </>
+                        )
                     )}
+
+                    {/* Navigation Buttons - Always Visible (Outside Conditional) */}
+                    <div className="flex gap-3 pt-1">
+                        <button 
+                            onClick={goPrevStep}
+                            disabled={currentStepIndex === 0}
+                            className={`flex-1 py-3 font-bold rounded-xl flex items-center justify-center gap-1 transition-colors
+                                ${currentStepIndex === 0 ? 'bg-slate-50 text-slate-300 cursor-not-allowed' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                        >
+                            <ChevronLeft size={16} /> 上一步
+                        </button>
+                        
+                        <button 
+                            onClick={goNextStep}
+                            disabled={currentStepIndex === activeStore.installation.nodes.length - 1}
+                            className={`flex-1 py-3 font-bold rounded-xl flex items-center justify-center gap-1 transition-colors
+                                ${currentStepIndex === activeStore.installation.nodes.length - 1 ? 'bg-slate-50 text-slate-300 cursor-not-allowed' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                        >
+                            下一步 <ChevronRight size={16} />
+                        </button>
+                    </div>
                 </div>
             </div>
         )}
