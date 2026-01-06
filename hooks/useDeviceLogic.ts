@@ -272,7 +272,7 @@ export const useDeviceLogic = () => {
     selectedOpsStatus, setSelectedOpsStatus,
     searchQuery, setSearchQuery,
     
-    expandedDeviceId, 
+    expandedDeviceId, setExpandedDeviceId, // Exported setter
     selectedDeviceIds,
     
     isAddModalOpen, setIsAddModalOpen,

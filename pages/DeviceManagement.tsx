@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDeviceLogic } from '../hooks/useDeviceLogic';
 import { DeviceStatus, OpsStatus, AuditStatus, AuditType, Device, Store as StoreModel, Region } from '../types';
 import { STATUS_MAP, SUB_TYPE_MAPPING, ImageManagerModal, ReportDetailModal, EventDetailModal, DeviceDetailCard, AuditGate } from '../components/DeviceComponents';
-import { ChevronDown, ChevronUp, Plus, Search, CheckSquare, Square, X, Settings2, Play, Moon, RotateCcw, Wrench, ClipboardCheck, Check, X as XIcon, ImageIcon, ClipboardList, LayoutDashboard, Monitor, BookOpen, Store, BedDouble, ArrowLeft, ArrowRight, Server, MessageSquareWarning } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Search, CheckSquare, Square, X, Settings2, Play, Moon, RotateCcw, Wrench, ClipboardCheck, Check, X as XIcon, ImageIcon, ClipboardList, LayoutDashboard, Monitor, BookOpen, Store, BedDouble, ArrowLeft, ArrowRight, Server, MessageSquareWarning, ScanLine, QrCode } from 'lucide-react';
 import { Dashboard } from './Dashboard';
 
 // --- Sub-Components ---
@@ -55,7 +55,7 @@ const DeviceList: React.FC = () => {
     devices,
     // States
     selectedRegion, setSelectedRegion, searchQuery, setSearchQuery,
-    expandedDeviceId, selectedDeviceIds,
+    expandedDeviceId, setExpandedDeviceId, selectedDeviceIds,
     isAddModalOpen, setIsAddModalOpen, editingImageDevice, setEditingImageDevice,
     isControlMenuOpen, setIsControlMenuOpen, isOpsStatusModalOpen, setIsOpsStatusModalOpen,
     isInspectionModalOpen, setIsInspectionModalOpen, isFeedbackModalOpen, setIsFeedbackModalOpen,
@@ -75,6 +75,9 @@ const DeviceList: React.FC = () => {
 
   // Navigation State
   const [viewState, setViewState] = useState<ViewState>({ level: 'stores' });
+  
+  // Scan Modal State
+  const [isScanModalOpen, setIsScanModalOpen] = useState(false);
 
   // --- Helper for Region Stats ---
   const getRegionLabel = (region?: Region) => {
@@ -249,6 +252,34 @@ const DeviceList: React.FC = () => {
       return `${storeName} - ${viewState.roomNumber} - ${typeName}`;
   };
 
+  // --- Scan Handlers ---
+  const handleScanNew = () => {
+      const randomSN = 'SN' + Math.random().toString(36).substr(2, 9).toUpperCase();
+      const randomMAC = Array.from({length: 6}, () => Math.floor(Math.random()*256).toString(16).padStart(2, '0').toUpperCase()).join(':');
+      
+      openAddModal({
+          sn: randomSN,
+          mac: randomMAC
+      });
+      setIsScanModalOpen(false);
+  };
+
+  const handleScanOld = () => {
+      if (devices.length > 0) {
+          const target = devices[0];
+          setViewState({
+              level: 'devices',
+              storeId: target.storeId,
+              roomNumber: target.roomNumber,
+              deviceTypeId: target.typeId
+          });
+          setExpandedDeviceId(target.id);
+          setIsScanModalOpen(false);
+      } else {
+          alert("暂无设备");
+      }
+  };
+
   return (
     <div className="p-4 pb-20 h-full flex flex-col"> 
         {/* Header Controls */}
@@ -269,7 +300,15 @@ const DeviceList: React.FC = () => {
                     </div>
                     
                     <div className="flex gap-2 flex-shrink-0">
-                        {/* New Feedback Button */}
+                        {/* Scan Button - New */}
+                        <button 
+                            onClick={() => setIsScanModalOpen(true)}
+                            className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-lg backdrop-blur-sm transition-all border border-white/10"
+                            title="扫一扫"
+                        >
+                            <ScanLine size={20} />
+                        </button>
+
                         <button 
                             onClick={() => navigate('/device-feedback')}
                             className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-lg backdrop-blur-sm transition-all border border-white/10"
@@ -562,6 +601,53 @@ const DeviceList: React.FC = () => {
                 </div>
             )}
         </div>
+
+        {/* Scan Modal */}
+        {isScanModalOpen && (
+            <div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-6 animate-fadeIn backdrop-blur-sm">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-scaleIn">
+                    <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                        <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                            <ScanLine size={20} className="text-blue-600" />
+                            扫一扫
+                        </h3>
+                        <button onClick={() => setIsScanModalOpen(false)} className="p-2 rounded-full hover:bg-slate-200 text-slate-500 transition-colors"><X size={20} /></button>
+                    </div>
+                    
+                    <div className="p-6 space-y-4">
+                        <p className="text-xs text-slate-500 text-center mb-4">
+                            模拟摄像头扫描设备二维码或条形码
+                        </p>
+                        
+                        <button 
+                            onClick={handleScanNew}
+                            className="w-full py-4 bg-blue-50 border-2 border-blue-100 hover:border-blue-300 hover:bg-blue-100 rounded-xl flex items-center justify-center gap-3 transition-all group"
+                        >
+                            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform">
+                                <Plus size={20} />
+                            </div>
+                            <div className="text-left">
+                                <div className="text-sm font-bold text-blue-900">模拟扫描新设备</div>
+                                <div className="text-[10px] text-blue-600/70">自动录入SN/MAC，进入添加页面</div>
+                            </div>
+                        </button>
+
+                        <button 
+                            onClick={handleScanOld}
+                            className="w-full py-4 bg-slate-50 border-2 border-slate-100 hover:border-slate-300 hover:bg-slate-100 rounded-xl flex items-center justify-center gap-3 transition-all group"
+                        >
+                            <div className="w-10 h-10 bg-slate-700 rounded-full flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform">
+                                <QrCode size={20} />
+                            </div>
+                            <div className="text-left">
+                                <div className="text-sm font-bold text-slate-800">模拟扫描旧设备</div>
+                                <div className="text-[10px] text-slate-500">识别已有设备，快速跳转详情页</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
 
         {/* Device Control Button (Fixed at bottom) - ONLY VISIBLE ON DEVICES LEVEL */}
         {viewState.level === 'devices' && (

@@ -93,7 +93,7 @@ const ProcessFlowModal: React.FC<{ feedback: DeviceFeedbackModel, onClose: () =>
     }, [method]);
 
     // Validation Logic
-    const isStepDataValid = (stepIdx: number): boolean => {
+    const isStepValid = (stepIdx: number): boolean => {
         if (stepIdx < 0 || stepIdx >= steps.length) return false;
         const field = steps[stepIdx].field;
         const val = data[field as keyof FeedbackProcessData];
@@ -101,33 +101,34 @@ const ProcessFlowModal: React.FC<{ feedback: DeviceFeedbackModel, onClose: () =>
         return !!val;
     };
 
-    const isStepExplicitlyCompleted = (stepIdx: number) => {
-        return (data.completedSteps || []).includes(stepIdx);
+    const isAllPreviousStepsValid = (targetIdx: number): boolean => {
+        for (let i = 0; i < targetIdx; i++) {
+            if (!isStepValid(i)) return false;
+        }
+        return true;
     };
 
-    const isAllStepsCompleted = () => {
-        return steps.every((_, idx) => isStepExplicitlyCompleted(idx));
+    const isAllStepsValid = () => {
+        return steps.every((_, idx) => isStepValid(idx));
     };
 
     const getStepStatus = (idx: number) => {
         // Visual status only
-        if (isStepExplicitlyCompleted(idx)) return 'completed';
+        if (isStepValid(idx)) return 'completed';
         if (idx === currentStep) return 'current';
         return 'locked'; // Visual style for incomplete/future
     };
 
-    // Initialize step
+    // Initialize step to first incomplete
     useEffect(() => {
         if (isEditable) {
-            // Find first incomplete step, considering explicit completion status
             let firstIncomplete = 0;
-            const completed = data.completedSteps || [];
             for (let i = 0; i < steps.length; i++) {
-                if (!completed.includes(i)) {
+                if (!isStepValid(i)) {
                     firstIncomplete = i;
                     break;
                 }
-                // If all done, stay on last
+                // If all valid, stay on last
                 if (i === steps.length - 1) firstIncomplete = i;
             }
             setCurrentStep(firstIncomplete);
@@ -156,21 +157,18 @@ const ProcessFlowModal: React.FC<{ feedback: DeviceFeedbackModel, onClose: () =>
         updateData('siteImages', currentImages.filter((_, i) => i !== index));
     };
 
-    // Explicit Confirm Logic
-    const handleConfirmStep = () => {
-        if (!isStepDataValid(currentStep)) return;
-        
-        const currentCompleted = data.completedSteps || [];
-        if (!currentCompleted.includes(currentStep)) {
-            const newCompleted = [...currentCompleted, currentStep];
-            updateFeedbackProcess(feedback.id, { completedSteps: newCompleted });
+    // Confirm/Submit Action (Primary)
+    const handleConfirmOrSubmit = () => {
+        if (currentStep < steps.length - 1) {
+            // Just validate and visually move next
+            if (isStepValid(currentStep)) {
+                setCurrentStep(prev => prev + 1);
+            }
+        } else {
+            // Last Step: Submit
+            submitFeedbackAudit(feedback.id);
+            onClose();
         }
-    };
-
-    const handleSubmit = () => {
-        if (!isAllStepsCompleted()) return;
-        submitFeedbackAudit(feedback.id);
-        onClose();
     };
 
     // Navigation Only
@@ -206,12 +204,11 @@ const ProcessFlowModal: React.FC<{ feedback: DeviceFeedbackModel, onClose: () =>
         }
     };
 
-    // Current Step Logic
+    // Current Step Field Name
     const currentField = steps[currentStep]?.field;
     const isLastStep = currentStep === steps.length - 1;
-    const isCurrentStepValid = isStepDataValid(currentStep);
-    const isCurrentStepCompleted = isStepExplicitlyCompleted(currentStep);
-    const canSubmit = isAllStepsCompleted();
+    const isCurrentStepValid = isStepValid(currentStep);
+    const canSubmit = isLastStep && isAllStepsValid();
 
     return (
         <div className="fixed inset-0 z-[60] bg-white flex flex-col animate-slideInRight">
@@ -239,14 +236,9 @@ const ProcessFlowModal: React.FC<{ feedback: DeviceFeedbackModel, onClose: () =>
                 {/* Step Content */}
                 <div className="animate-fadeIn space-y-6">
                     <div className="text-center mb-6">
-                        <h2 className="text-xl font-bold text-slate-800 flex items-center justify-center gap-2">
-                            {steps[currentStep].label}
-                            {isCurrentStepCompleted && <CheckCircle size={20} className="text-green-500" />}
-                        </h2>
+                        <h2 className="text-xl font-bold text-slate-800">{steps[currentStep].label}</h2>
                         <p className="text-xs text-slate-400 mt-1">
-                            {isEditable 
-                                ? (isCurrentStepCompleted ? '该环节已完成，可点击下一步' : '请完善信息并确认完成') 
-                                : '该环节信息详情'}
+                            {isEditable ? '请完善该环节信息' : '该环节信息详情'}
                         </p>
                     </div>
 
@@ -368,29 +360,18 @@ const ProcessFlowModal: React.FC<{ feedback: DeviceFeedbackModel, onClose: () =>
                 {/* Standard Edit/Processing Mode */}
                 {isEditable && (
                     <>
-                        {/* Action Button: Either Confirm Step OR Submit Audit */}
-                        {(!isLastStep || !canSubmit) && (
-                            <button 
-                                onClick={handleConfirmStep}
-                                disabled={!isCurrentStepValid}
-                                className={`w-full py-3 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-1
-                                    ${!isCurrentStepValid 
-                                        ? 'bg-slate-300 cursor-not-allowed' 
-                                        : isCurrentStepCompleted ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-600 hover:bg-blue-700 active:scale-95'}`}
-                            >
-                                {isCurrentStepCompleted ? '已完成此环节 (点击更新)' : '确认完成该环节'}
-                                <CheckCircle size={16} />
-                            </button>
-                        )}
-
-                        {isLastStep && canSubmit && (
-                            <button 
-                                onClick={handleSubmit}
-                                className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-1 active:scale-95 animate-pulse"
-                            >
-                                提交审核 <Check size={16} />
-                            </button>
-                        )}
+                        {/* Primary Confirm/Submit Button */}
+                        <button 
+                            onClick={handleConfirmOrSubmit}
+                            disabled={isLastStep ? !canSubmit : !isCurrentStepValid}
+                            className={`w-full py-3 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-1
+                                ${(isLastStep ? !canSubmit : !isCurrentStepValid) 
+                                    ? 'bg-slate-300 cursor-not-allowed' 
+                                    : 'bg-green-600 hover:bg-green-700 active:scale-95'}`}
+                        >
+                            {isLastStep ? '提交审核' : '确认完成该环节'}
+                            {isLastStep ? <Check size={16} /> : <CheckCircle size={16} />}
+                        </button>
 
                         {/* Navigation Row */}
                         <div className="flex gap-3">
@@ -491,141 +472,227 @@ const ProcessFlowModal: React.FC<{ feedback: DeviceFeedbackModel, onClose: () =>
 };
 
 export const DeviceFeedback: React.FC = () => {
-    const { feedbacks, dispatchFeedback, resolveFeedback } = useApp();
+    const { feedbacks, resolveFeedback, dispatchFeedback } = useApp();
     const navigate = useNavigate();
+    const [activeTab, setActiveTab] = useState<'pending' | 'resolved'>('pending');
     
-    const [activeTab, setActiveTab] = useState<'pending' | 'processing' | 'history'>('pending');
-    const [selectedFeedback, setSelectedFeedback] = useState<DeviceFeedbackModel | null>(null);
+    // UI state for expanding a feedback item 
+    const [expandedFeedbackId, setExpandedFeedbackId] = useState<string | null>(null);
+    const [selectedMethod, setSelectedMethod] = useState<FeedbackMethod>('remote');
 
-    // Filter Logic
-    const filteredFeedbacks = feedbacks.filter(f => {
-        if (activeTab === 'pending') return f.status === 'pending_receive';
-        if (activeTab === 'processing') return f.status === 'processing' || f.status === 'pending_audit';
-        if (activeTab === 'history') return f.status === 'resolved' || f.status === 'false_alarm';
-        return true;
-    });
+    // Process Flow Modal State: Using ID to ensure reactivity
+    const [activeProcessingFeedbackId, setActiveProcessingFeedbackId] = useState<string | null>(null);
+    
+    const pendingFeedbacks = feedbacks.filter(f => f.status !== 'resolved' && f.status !== 'false_alarm');
+    const resolvedFeedbacks = feedbacks.filter(f => f.status === 'resolved' || f.status === 'false_alarm');
 
-    const handleDispatch = (e: React.MouseEvent, id: string, method: FeedbackMethod) => {
-        e.stopPropagation();
-        dispatchFeedback(id, method);
+    // Derive the active feedback object from the fresh context list
+    const activeProcessingFeedback = feedbacks.find(f => f.id === activeProcessingFeedbackId) || null;
+
+    const handleFalseAlarm = (feedback: DeviceFeedbackModel) => {
+        resolveFeedback(feedback.id, 'false_alarm', 'System');
+        setExpandedFeedbackId(null);
     };
 
-    const handleQuickResolve = (e: React.MouseEvent, id: string) => {
-        e.stopPropagation();
-        if (window.confirm('确认为误报/无需处理？')) {
-            resolveFeedback(id, 'false_alarm', 'System');
+    const handleDispatch = (feedbackId: string) => {
+        dispatchFeedback(feedbackId, selectedMethod);
+        setExpandedFeedbackId(null);
+    };
+
+    const handleOpenProcess = (feedbackId: string) => {
+        setActiveProcessingFeedbackId(feedbackId);
+    };
+
+    const getStatusLabel = (status: string) => {
+        switch(status) {
+            case 'pending_receive': return { text: '待接收', color: 'bg-red-100 text-red-600' };
+            case 'processing': return { text: '待处理', color: 'bg-blue-100 text-blue-600' };
+            case 'pending_audit': return { text: '待审核', color: 'bg-orange-100 text-orange-600' };
+            case 'resolved': return { text: '已解决', color: 'bg-green-100 text-green-600' };
+            case 'false_alarm': return { text: '误报', color: 'bg-slate-100 text-slate-500' };
+            default: return { text: status, color: 'bg-slate-100 text-slate-500' };
         }
     };
 
+    const getMethodLabel = (method?: FeedbackMethod) => {
+        switch(method) {
+            case 'remote': return '远程连线处理';
+            case 'onsite': return '上门处理';
+            case 'self': return '自助处理';
+            default: return '未派单';
+        }
+    };
+
+    const FeedbackItem: React.FC<{ feedback: DeviceFeedbackModel; isPendingTab: boolean }> = ({ feedback, isPendingTab }) => {
+        const isExpanded = expandedFeedbackId === feedback.id;
+        const statusConfig = getStatusLabel(feedback.status);
+        const isPendingReceive = feedback.status === 'pending_receive';
+        const isProcessing = feedback.status === 'processing';
+        const isPendingAudit = feedback.status === 'pending_audit';
+
+        return (
+            <div className={`bg-white p-4 rounded-xl shadow-sm border relative overflow-hidden transition-all ${isPendingAudit ? 'border-orange-200' : 'border-slate-100'}`}>
+                <div 
+                    className="flex justify-between items-start cursor-pointer"
+                    onClick={() => {
+                        if (isProcessing || isPendingAudit) {
+                            handleOpenProcess(feedback.id);
+                        } else if (isPendingReceive) {
+                            setExpandedFeedbackId(isExpanded ? null : feedback.id);
+                        }
+                    }}
+                >
+                    <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="font-bold text-slate-800 text-sm">{feedback.deviceName}</span>
+                            <span className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded font-mono border border-slate-200">{feedback.deviceSn}</span>
+                        </div>
+                        <div className="text-[10px] text-slate-500 mb-2 flex items-center gap-2">
+                            <span className="font-bold bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">{feedback.storeName}</span>
+                            <ChevronRight size={10} className="text-slate-300" />
+                            <span>{feedback.roomNumber}</span>
+                        </div>
+                        
+                        <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-xs text-slate-700 leading-relaxed mb-2">
+                            <span className="font-bold text-slate-500 mr-1">反馈内容:</span>
+                            {feedback.content}
+                        </div>
+
+                        {feedback.images && feedback.images.length > 0 && (
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar mb-2">
+                                {feedback.images.map((img, i) => (
+                                    <div key={i} className="w-10 h-10 rounded border border-slate-200 overflow-hidden flex-shrink-0">
+                                        <img src={img} className="w-full h-full object-cover" />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="flex flex-col gap-1 text-[10px] text-slate-400 mt-2">
+                            <div className="flex items-center gap-1">
+                                <span className="font-bold text-slate-500">反馈时间:</span>
+                                <span>{feedback.createTime}</span>
+                            </div>
+                            {feedback.processMethod && (
+                                <div className="flex items-center gap-1">
+                                    <span className="font-bold text-slate-500">处理方式:</span>
+                                    <span className="text-blue-600 font-medium">{getMethodLabel(feedback.processMethod)}</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="ml-3 flex flex-col items-end gap-1">
+                        <span className={`px-2 py-1 rounded text-[10px] font-bold whitespace-nowrap ${statusConfig.color} animate-pulse`}>
+                            {statusConfig.text}
+                        </span>
+                        {(isProcessing || isPendingAudit) && (
+                            <ChevronRight size={16} className="text-slate-300 mt-2" />
+                        )}
+                    </div>
+                </div>
+
+                {isPendingReceive && isExpanded && (
+                    <div className="mt-4 pt-4 border-t border-slate-100 animate-fadeIn">
+                        <div className="mb-4 bg-blue-50/50 p-3 rounded-lg border border-blue-100">
+                            <label className="text-xs font-bold text-slate-600 mb-2 block flex items-center gap-1">
+                                <Send size={12} className="text-blue-500" /> 选择派单处理方式
+                            </label>
+                            <div className="flex flex-col gap-2">
+                                <select 
+                                    className="w-full text-xs border border-slate-300 rounded px-2 py-2 focus:outline-none focus:border-blue-500 bg-white"
+                                    value={selectedMethod}
+                                    onChange={(e) => setSelectedMethod(e.target.value as FeedbackMethod)}
+                                >
+                                    <option value="remote">远程连线处理</option>
+                                    <option value="onsite">上门处理</option>
+                                    <option value="self">自助处理</option>
+                                </select>
+
+                                <button 
+                                    onClick={() => handleDispatch(feedback.id)}
+                                    className="w-full bg-blue-600 text-white text-xs px-3 py-2 rounded font-bold hover:bg-blue-700 shadow-sm transition-colors mt-1"
+                                >
+                                    确定派单
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end">
+                            <button 
+                                onClick={() => handleFalseAlarm(feedback)}
+                                className="px-4 py-2 bg-white border border-slate-200 text-slate-500 font-bold rounded-lg text-xs hover:bg-slate-50 flex items-center justify-center gap-1"
+                            >
+                                <XCircle size={14} /> 误报
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
     return (
-        <div className="h-full flex flex-col bg-slate-50">
-            {/* Header */}
-            <div className="p-4 bg-white border-b border-slate-100 flex items-center gap-3 shadow-sm sticky top-0 z-10">
-                <button onClick={() => navigate(-1)} className="p-2 bg-slate-100 rounded-lg text-slate-500 hover:bg-slate-200 transition-colors">
-                    <ArrowLeft size={18} />
+        <div className="h-full flex flex-col bg-slate-50 relative">
+            <div className="bg-white p-4 border-b border-slate-100 flex items-center justify-between sticky top-0 z-10 shadow-sm">
+                <button 
+                    onClick={() => navigate(-1)}
+                    className="p-1.5 bg-slate-100 rounded-lg hover:bg-slate-200 text-slate-600 transition-colors flex items-center gap-1 text-xs font-bold px-3"
+                >
+                    <ArrowLeft size={14} /> 返回
                 </button>
-                <h1 className="text-lg font-bold text-slate-800">设备反馈管理</h1>
+                <h1 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                    <MessageSquareWarning size={18} className="text-blue-600" />
+                    设备反馈管理
+                </h1>
+                <div className="w-16"></div>
             </div>
 
-            {/* Tabs */}
             <div className="p-4 pb-0">
-                <div className="flex bg-white p-1 rounded-xl shadow-sm border border-slate-100">
+                <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-100 flex mb-4">
                     <button 
                         onClick={() => setActiveTab('pending')}
-                        className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${activeTab === 'pending' ? 'bg-red-50 text-red-600 shadow-sm border border-red-100' : 'text-slate-500 hover:bg-slate-50'}`}
+                        className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${activeTab === 'pending' ? 'bg-blue-50 text-blue-600 shadow-sm border border-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}
                     >
-                        待接收 <span className="bg-red-100 text-red-600 px-1.5 rounded-full text-[10px]">{feedbacks.filter(f => f.status === 'pending_receive').length}</span>
+                        待解决反馈
+                        {pendingFeedbacks.length > 0 && <span className="bg-red-500 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full shadow-sm">{pendingFeedbacks.length}</span>}
                     </button>
+                    <div className="w-px bg-slate-100 my-1 mx-1"></div>
                     <button 
-                        onClick={() => setActiveTab('processing')}
-                        className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${activeTab === 'processing' ? 'bg-blue-50 text-blue-600 shadow-sm border border-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}
+                        onClick={() => setActiveTab('resolved')}
+                        className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${activeTab === 'resolved' ? 'bg-green-50 text-green-600 shadow-sm border border-green-100' : 'text-slate-500 hover:bg-slate-50'}`}
                     >
-                        处理中 <span className="bg-blue-100 text-blue-600 px-1.5 rounded-full text-[10px]">{feedbacks.filter(f => f.status === 'processing' || f.status === 'pending_audit').length}</span>
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('history')}
-                        className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${activeTab === 'history' ? 'bg-slate-100 text-slate-600 shadow-inner' : 'text-slate-500 hover:bg-slate-50'}`}
-                    >
-                        历史记录
+                        已解决反馈
                     </button>
                 </div>
             </div>
 
-            {/* List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {filteredFeedbacks.length === 0 && (
-                    <div className="flex flex-col items-center justify-center h-60 text-slate-400">
-                        <MessageSquareWarning size={48} className="mb-4 opacity-20" />
-                        <p className="text-sm">暂无相关反馈</p>
-                    </div>
+            <div className="flex-1 overflow-y-auto px-4 pb-20 space-y-3">
+                {activeTab === 'pending' ? (
+                    pendingFeedbacks.length > 0 ? (
+                        pendingFeedbacks.map(fb => <FeedbackItem key={fb.id} feedback={fb} isPendingTab={true} />)
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                            <CheckCircle size={48} className="mb-2 opacity-20 text-green-500" />
+                            <p className="text-xs">暂无待解决反馈</p>
+                        </div>
+                    )
+                ) : (
+                    resolvedFeedbacks.length > 0 ? (
+                        resolvedFeedbacks.map(fb => <FeedbackItem key={fb.id} feedback={fb} isPendingTab={false} />)
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                            <History size={48} className="mb-2 opacity-20" />
+                            <p className="text-xs">暂无历史记录</p>
+                        </div>
+                    )
                 )}
-                {filteredFeedbacks.map(f => (
-                    <div 
-                        key={f.id}
-                        onClick={() => f.status !== 'pending_receive' && setSelectedFeedback(f)}
-                        className={`bg-white p-4 rounded-xl shadow-sm border border-slate-100 relative overflow-hidden group transition-all ${f.status !== 'pending_receive' ? 'cursor-pointer hover:shadow-md' : ''}`}
-                    >
-                        <div className="flex justify-between items-start mb-2">
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <span className="font-bold text-slate-800 text-sm">{f.deviceName}</span>
-                                    <span className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{f.roomNumber}</span>
-                                </div>
-                                <div className="text-[10px] text-slate-400 mt-1">{f.storeName} · {f.createTime}</div>
-                            </div>
-                            <div className={`px-2 py-1 rounded text-[10px] font-bold ${
-                                f.status === 'pending_receive' ? 'bg-red-100 text-red-600 animate-pulse' :
-                                f.status === 'processing' ? 'bg-blue-100 text-blue-600' :
-                                f.status === 'pending_audit' ? 'bg-orange-100 text-orange-600' :
-                                'bg-green-100 text-green-600'
-                            }`}>
-                                {f.status === 'pending_receive' ? '待接收' :
-                                 f.status === 'processing' ? '处理中' :
-                                 f.status === 'pending_audit' ? '待审核' :
-                                 f.status === 'resolved' ? '已解决' : '误报'}
-                            </div>
-                        </div>
-                        
-                        <div className="bg-slate-50 p-3 rounded-lg text-xs text-slate-700 border border-slate-100 mb-2 line-clamp-2">
-                            {f.content}
-                        </div>
-
-                        {f.status === 'pending_receive' ? (
-                            <div className="mt-3 pt-3 border-t border-slate-50">
-                                <div className="flex gap-2 justify-between items-center mb-2">
-                                    <span className="text-xs font-bold text-slate-500">选择处理方式:</span>
-                                    <button 
-                                        onClick={(e) => handleQuickResolve(e, f.id)}
-                                        className="text-[10px] text-slate-400 underline decoration-dashed hover:text-slate-600"
-                                    >
-                                        标记误报
-                                    </button>
-                                </div>
-                                <div className="grid grid-cols-3 gap-2">
-                                    <button onClick={(e) => handleDispatch(e, f.id, 'remote')} className="py-2 bg-blue-50 text-blue-600 text-xs font-bold rounded hover:bg-blue-100 border border-blue-100">远程连线</button>
-                                    <button onClick={(e) => handleDispatch(e, f.id, 'onsite')} className="py-2 bg-purple-50 text-purple-600 text-xs font-bold rounded hover:bg-purple-100 border border-purple-100">上门处理</button>
-                                    <button onClick={(e) => handleDispatch(e, f.id, 'self')} className="py-2 bg-green-50 text-green-600 text-xs font-bold rounded hover:bg-green-100 border border-green-100">自助处理</button>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="flex justify-between items-center mt-2">
-                                <div className="flex items-center gap-1 text-[10px] text-slate-400">
-                                    {f.processMethod === 'remote' ? <Headphones size={12} /> : f.processMethod === 'onsite' ? <MapPin size={12} /> : <MonitorPlay size={12} />}
-                                    {f.processMethod === 'remote' ? '远程处理' : f.processMethod === 'onsite' ? '上门处理' : '自助处理'}
-                                </div>
-                                <span className="text-[10px] text-blue-500 flex items-center gap-1 font-bold group-hover:underline">
-                                    查看详情 <ChevronRight size={12} />
-                                </span>
-                            </div>
-                        )}
-                    </div>
-                ))}
             </div>
 
-            {selectedFeedback && (
+            {activeProcessingFeedback && (
                 <ProcessFlowModal 
-                    feedback={selectedFeedback} 
-                    onClose={() => setSelectedFeedback(null)} 
+                    feedback={activeProcessingFeedback} 
+                    onClose={() => setActiveProcessingFeedbackId(null)} 
                 />
             )}
         </div>

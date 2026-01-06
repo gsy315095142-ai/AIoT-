@@ -1,4 +1,4 @@
-// 标记：本次更新优化了设备处理流程页面：强化流程闭环逻辑，环节必须点击“确认完成”才视为完成（顶部打勾），且所有环节均确认完成后才允许提交审核。
+// 标记：本次更新优化了设备管理页面：新增“扫一扫”功能，支持模拟扫描新设备自动录入信息，以及模拟扫描旧设备快速跳转详情。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
