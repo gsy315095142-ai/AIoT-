@@ -1,4 +1,4 @@
-// 标记：本次更新在【安装进度详情】增加了环节完成时的操作人记录显示，并在【客房安装】列表增加了门店安装流程的导出功能
+// 标记：本次更新在【客房建档】增加了复尺任务完成后可【重发复尺任务】的功能，重发后保留已录入信息但需重新提交审核
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

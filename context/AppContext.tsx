@@ -351,8 +351,9 @@ interface AppContextType {
   submitInspectionReport: (deviceId: string, result: 'Qualified' | 'Unqualified', remark: string, images?: string[]) => void;
   approveAudit: (recordId: string) => void;
   rejectAudit: (recordId: string, reason: string) => void;
-  publishMeasurementTask: (storeId: string, deadline: string) => void; // New
-  publishInstallationTask: (storeId: string, deadline: string) => void; // New
+  publishMeasurementTask: (storeId: string, deadline: string) => void; 
+  republishMeasurementTask: (storeId: string, deadline: string) => void; // New Action
+  publishInstallationTask: (storeId: string, deadline: string) => void; 
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -804,6 +805,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }));
   };
 
+  const republishMeasurementTask = (storeId: string, deadline: string) => {
+      setStores(prev => prev.map(s => {
+          if (s.id === storeId) {
+              const updatedRoomConfigs = s.roomTypeConfigs.map(rt => ({
+                  ...rt,
+                  measurements: rt.measurements?.map(m => ({
+                      ...m,
+                      status: undefined, // Reset status
+                      rejectReason: undefined,
+                      operator: undefined, 
+                      operateTime: undefined
+                  }))
+              }));
+
+              return {
+                  ...s,
+                  roomTypeConfigs: updatedRoomConfigs,
+                  measurementTask: {
+                      status: 'published',
+                      deadline,
+                      publishTime: new Date().toLocaleString()
+                  }
+              };
+          }
+          return s;
+      }));
+  };
+
   const publishInstallationTask = (storeId: string, deadline: string) => {
       setStores(prev => prev.map(s => {
           if (s.id === storeId) {
@@ -916,7 +945,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addDeviceType, removeDeviceType, addSupplier, updateSupplier, removeSupplier,
       addDevice, updateDevice, deleteDeviceEvent,
       submitOpsStatusChange, submitInspectionReport, approveAudit, rejectAudit,
-      publishMeasurementTask, publishInstallationTask
+      publishMeasurementTask, republishMeasurementTask, publishInstallationTask
     }}>
       {children}
     </AppContext.Provider>

@@ -1,6 +1,6 @@
 import React, { useState, ChangeEvent, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Table, Ruler, ArrowLeft, Search, ChevronDown, ChevronRight, Settings, Check, HelpCircle, Image as ImageIcon, ClipboardList, Hammer, ListChecks, Calendar, Send, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Store as StoreIcon, Plus, Edit2, Trash2, X, Store, BedDouble, Table, Ruler, ArrowLeft, Search, ChevronDown, ChevronRight, Settings, Check, HelpCircle, Image as ImageIcon, ClipboardList, Hammer, ListChecks, Calendar, Send, ToggleLeft, ToggleRight, RotateCcw } from 'lucide-react';
 import { Store as StoreType, Room, RoomImageCategory, RoomImage, RoomTypeConfig, ChecklistParam, ChecklistParamType, ModuleType, Region, InstallationParamKey } from '../../types';
 
 const DEFAULT_MODULES: RoomImageCategory[] = [
@@ -28,7 +28,7 @@ const EXAMPLE_IMAGES: Record<string, string> = {
 };
 
 export const RoomArchive: React.FC = () => {
-  const { regions, stores, addStore, updateStore, removeStore, publishMeasurementTask, publishInstallationTask } = useApp();
+  const { regions, stores, addStore, updateStore, removeStore, publishMeasurementTask, republishMeasurementTask, publishInstallationTask } = useApp();
 
   // Navigation & Filter State
   const [viewingStoreId, setViewingStoreId] = useState<string | null>(null);
@@ -84,7 +84,7 @@ export const RoomArchive: React.FC = () => {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [taskModalStoreId, setTaskModalStoreId] = useState<string | null>(null);
   const [taskDeadline, setTaskDeadline] = useState('');
-  const [activeTaskType, setActiveTaskType] = useState<'measurement' | 'installation' | null>(null);
+  const [activeTaskType, setActiveTaskType] = useState<'measurement' | 'installation' | 'republish_measurement' | null>(null);
 
   // Derived State
   const activeStore = stores.find(s => s.id === viewingStoreId);
@@ -524,12 +524,12 @@ export const RoomArchive: React.FC = () => {
   };
 
   // --- Publish Task Handlers ---
-  const handleOpenTaskModal = (storeId: string, type: 'measurement' | 'installation', currentDeadline?: string) => {
+  const handleOpenTaskModal = (storeId: string, type: 'measurement' | 'installation' | 'republish_measurement', currentDeadline?: string) => {
       setTaskModalStoreId(storeId);
       setActiveTaskType(type);
       
       // Default to Today if no current deadline is set
-      if (currentDeadline) {
+      if (currentDeadline && type !== 'republish_measurement') {
           setTaskDeadline(currentDeadline);
       } else {
           // Get today's date in local YYYY-MM-DD format
@@ -548,6 +548,8 @@ export const RoomArchive: React.FC = () => {
       
       if (activeTaskType === 'measurement') {
           publishMeasurementTask(taskModalStoreId, taskDeadline);
+      } else if (activeTaskType === 'republish_measurement') {
+          republishMeasurementTask(taskModalStoreId, taskDeadline);
       } else {
           publishInstallationTask(taskModalStoreId, taskDeadline);
       }
@@ -1201,6 +1203,8 @@ export const RoomArchive: React.FC = () => {
                 const installTotal = installNodes.length;
                 const installProgress = installTotal > 0 ? Math.round((installCompleted / installTotal) * 100) : 0;
 
+                const isCompleted = progressPercent === 100;
+
                 return (
                     <div 
                         key={store.id} 
@@ -1259,15 +1263,27 @@ export const RoomArchive: React.FC = () => {
                                                 ></div>
                                             </div>
                                         </div>
-                                        <button 
-                                            onClick={(e) => { 
-                                                e.stopPropagation(); 
-                                                handleOpenTaskModal(store.id, 'measurement', store.measurementTask?.deadline);
-                                            }}
-                                            className="text-[10px] px-2 py-1.5 rounded-lg shadow-sm flex items-center gap-1 font-bold transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 shrink-0"
-                                        >
-                                            <Edit2 size={10} /> 更新任务
-                                        </button>
+                                        {isCompleted ? (
+                                            <button 
+                                                onClick={(e) => { 
+                                                    e.stopPropagation(); 
+                                                    handleOpenTaskModal(store.id, 'republish_measurement', store.measurementTask?.deadline);
+                                                }}
+                                                className="text-[10px] px-2 py-1.5 rounded-lg shadow-sm flex items-center gap-1 font-bold transition-colors bg-orange-50 text-orange-600 hover:bg-orange-100 shrink-0 border border-orange-100"
+                                            >
+                                                <RotateCcw size={10} /> 重发复尺任务
+                                            </button>
+                                        ) : (
+                                            <button 
+                                                onClick={(e) => { 
+                                                    e.stopPropagation(); 
+                                                    handleOpenTaskModal(store.id, 'measurement', store.measurementTask?.deadline);
+                                                }}
+                                                className="text-[10px] px-2 py-1.5 rounded-lg shadow-sm flex items-center gap-1 font-bold transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 shrink-0"
+                                            >
+                                                <Edit2 size={10} /> 更新任务
+                                            </button>
+                                        )}
                                     </>
                                 ) : (
                                     <>
@@ -1345,7 +1361,7 @@ export const RoomArchive: React.FC = () => {
                     <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
                         <h3 className="font-bold text-slate-800 flex items-center gap-2">
                             <Send size={18} className="text-blue-600" />
-                            {activeTaskType === 'measurement' ? '发布复尺任务' : '发布安装任务'}
+                            {activeTaskType === 'measurement' ? '发布复尺任务' : activeTaskType === 'republish_measurement' ? '重发复尺任务' : '发布安装任务'}
                         </h3>
                         <button onClick={() => setIsTaskModalOpen(false)}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
                     </div>
@@ -1353,7 +1369,7 @@ export const RoomArchive: React.FC = () => {
                     <div className="p-5 space-y-4">
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
-                                {activeTaskType === 'measurement' ? '期望完成复尺的时间' : '预期安装时间'}
+                                {activeTaskType === 'measurement' || activeTaskType === 'republish_measurement' ? '期望完成复尺的时间' : '预期安装时间'}
                             </label>
                             <input 
                                 type="date" 
@@ -1366,6 +1382,8 @@ export const RoomArchive: React.FC = () => {
                         <p className="text-xs text-slate-400 leading-relaxed">
                             {activeTaskType === 'measurement' 
                               ? '发布任务后，该门店将出现在【客房复尺】列表中，供复尺人员查看和执行。'
+                              : activeTaskType === 'republish_measurement'
+                              ? '重发任务后，该门店的复尺进度将重新变为未提交审核状态（保留已录入信息），需要重新提交审核。'
                               : '发布任务后，该门店将出现在【客房安装】列表中，供安装人员查看和执行。'
                             }
                         </p>
@@ -1373,9 +1391,9 @@ export const RoomArchive: React.FC = () => {
                         <button 
                             onClick={handlePublishTask}
                             disabled={!taskDeadline}
-                            className="w-full bg-blue-600 text-white font-bold py-2.5 rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className={`w-full text-white font-bold py-2.5 rounded-lg shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${activeTaskType === 'republish_measurement' ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'}`}
                         >
-                            确定发布
+                            {activeTaskType === 'republish_measurement' ? '重发任务' : '确定发布'}
                         </button>
                     </div>
                 </div>
