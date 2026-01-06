@@ -1,7 +1,7 @@
 import React, { useState, ChangeEvent } from 'react';
 import { Ruler, Store, ChevronDown, ChevronUp, Plus, X, Upload, ClipboardList, Edit3, Check, Save, Filter, BedDouble, HelpCircle, Image as ImageIcon, Send, AlertCircle, CheckCircle, ArrowRight, ArrowLeft, Settings, ListChecks, Calendar, Camera, User } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { RoomImageCategory, RoomImage, RoomMeasurement, MeasurementType, RoomMeasurementStatus, RoomTypeConfig, ChecklistParam, Region } from '../../types';
+import { RoomImageCategory, RoomImage, RoomMeasurement, MeasurementType, RoomMeasurementStatus, RoomTypeConfig, ChecklistParam, Region, Store as StoreType } from '../../types';
 import { AuditGate } from '../DeviceComponents';
 
 // --- Constants ---
@@ -58,7 +58,6 @@ interface EvaluationPanelProps {
 }
 
 // --- Sub-component: Evaluation Panel ---
-// Separated to clean up main render loop and fix JSX syntax issues with nested logic
 const EvaluationPanel: React.FC<EvaluationPanelProps> = (props) => {
     const { 
         moduleName, hasImages, isEditing, measurement, checklistParams, editForm, 
@@ -158,7 +157,6 @@ const EvaluationPanel: React.FC<EvaluationPanelProps> = (props) => {
         const status = measurement.status;
         const isRejected = status === 'rejected';
         const isPending = status === 'pending_stage_1' || status === 'pending_stage_2';
-        const isApproved = status === 'approved';
         const isRejectingThis = rejectingCategory === moduleName;
 
         // Calculate missing checklist items for UI hint
@@ -302,6 +300,7 @@ export const RoomMeasure: React.FC = () => {
   // Navigation State
   const [selectedRegion, setSelectedRegion] = useState('');
   const [selectedStoreId, setSelectedStoreId] = useState('');
+  const [filterTab, setFilterTab] = useState<'all' | 'pending' | 'approved'>('all'); // New Tab State
   
   // Detail View State
   const [activeRoomTypeName, setActiveRoomTypeName] = useState('');
@@ -322,11 +321,40 @@ export const RoomMeasure: React.FC = () => {
   // Example Image Modal State
   const [viewingExample, setViewingExample] = useState<{ title: string; url: string } | null>(null);
 
+  // Helper to calculate progress percentage for filtering
+  const calculateStoreProgress = (store: StoreType) => {
+      const roomTypes = store.roomTypeConfigs || [];
+      const activeMods = store.moduleConfig.activeModules.filter(m => (store.moduleConfig.moduleTypes?.[m] || 'measurement') === 'measurement');
+      
+      const totalModules = roomTypes.length * activeMods.length;
+      let completedModules = 0;
+      
+      if (totalModules > 0) {
+          roomTypes.forEach(rt => {
+              const approvedCount = rt.measurements?.filter(m => m.status === 'approved' && activeMods.includes(m.category)).length || 0;
+              completedModules += approvedCount;
+          });
+      }
+      
+      return totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : (roomTypes.length > 0 ? 100 : 0);
+  };
+
   // Computed Data
-  // FILTER MODIFICATION: Only show stores with 'published' measurement task
-  const filteredStores = (selectedRegion 
-    ? stores.filter(s => s.regionId === selectedRegion) 
-    : stores).filter(s => s.measurementTask?.status === 'published');
+  // FILTER MODIFICATION: 
+  // 1. Only show stores with 'published' measurement task
+  // 2. Filter by Region
+  // 3. Filter by Tab (Progress)
+  const filteredStores = stores.filter(s => {
+      if (s.measurementTask?.status !== 'published') return false;
+      if (selectedRegion && s.regionId !== selectedRegion) return false;
+      
+      // Tab Filtering
+      const progress = calculateStoreProgress(s);
+      if (filterTab === 'pending') return progress < 100;
+      if (filterTab === 'approved') return progress === 100;
+      
+      return true; // 'all'
+  });
 
   const currentStore = stores.find(s => s.id === selectedStoreId);
   const currentRoomTypeConfig = currentStore?.roomTypeConfigs.find(rt => rt.name === activeRoomTypeName);
@@ -337,7 +365,8 @@ export const RoomMeasure: React.FC = () => {
 
   // Helper for Region Label with Status Counts
   const getRegionLabel = (region: Region) => {
-      const regionStores = filteredStores.filter(s => s.regionId === region.id);
+      // Calculate based on the stores filtered by region but BEFORE tab filtering to show total stats for the region
+      const regionStores = stores.filter(s => s.regionId === region.id && s.measurementTask?.status === 'published');
       const total = regionStores.length;
       
       let p1 = 0; // pending_stage_1
@@ -355,27 +384,7 @@ export const RoomMeasure: React.FC = () => {
           if (hasP1) p1++;
           if (hasP2) p2++;
 
-          // Count Completed
-          const roomTypes = s.roomTypeConfigs || [];
-          const activeMods = s.moduleConfig.activeModules || DEFAULT_MODULES;
-          const measurementMods = activeMods.filter((m: any) => (s.moduleConfig.moduleTypes?.[m] || 'measurement') === 'measurement');
-          
-          // Calculate Progress by Modules, not just "Room Type Completed"
-          if (roomTypes.length > 0 && measurementMods.length > 0) {
-              const totalModules = roomTypes.length * measurementMods.length;
-              let completedModules = 0;
-              roomTypes.forEach(rt => {
-                  const approvedCount = rt.measurements?.filter(m => m.status === 'approved' && measurementMods.includes(m.category)).length || 0;
-                  completedModules += approvedCount;
-              });
-              
-              if (totalModules > 0 && completedModules === totalModules) {
-                  completed++;
-              }
-          } else if (roomTypes.length > 0 && measurementMods.length === 0) {
-              // 100% if no measurement modules needed
-              completed++;
-          }
+          if (calculateStoreProgress(s) === 100) completed++;
       });
 
       let label = `${region.name} (总:${total}`;
@@ -387,12 +396,14 @@ export const RoomMeasure: React.FC = () => {
   };
 
   const getAllRegionsLabel = () => {
-      const total = filteredStores.length;
+      // Base set for dropdown counts is all published task stores
+      const baseStores = stores.filter(s => s.measurementTask?.status === 'published');
+      const total = baseStores.length;
       let p1 = 0;
       let p2 = 0;
       let completed = 0;
 
-      filteredStores.forEach(s => {
+      baseStores.forEach(s => {
           let hasP1 = false;
           let hasP2 = false;
           (s.roomTypeConfigs || []).forEach(rt => {
@@ -402,21 +413,7 @@ export const RoomMeasure: React.FC = () => {
           if (hasP1) p1++;
           if (hasP2) p2++;
 
-          const roomTypes = s.roomTypeConfigs || [];
-          const activeMods = s.moduleConfig.activeModules || DEFAULT_MODULES;
-          const measurementMods = activeMods.filter((m: any) => (s.moduleConfig.moduleTypes?.[m] || 'measurement') === 'measurement');
-          
-          if (roomTypes.length > 0 && measurementMods.length > 0) {
-              const totalModules = roomTypes.length * measurementMods.length;
-              let completedModules = 0;
-              roomTypes.forEach(rt => {
-                  const approvedCount = rt.measurements?.filter(m => m.status === 'approved' && measurementMods.includes(m.category)).length || 0;
-                  completedModules += approvedCount;
-              });
-              if (totalModules > 0 && completedModules === totalModules) completed++;
-          } else if (roomTypes.length > 0 && measurementMods.length === 0) {
-              completed++;
-          }
+          if (calculateStoreProgress(s) === 100) completed++;
       });
 
       let label = `全部大区 (总:${total}`;
@@ -649,9 +646,9 @@ export const RoomMeasure: React.FC = () => {
             {/* Header / Filter */}
             <div className="bg-white p-4 shrink-0 shadow-sm border-b border-slate-100 z-10">
                 <h3 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-1">
-                    <Store size={12} /> 大区筛选
+                    <Store size={12} /> 复尺任务筛选
                 </h3>
-                <div className="relative">
+                <div className="relative mb-3">
                     <select 
                         className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         value={selectedRegion}
@@ -662,6 +659,28 @@ export const RoomMeasure: React.FC = () => {
                     </select>
                     <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
                 </div>
+
+                {/* Filter Tabs - New */}
+                <div className="flex bg-slate-100 p-1 rounded-lg">
+                    <button 
+                        onClick={() => setFilterTab('all')}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${filterTab === 'all' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        全部
+                    </button>
+                    <button 
+                        onClick={() => setFilterTab('pending')}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${filterTab === 'pending' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        待完成
+                    </button>
+                    <button 
+                        onClick={() => setFilterTab('approved')}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${filterTab === 'approved' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        已审核
+                    </button>
+                </div>
             </div>
 
             {/* Store List */}
@@ -671,21 +690,12 @@ export const RoomMeasure: React.FC = () => {
                 )}
                 {filteredStores.map(store => {
                     const roomTypes = store.roomTypeConfigs || [];
+                    const percent = calculateStoreProgress(store);
                     
-                    // --- Progress Calculation (Modules Based) ---
+                    // Count modules for display
                     const activeMods = store.moduleConfig.activeModules.filter(m => (store.moduleConfig.moduleTypes?.[m] || 'measurement') === 'measurement');
                     const totalModules = roomTypes.length * activeMods.length;
-                    
-                    let completedModules = 0;
-                    if (totalModules > 0) {
-                        roomTypes.forEach(rt => {
-                            const approvedCount = rt.measurements?.filter(m => m.status === 'approved' && activeMods.includes(m.category)).length || 0;
-                            completedModules += approvedCount;
-                        });
-                    }
-                    
-                    const percent = totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : (roomTypes.length > 0 ? 100 : 0);
-                    // ---------------------------------------------
+                    const completedModules = Math.round((percent / 100) * totalModules);
 
                     return (
                         <div 

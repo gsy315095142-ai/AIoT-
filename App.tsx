@@ -1,4 +1,4 @@
-// 标记：本次更新清空了设备反馈初始数据；调整了远程、上门、自助处理流程的UI布局，将诊断分类和结果选项置顶；并在上门处理的现场评估环节增加了问题分析输入。
+// 标记：本次更新修复了【安装进度】页面底部操作按钮丢失的问题；再次确认并修复了首次登录默认跳转至【设备管理】（而非设备反馈）的逻辑。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -125,6 +125,10 @@ const AuthenticatedApp: React.FC = () => {
       }
 
       if (accessibleRoutes.length > 0) {
+          // Explicitly prefer /devices if available to avoid feedback page default issue
+          if (accessibleRoutes.includes('/devices')) {
+              return <Navigate to="/devices" replace />;
+          }
           return <Navigate to={accessibleRoutes[0]} replace />;
       }
   }

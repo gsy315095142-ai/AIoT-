@@ -32,6 +32,7 @@ export const RoomInstall: React.FC = () => {
   const { regions, stores, updateStoreInstallation, devices, currentUser } = useApp();
   
   const [selectedRegion, setSelectedRegion] = useState('');
+  const [filterTab, setFilterTab] = useState<'all' | 'pending' | 'approved'>('all'); // New Tab State
   
   // Modals & Active State
   const [activeStore, setActiveStore] = useState<StoreType | null>(null);
@@ -64,6 +65,12 @@ export const RoomInstall: React.FC = () => {
       // 3.1 Only show stores with published installation tasks
       if (s.installationTask?.status !== 'published') return false;
       if (selectedRegion && s.regionId !== selectedRegion) return false;
+      
+      // Tab Filtering
+      const isApproved = s.installation?.status === 'approved';
+      if (filterTab === 'pending' && isApproved) return false;
+      if (filterTab === 'approved' && !isApproved) return false;
+
       return true;
   });
 
@@ -88,7 +95,8 @@ export const RoomInstall: React.FC = () => {
 
   // Helper for Region Label with Status Counts
   const getRegionLabel = (region: Region) => {
-      const regionStores = filteredStores.filter(s => s.regionId === region.id);
+      // Calculate from all published tasks, before tab filtering
+      const regionStores = stores.filter(s => s.regionId === region.id && s.installationTask?.status === 'published');
       const total = regionStores.length;
       
       const p1 = regionStores.filter(s => s.installation?.status === 'pending_review_1').length;
@@ -108,12 +116,13 @@ export const RoomInstall: React.FC = () => {
   };
 
   const getAllRegionsLabel = () => {
-      const total = filteredStores.length;
-      const p1 = filteredStores.filter(s => s.installation?.status === 'pending_review_1').length;
-      const p2 = filteredStores.filter(s => s.installation?.status === 'pending_review_2').length;
-      const p3 = filteredStores.filter(s => s.installation?.status === 'pending_review_3').length;
-      const p4 = filteredStores.filter(s => s.installation?.status === 'pending_review_4').length;
-      const approved = filteredStores.filter(s => s.installation?.status === 'approved').length;
+      const baseStores = stores.filter(s => s.installationTask?.status === 'published');
+      const total = baseStores.length;
+      const p1 = baseStores.filter(s => s.installation?.status === 'pending_review_1').length;
+      const p2 = baseStores.filter(s => s.installation?.status === 'pending_review_2').length;
+      const p3 = baseStores.filter(s => s.installation?.status === 'pending_review_3').length;
+      const p4 = baseStores.filter(s => s.installation?.status === 'pending_review_4').length;
+      const approved = baseStores.filter(s => s.installation?.status === 'approved').length;
 
       let label = `全部大区 (总:${total}`;
       if (p1 > 0) label += ` 初审:${p1}`;
@@ -727,8 +736,11 @@ export const RoomInstall: React.FC = () => {
   const currentStatus = activeStore?.installation?.status;
   const isAuditMode = currentStatus?.startsWith('pending_review');
   const isApproved = currentStatus === 'approved';
+  const isRejected = currentStatus === 'rejected';
   
   // Allow edit even if complete/approved/audit, essentially always unlocked unless waiting for audit result
+  // If isAuditMode is true, user sees Audit Actions. If false, user sees Installation Actions.
+  // We hide "Confirm" if it's already approved to avoid re-submitting same state, but still allow viewing.
   const isLocked = isAuditMode; 
 
   const isRoomCompleted = (roomData: any) => {
@@ -784,7 +796,7 @@ export const RoomInstall: React.FC = () => {
             <h3 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-1">
                 <Store size={12} /> 安装筛选
             </h3>
-            <div className="relative">
+            <div className="relative mb-3">
                 <select 
                     className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={selectedRegion}
@@ -795,10 +807,35 @@ export const RoomInstall: React.FC = () => {
                 </select>
                 <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
             </div>
+
+            {/* Filter Tabs - New */}
+            <div className="flex bg-slate-100 p-1 rounded-lg">
+                <button 
+                    onClick={() => setFilterTab('all')}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${filterTab === 'all' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    全部
+                </button>
+                <button 
+                    onClick={() => setFilterTab('pending')}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${filterTab === 'pending' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    待完成
+                </button>
+                <button 
+                    onClick={() => setFilterTab('approved')}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${filterTab === 'approved' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    已审核
+                </button>
+            </div>
         </div>
 
         {/* Store List - Scrollable */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {filteredStores.length === 0 && (
+                <div className="text-center py-10 text-slate-400 text-xs">没有找到门店数据</div>
+            )}
             {filteredStores.map(store => {
                 const install = store.installation!;
                 const progress = getProgress(install.nodes);
@@ -907,9 +944,6 @@ export const RoomInstall: React.FC = () => {
                     </div>
                 );
             })}
-            {filteredStores.length === 0 && (
-                <div className="text-center py-10 text-slate-400 text-xs">没有找到门店数据</div>
-            )}
         </div>
 
         {/* Modal Components */}
@@ -1101,4 +1135,361 @@ export const RoomInstall: React.FC = () => {
                                                     <div key={imgIdx} className="aspect-square rounded-xl border border-slate-200 overflow-hidden relative group">
                                                         <img src={url} alt={`checkin-${imgIdx}`} className="w-full h-full object-cover" />
                                                         {!isLocked && (
-                                                            <button onClick={() => removeCheckInImage(imgIdx)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-
+                                                            <button onClick={() => removeCheckInImage(imgIdx)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><X size={10} /></button>
+                                                        )}
+                                                    </div>
+                                                ));
+                                            })()}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Node 3: Installation */}
+                            {currentStepIndex === 3 && (
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                        {activeStore.rooms.map(room => {
+                                            const roomData = (currentNode.data && typeof currentNode.data === 'object') ? currentNode.data : {};
+                                            const isComplete = isRoomCompleted(roomData[room.number] || {});
+                                            
+                                            return (
+                                                <div 
+                                                    key={room.number}
+                                                    onClick={() => setInstallingRoomNumber(room.number)}
+                                                    className={`p-3 rounded-xl border cursor-pointer transition-all hover:shadow-md text-center ${
+                                                        isComplete ? 'bg-green-50 border-green-200 text-green-700' : 'bg-white border-slate-200 text-slate-600'
+                                                    }`}
+                                                >
+                                                    <div className="text-lg font-bold">{room.number}</div>
+                                                    <div className="text-[9px] mt-1 opacity-80">{room.type}</div>
+                                                    {isComplete && <div className="mt-2 text-[9px] flex items-center justify-center gap-1 font-bold"><CheckCircle size={10} /> 已完成</div>}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    {/* Upload Modal for Room */}
+                                    {installingRoomNumber && (
+                                        <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm" onClick={() => setInstallingRoomNumber(null)}>
+                                            <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm max-h-[80vh] flex flex-col overflow-hidden animate-scaleIn" onClick={e => e.stopPropagation()}>
+                                                <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
+                                                    <h3 className="font-bold text-slate-800 flex items-center gap-2"><BedDouble size={18} className="text-blue-600"/> {installingRoomNumber} 安装上传</h3>
+                                                    <button onClick={() => setInstallingRoomNumber(null)}><X size={20} className="text-slate-400" /></button>
+                                                </div>
+                                                <div className="p-4 space-y-6 overflow-y-auto flex-1">
+                                                    {(() => {
+                                                        const roomData = (currentNode.data && typeof currentNode.data === 'object') ? currentNode.data[installingRoomNumber] || {} : {};
+                                                        
+                                                        // Dynamic Modules
+                                                        const installationModules = activeStore.moduleConfig.activeModules.filter(m => activeStore.moduleConfig.moduleTypes?.[m] === 'installation');
+
+                                                        return installationModules.map((cat) => {
+                                                            const modData = getInstallModuleData(roomData[cat]);
+                                                            const catImages = modData.images;
+                                                            const params = modData.params;
+                                                            
+                                                            const requiredParams = activeStore.moduleConfig.installationParams?.[cat] || [];
+
+                                                            return (
+                                                                <div key={cat} className="space-y-3">
+                                                                    <label className="text-xs font-bold text-slate-600 uppercase flex items-center justify-between">
+                                                                        {cat}
+                                                                        <span className="text-[9px] text-slate-400 font-normal">至少1张</span>
+                                                                    </label>
+                                                                    
+                                                                    {/* Render Parameters Input */}
+                                                                    {requiredParams.length > 0 && (
+                                                                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 space-y-2 mb-2">
+                                                                            {requiredParams.map(pk => (
+                                                                                <div key={pk} className="flex flex-col gap-1">
+                                                                                    <label className="text-[10px] font-bold text-slate-500">
+                                                                                        {pk === 'deviceSn' ? '设备SN号' : pk === 'powerOnBoot' ? '通电自启' : pk}
+                                                                                    </label>
+                                                                                    {pk === 'powerOnBoot' ? (
+                                                                                        <div className="flex gap-2">
+                                                                                            <label className="flex items-center gap-1 text-xs cursor-pointer">
+                                                                                                <input 
+                                                                                                    type="radio" 
+                                                                                                    name={`${installingRoomNumber}-${cat}-${pk}`}
+                                                                                                    checked={params[pk] === true} 
+                                                                                                    onChange={() => !isLocked && handleRoomParamUpdate(installingRoomNumber, cat, pk, true)}
+                                                                                                    disabled={isLocked}
+                                                                                                /> 是
+                                                                                            </label>
+                                                                                            <label className="flex items-center gap-1 text-xs cursor-pointer">
+                                                                                                <input 
+                                                                                                    type="radio" 
+                                                                                                    name={`${installingRoomNumber}-${cat}-${pk}`}
+                                                                                                    checked={params[pk] === false} 
+                                                                                                    onChange={() => !isLocked && handleRoomParamUpdate(installingRoomNumber, cat, pk, false)}
+                                                                                                    disabled={isLocked}
+                                                                                                /> 否
+                                                                                            </label>
+                                                                                        </div>
+                                                                                    ) : (
+                                                                                        <input 
+                                                                                            type="text" 
+                                                                                            className="border border-slate-200 rounded px-2 py-1 text-xs outline-none focus:border-blue-400"
+                                                                                            value={params[pk] || ''}
+                                                                                            onChange={(e) => !isLocked && handleRoomParamUpdate(installingRoomNumber, cat, pk, e.target.value)}
+                                                                                            placeholder={`输入${pk}`}
+                                                                                            disabled={isLocked}
+                                                                                        />
+                                                                                    )}
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
+
+                                                                    <div className="grid grid-cols-3 gap-2">
+                                                                        {!isLocked && (
+                                                                            <div className="aspect-square border-2 border-dashed border-slate-200 rounded-lg bg-slate-50 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 relative group transition-all">
+                                                                                <input type="file" accept="image/*" onChange={(e) => handleRoomImageUpload(installingRoomNumber, cat, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                                                                <Upload size={16} className="text-slate-300 group-hover:text-blue-400 mb-1" />
+                                                                                <span className="text-[8px] text-slate-400 group-hover:text-blue-500 font-bold">上传</span>
+                                                                            </div>
+                                                                        )}
+                                                                        {!isLocked && (
+                                                                            <div 
+                                                                                onClick={() => handleSimulateRoomImage(installingRoomNumber, cat)}
+                                                                                className="aspect-square border-2 border-dashed border-slate-200 rounded-lg bg-slate-50 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 relative group transition-all"
+                                                                            >
+                                                                                <Camera size={16} className="text-slate-300 group-hover:text-blue-400 mb-1" />
+                                                                                <span className="text-[8px] text-slate-400 group-hover:text-blue-500 font-bold">拍照</span>
+                                                                            </div>
+                                                                        )}
+                                                                        {catImages.map((url: string, imgIdx: number) => (
+                                                                            <div key={imgIdx} className="aspect-square rounded-lg border border-slate-200 overflow-hidden relative group">
+                                                                                <img src={url} alt="room-install" className="w-full h-full object-cover" />
+                                                                                {!isLocked && (
+                                                                                    <button onClick={() => removeRoomImage(installingRoomNumber, cat, imgIdx)} className="absolute top-1 right-1 bg-red-500 text-white p-0.5 rounded-full opacity-0 group-hover:opacity-100"><X size={10} /></button>
+                                                                                )}
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        });
+                                                    })()}
+                                                </div>
+                                                <div className="p-4 border-t border-slate-100 bg-slate-50">
+                                                    <button onClick={() => setInstallingRoomNumber(null)} className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700">完成上传</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Step 4: Debug */}
+                            {currentStepIndex === 4 && (
+                                <div className="space-y-3">
+                                    {activeStore.rooms.map(room => {
+                                        const roomData = (currentNode.data && typeof currentNode.data === 'object' && !Array.isArray(currentNode.data)) ? currentNode.data : {};
+                                        const rData = roomData[room.number] || {};
+                                        const isDone = isDebugRoomCompleted(rData);
+                                        const isExpanded = expandedRoomNumber === room.number;
+
+                                        return (
+                                            <div key={room.number} className={`border rounded-xl transition-all ${isDone ? 'bg-green-50 border-green-200' : 'bg-white border-slate-200'}`}>
+                                                <div 
+                                                    className="p-3 flex justify-between items-center cursor-pointer"
+                                                    onClick={() => toggleRoomAccordion(room.number)}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <span className={`font-bold ${isDone ? 'text-green-800' : 'text-slate-700'}`}>{room.number}</span>
+                                                        <span className="text-[10px] text-slate-400 bg-white/50 px-1.5 py-0.5 rounded border border-slate-100">{room.type}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {isDone && <CheckCircle size={16} className="text-green-600" />}
+                                                        {isExpanded ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+                                                    </div>
+                                                </div>
+                                                
+                                                {isExpanded && (
+                                                    <div className="p-3 border-t border-slate-100/50 bg-white/50 rounded-b-xl animate-fadeIn space-y-2">
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-xs text-slate-600 flex items-center gap-2"><Wifi size={14} className="text-blue-500" /> 网络连通性</span>
+                                                            {rData.network ? (
+                                                                <span className="text-[10px] text-green-600 font-bold bg-green-100 px-2 py-0.5 rounded">正常</span>
+                                                            ) : (
+                                                                <button 
+                                                                    onClick={(e) => { e.stopPropagation(); handleDebugSync(room.number, 'network'); }}
+                                                                    disabled={isLocked || debugLoading[`${room.number}-network`]}
+                                                                    className="text-[10px] bg-blue-600 text-white px-3 py-1 rounded-full hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
+                                                                >
+                                                                    {debugLoading[`${room.number}-network`] ? <RefreshCw size={10} className="animate-spin" /> : '检测'}
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-xs text-slate-600 flex items-center gap-2"><FileText size={14} className="text-purple-500" /> 日志上报</span>
+                                                            {rData.log ? (
+                                                                <span className="text-[10px] text-green-600 font-bold bg-green-100 px-2 py-0.5 rounded">正常</span>
+                                                            ) : (
+                                                                <button 
+                                                                    onClick={(e) => { e.stopPropagation(); handleDebugSync(room.number, 'log'); }}
+                                                                    disabled={isLocked || debugLoading[`${room.number}-log`]}
+                                                                    className="text-[10px] bg-blue-600 text-white px-3 py-1 rounded-full hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
+                                                                >
+                                                                    {debugLoading[`${room.number}-log`] ? <RefreshCw size={10} className="animate-spin" /> : '检测'}
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            {/* Generic Image Upload Steps (2: Inventory, 5: Delivery) */}
+                            {(currentStepIndex === 2 || currentStepIndex === 5) && (
+                                <div className="space-y-4">
+                                    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm text-center py-8">
+                                        <div className="inline-flex justify-center items-center gap-2 mb-4 bg-blue-50 px-3 py-1 rounded-full text-blue-600 text-xs font-bold border border-blue-100">
+                                            <Upload size={14} />
+                                            {currentStepIndex === 5 ? '上传交付确认单 / 现场视频' : '请拍照上传'}
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-3 gap-3">
+                                            {!isLocked && (
+                                                <div className="aspect-square border-2 border-dashed border-blue-200 rounded-xl bg-blue-50 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-100 relative group transition-all">
+                                                    <input type="file" accept={currentStepIndex === 5 ? "image/*,video/*" : "image/*"} onChange={currentStepIndex === 5 ? handleDeliveryUpload : handleSimpleImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                                    <Upload size={24} className="text-blue-400 group-hover:scale-110 transition-transform mb-1" />
+                                                    <span className="text-[10px] text-blue-500 font-bold">上传</span>
+                                                </div>
+                                            )}
+                                            {!isLocked && (
+                                                <div 
+                                                    onClick={() => currentStepIndex === 5 ? handleSimulateDeliveryItem('image') : handleSimulateSimpleImage()}
+                                                    className="aspect-square border-2 border-dashed border-blue-200 rounded-xl bg-blue-50 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-100 relative group transition-all"
+                                                >
+                                                    <Camera size={24} className="text-blue-400 group-hover:scale-110 transition-transform mb-1" />
+                                                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 font-bold">拍照</span>
+                                                </div>
+                                            )}
+                                            {(() => {
+                                                const currentItems = Array.isArray(currentNode.data) ? currentNode.data : [];
+                                                const normalizeItems = currentItems.map((item: any) => typeof item === 'string' ? { url: item, type: 'image' } : item);
+                                                
+                                                return normalizeItems.map((item: { url: string, type: 'image' | 'video' }, idx: number) => (
+                                                    <div key={idx} className="aspect-square rounded-xl border border-slate-200 overflow-hidden relative group">
+                                                        <img src={item.url} alt={`delivery-${idx}`} className="w-full h-full object-cover" />
+                                                        {item.type === 'video' && <div className="absolute inset-0 flex items-center justify-center bg-black/20"><PlayCircle size={24} className="text-white opacity-80" /></div>}
+                                                        {!isLocked && (
+                                                            <button onClick={() => removeDeliveryItem(idx)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><X size={10} /></button>
+                                                        )}
+                                                    </div>
+                                                ));
+                                            })()}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer Navigation & Actions - RESTORED */}
+                <div className="p-4 bg-white border-t border-slate-100 flex-shrink-0 flex flex-col gap-3 sticky bottom-0 z-20">
+                    
+                    {/* Mode 1: Audit (Pending Review) */}
+                    {isAuditMode ? (
+                        <div className="flex flex-col gap-3">
+                            <div className="flex gap-3 justify-between items-center mb-1">
+                                <span className="text-xs text-slate-400 font-bold">
+                                    审核环节: {currentNode.name}
+                                </span>
+                            </div>
+                            <div className="flex gap-3">
+                                <AuditGate type="installation" stage={getCurrentStage()} className="flex-1">
+                                    <button onClick={() => setRejectMode(true)} className="w-full py-3 border border-red-200 text-red-600 font-bold rounded-xl hover:bg-red-50 transition-colors">驳回</button>
+                                </AuditGate>
+                                <AuditGate type="installation" stage={getCurrentStage()} className="flex-1">
+                                    <button onClick={handleAuditApprove} className="w-full py-3 bg-green-600 text-white font-bold rounded-xl shadow-lg hover:bg-green-700 active:scale-95 transition-all">{getApproveLabel()}</button>
+                                </AuditGate>
+                            </div>
+                            
+                            {/* Reject Input Overlay inside Footer area if active */}
+                            {rejectMode && (
+                                <div className="absolute bottom-0 left-0 right-0 bg-white p-4 border-t border-red-200 shadow-lg animate-slideInUp z-30">
+                                    <textarea 
+                                        autoFocus
+                                        className="w-full border border-red-200 rounded-xl p-3 text-sm bg-red-50 focus:outline-none focus:ring-1 focus:ring-red-500 mb-3"
+                                        placeholder="请输入驳回原因..."
+                                        value={rejectReason}
+                                        onChange={e => setRejectReason(e.target.value)}
+                                    />
+                                    <div className="flex gap-2">
+                                        <button onClick={() => setRejectMode(false)} className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl text-sm">取消</button>
+                                        <button onClick={handleAuditReject} className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl text-sm shadow-md">确认驳回</button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        /* Mode 2: Installation Execution / View */
+                        <>
+                            {/* Main Action Button */}
+                            {!isApproved && !isRejected && (
+                                <>
+                                    {/* Confirm Step Button */}
+                                    {!currentNode.completed ? (
+                                        <button 
+                                            onClick={handleConfirmStep}
+                                            disabled={!canCompleteStep}
+                                            className={`w-full py-3 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-1
+                                                ${!canCompleteStep
+                                                    ? 'bg-slate-300 cursor-not-allowed shadow-none' 
+                                                    : 'bg-blue-600 hover:bg-blue-700 active:scale-95'}`}
+                                        >
+                                            确认完成此环节 <CheckCircle size={16} />
+                                        </button>
+                                    ) : (
+                                        // If completed and it's the last step, show Submit
+                                        currentStepIndex === activeStore.installation.nodes.length - 1 ? (
+                                            <button 
+                                                onClick={handleSubmit}
+                                                className="w-full py-3 bg-green-600 text-white font-bold rounded-xl shadow-lg hover:bg-green-700 active:scale-95 transition-all flex items-center justify-center gap-1 animate-pulse"
+                                            >
+                                                提交审核 <Check size={16} />
+                                            </button>
+                                        ) : (
+                                            <div className="w-full py-3 bg-green-50 text-green-600 border border-green-200 font-bold rounded-xl flex items-center justify-center gap-1">
+                                                <CheckCircle size={16} /> 本环节已完成
+                                            </div>
+                                        )
+                                    )}
+                                </>
+                            )}
+
+                            {/* Navigation Buttons */}
+                            <div className="flex gap-3">
+                                <button 
+                                    onClick={goPrevStep}
+                                    disabled={currentStepIndex === 0}
+                                    className={`flex-1 py-3 font-bold rounded-xl flex items-center justify-center gap-1 transition-colors
+                                        ${currentStepIndex === 0 ? 'bg-slate-50 text-slate-300 cursor-not-allowed' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                                >
+                                    <ChevronLeft size={16} /> 上一步
+                                </button>
+                                
+                                <button 
+                                    onClick={goNextStep}
+                                    disabled={currentStepIndex === activeStore.installation.nodes.length - 1}
+                                    className={`flex-1 py-3 font-bold rounded-xl flex items-center justify-center gap-1 transition-colors
+                                        ${currentStepIndex === activeStore.installation.nodes.length - 1 ? 'bg-slate-50 text-slate-300 cursor-not-allowed' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                                >
+                                    下一步 <ChevronRight size={16} />
+                                </button>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
+        )}
+    </div>
+  );
+};
