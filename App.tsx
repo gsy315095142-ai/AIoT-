@@ -1,4 +1,4 @@
-// 标记：本次更新将【设备管控】页面的门店详情（房间列表）和设备列表拆分为独立组件。
+// 标记：本次更新将【客房建档】页面的客房详情弹窗拆分为独立组件。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
