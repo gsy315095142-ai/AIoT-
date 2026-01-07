@@ -1,4 +1,4 @@
-// 标记：本次更新在设备管理页面增加了设备反馈的红点提示，并优化了设备处理流程中客户连线时间的默认值。
+// 标记：本次更新对设备反馈管理页面的代码结构进行了重构优化，提升了代码的可维护性，同时保持了原有的功能和界面布局不变。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
