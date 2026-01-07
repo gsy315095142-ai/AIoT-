@@ -4,7 +4,7 @@ import { DeviceStatus, OpsStatus, DeviceImage, DeviceEvent, Device, AuditStatus,
 import { CATEGORY_LIMITS } from '../components/DeviceComponents';
 
 export const useDeviceLogic = () => {
-  const { devices, regions, stores, deviceTypes, suppliers, updateDevice, auditRecords, submitOpsStatusChange, submitInspectionReport, deleteDeviceEvent, addFeedback } = useApp();
+  const { devices, regions, stores, deviceTypes, suppliers, updateDevice, auditRecords, submitOpsStatusChange, submitInspectionReport, deleteDeviceEvent, addFeedback, feedbacks } = useApp();
   
   // Filter States
   const [selectedRegion, setSelectedRegion] = useState('');
@@ -74,6 +74,10 @@ export const useDeviceLogic = () => {
   }, [devices, selectedRegion, selectedStore, selectedType, selectedStatus, selectedOpsStatus, searchQuery]);
 
   const pendingAuditCount = auditRecords.filter(r => r.auditStatus === AuditStatus.PENDING).length;
+  
+  const pendingFeedbackCount = useMemo(() => {
+      return feedbacks.filter(f => f.status === 'pending_receive').length;
+  }, [feedbacks]);
 
   // Actions
   const toggleSelection = (id: string) => {
@@ -196,7 +200,7 @@ export const useDeviceLogic = () => {
   return {
     // Data
     devices, // Export raw devices list for stats calculation
-    regions, stores, deviceTypes, suppliers, filteredDevices, availableStores, auditRecords, pendingAuditCount, CATEGORY_LIMITS,
+    regions, stores, deviceTypes, suppliers, filteredDevices, availableStores, auditRecords, pendingAuditCount, pendingFeedbackCount, CATEGORY_LIMITS,
     
     // States
     selectedRegion, setSelectedRegion,

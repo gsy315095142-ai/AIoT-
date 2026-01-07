@@ -84,6 +84,15 @@ export const DeviceProcessFlow: React.FC = () => {
     const isEditable = feedback.status === 'processing';
     const isAudit = feedback.status === 'pending_audit';
     
+    // Auto-set Connection Time for Remote if empty
+    useEffect(() => {
+        if (isEditable && method === 'remote' && !data.connectionTime) {
+             const now = new Date();
+             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+             updateFeedbackProcess(feedback.id, { connectionTime: now.toISOString().slice(0, 16) });
+        }
+    }, []); // Run once on mount when editable
+
     // Define steps based on method (Updated 2.5, 2.6, 2.7)
     const steps = React.useMemo(() => {
         switch (method) {

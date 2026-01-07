@@ -51,7 +51,7 @@ const DeviceList: React.FC = () => {
   const navigate = useNavigate();
   const {
     // Data
-    regions, stores, deviceTypes, suppliers, filteredDevices, availableStores, pendingAuditCount, CATEGORY_LIMITS,
+    regions, stores, deviceTypes, suppliers, filteredDevices, availableStores, pendingAuditCount, pendingFeedbackCount, CATEGORY_LIMITS,
     devices,
     // States
     selectedRegion, setSelectedRegion, searchQuery, setSearchQuery,
@@ -307,10 +307,15 @@ const DeviceList: React.FC = () => {
 
                         <button 
                             onClick={() => navigate('/device-feedback')}
-                            className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-lg backdrop-blur-sm transition-all border border-white/10"
+                            className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-lg backdrop-blur-sm transition-all border border-white/10 relative"
                             title="设备反馈"
                         >
                             <MessageSquareWarning size={20} />
+                            {pendingFeedbackCount > 0 && (
+                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] flex items-center justify-center rounded-full font-bold border-2 border-blue-600">
+                                    {pendingFeedbackCount}
+                                </span>
+                            )}
                         </button>
 
                         <button 

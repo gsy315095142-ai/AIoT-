@@ -1,4 +1,4 @@
-// 标记：本次更新在设备反馈管理页面优化了【已完成工单】的分类，细分为已解决、需二次处理、无法解决三个子页签，并支持查看已完成工单的详情。
+// 标记：本次更新在设备管理页面增加了设备反馈的红点提示，并优化了设备处理流程中客户连线时间的默认值。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
