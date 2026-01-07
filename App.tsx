@@ -1,4 +1,4 @@
-// 标记：本次更新将【发布复尺任务】和【发布安装任务】弹窗中的时间默认值修改为当天日期。
+// 标记：本次更新将【设备管控】页面的门店详情（房间列表）和设备列表拆分为独立组件。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

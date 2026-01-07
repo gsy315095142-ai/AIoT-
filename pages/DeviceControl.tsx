@@ -2,9 +2,11 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDeviceLogic } from '../hooks/useDeviceLogic';
 import { DeviceStatus, OpsStatus, Device, Store as StoreModel, Region } from '../types';
-import { STATUS_MAP, ImageManagerModal, ReportDetailModal, EventDetailModal, DeviceDetailCard, AuditGate } from '../components/DeviceComponents';
-import { ChevronDown, ChevronUp, Plus, Search, CheckSquare, Square, X, Settings2, Play, Moon, RotateCcw, Wrench, ClipboardCheck, Check, X as XIcon, ImageIcon, ClipboardList, Monitor, Store, ArrowLeft, ArrowRight, MessageSquareWarning, ScanLine, QrCode } from 'lucide-react';
+import { ImageManagerModal, ReportDetailModal, EventDetailModal, AuditGate } from '../components/DeviceComponents';
+import { ChevronDown, Plus, Search, Settings2, Play, Moon, RotateCcw, Wrench, ClipboardCheck, X as XIcon, ImageIcon, ClipboardList, Monitor, Store, ArrowLeft, ArrowRight, MessageSquareWarning, ScanLine, Check, X } from 'lucide-react';
 import { ScanModal } from '../components/ScanModal';
+import { DeviceRoomGrid, RoomData, BreakdownStats } from '../components/device/DeviceRoomGrid';
+import { DeviceList } from '../components/device/DeviceList';
 
 // --- Types ---
 type ViewLevel = 'stores' | 'rooms' | 'deviceTypes' | 'devices';
@@ -14,19 +16,6 @@ interface ViewState {
     storeId?: string;
     roomNumber?: string;
     deviceTypeId?: string;
-}
-
-interface BreakdownStats {
-    count: number;
-    statusCounts: Record<string, number>;
-}
-
-interface RoomData {
-    number: string;
-    type: string;
-    devices: Device[];
-    onlineCount: number;
-    breakdown: Record<string, BreakdownStats>;
 }
 
 interface TypeGroup {
@@ -224,15 +213,6 @@ export const DeviceControl: React.FC = () => {
       navigate('/devices/add', { state: initialData });
   };
 
-  const getRowStyle = (d: any) => {
-    if (d.opsStatus === OpsStatus.HOTEL_COMPLAINT) return 'bg-pink-100 border-pink-300 text-pink-900';
-    if (d.opsStatus === OpsStatus.REPAIRING) return 'bg-purple-200 border-purple-300 text-purple-900';
-    if (d.opsStatus === OpsStatus.PENDING) return 'bg-orange-200 border-orange-300 text-orange-900';
-    if (d.status === DeviceStatus.OFFLINE) return 'bg-slate-200 border-slate-300 text-slate-700';
-    if (d.status === DeviceStatus.ONLINE || d.status === DeviceStatus.IN_USE) return 'bg-green-200 border-green-300 text-green-900';
-    return 'bg-yellow-100 border-yellow-200 text-yellow-900'; 
-  };
-
   const getHeaderTitle = () => {
       if (viewState.level === 'stores') return '门店列表';
       const storeName = activeStoreData?.store.name || '';
@@ -426,65 +406,10 @@ export const DeviceControl: React.FC = () => {
 
             {/* LEVEL 2: Room Grid */}
             {viewState.level === 'rooms' && activeStoreData && (
-                <div className="animate-fadeIn">
-                    <div className="grid grid-cols-2 gap-3">
-                        {activeStoreData.roomsData.map(room => (
-                            <div 
-                                key={room.number}
-                                onClick={() => handleRoomClick(room.number)}
-                                className={`rounded-xl border flex flex-col p-3 cursor-pointer transition-all hover:shadow-md active:scale-95 bg-white min-h-[100px] justify-between
-                                    ${room.devices.length > 0 ? 'border-blue-200' : 'border-slate-200 border-dashed'}
-                                `}
-                            >
-                                <div className="flex justify-between items-start mb-2">
-                                    <div>
-                                        <div className="text-lg font-bold text-slate-800 leading-none">{room.number}</div>
-                                        <div className="text-[9px] text-slate-400 mt-1">{room.type}</div>
-                                    </div>
-                                    {room.devices.length > 0 && (
-                                        <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 rounded-full">{room.devices.length}</span>
-                                    )}
-                                </div>
-
-                                {/* Device Breakdown */}
-                                {room.devices.length > 0 ? (
-                                    <div className="space-y-1">
-                                        {Object.entries(room.breakdown).map(([type, val]) => {
-                                            const stats = val as BreakdownStats;
-                                            return (
-                                            <div key={type} className="text-[9px] bg-slate-50 px-1.5 py-1 rounded flex flex-col gap-0.5">
-                                                <div className="font-bold text-slate-700 flex justify-between">
-                                                    <span>{type}</span>
-                                                    <span>x{stats.count}</span>
-                                                </div>
-                                                <div className="flex flex-wrap gap-x-2 gap-y-0.5 opacity-90">
-                                                    {Object.entries(stats.statusCounts).map(([st, c]) => (
-                                                        <span key={st} className={
-                                                            st === '正常' ? 'text-green-600' : 
-                                                            st === '客诉' ? 'text-pink-600' : 
-                                                            st === '维修' ? 'text-purple-600' : 'text-slate-500'
-                                                        }>
-                                                            {st}{c}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )})}
-                                    </div>
-                                ) : (
-                                    <div className="flex-1 flex items-center justify-center">
-                                        <span className="text-[10px] text-slate-300">暂无设备</span>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                    {activeStoreData.roomsData.length === 0 && (
-                        <div className="text-center py-20 text-slate-400 text-xs">
-                            该门店暂无客房数据
-                        </div>
-                    )}
-                </div>
+                <DeviceRoomGrid 
+                    roomsData={activeStoreData.roomsData} 
+                    onRoomClick={handleRoomClick} 
+                />
             )}
 
             {/* LEVEL 3: Device Types Grid */}
@@ -534,55 +459,19 @@ export const DeviceControl: React.FC = () => {
 
             {/* LEVEL 4: Device List */}
             {viewState.level === 'devices' && (
-                <div className="animate-fadeIn pb-16">
-                    {activeRoomDevices.map(device => {
-                        const rowStyle = getRowStyle(device);
-                        const isDetailExpanded = expandedDeviceId === device.id;
-                        const isSelected = selectedDeviceIds.has(device.id);
-                        const isPending = hasPendingAudit(device.id);
-
-                        return (
-                            <div key={device.id} className="mb-2 rounded-lg overflow-hidden shadow-sm border border-slate-100 relative">
-                                <div 
-                                    className={`flex items-center px-3 py-3 transition-colors cursor-pointer ${rowStyle}`}
-                                    onClick={() => toggleExpand(device.id)}
-                                >
-                                    <div onClick={(e) => { e.stopPropagation(); toggleSelection(device.id); }} className="mr-2 cursor-pointer opacity-60 hover:opacity-100">
-                                        {isSelected ? <CheckSquare size={14} /> : <Square size={14} />}
-                                    </div>
-                                    <div className="w-20 truncate font-bold text-xs">{device.name}</div>
-                                    <div className="flex-1 text-center truncate text-[10px] px-1 opacity-80">{device.subType || deviceTypes.find(t=>t.id===device.typeId)?.name}</div>
-                                    <div className="w-12 text-center text-[10px] font-bold opacity-90">{STATUS_MAP[device.status]}</div>
-                                    <div className="w-16 text-right text-[10px] font-bold flex flex-col items-end justify-center leading-tight">
-                                        <span className="truncate">{device.opsStatus}</span>
-                                        {isPending && <span className="text-[8px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded mt-0.5 border border-red-200 animate-pulse">待审核</span>}
-                                    </div>
-                                    <div className="ml-1 opacity-50 flex-shrink-0">
-                                        {isDetailExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                                    </div>
-                                </div>
-                                
-                                {/* Expanded Device Detail */}
-                                {isDetailExpanded && (
-                                    <div className="p-2 bg-white border-t border-slate-100">
-                                        <DeviceDetailCard 
-                                            device={device} 
-                                            onEditImage={setEditingImageDevice}
-                                            onViewReport={setViewingReportDevice}
-                                            onViewEvent={(event, deviceId) => setViewingEventData({ event, deviceId })}
-                                            onOpenInspection={openInspectionModal}
-                                        />
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
-                    {activeRoomDevices.length === 0 && (
-                        <div className="text-center py-20 text-slate-400 text-xs">
-                            该类型下暂无匹配的设备
-                        </div>
-                    )}
-                </div>
+                <DeviceList 
+                    devices={activeRoomDevices}
+                    deviceTypes={deviceTypes}
+                    expandedDeviceId={expandedDeviceId}
+                    toggleExpand={toggleExpand}
+                    selectedDeviceIds={selectedDeviceIds}
+                    toggleSelection={toggleSelection}
+                    hasPendingAudit={hasPendingAudit}
+                    onEditImage={setEditingImageDevice}
+                    onViewReport={setViewingReportDevice}
+                    onViewEvent={(event, deviceId) => setViewingEventData({ event, deviceId })}
+                    onOpenInspection={openInspectionModal}
+                />
             )}
         </div>
 
