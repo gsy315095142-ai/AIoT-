@@ -1,4 +1,4 @@
-// 标记：本次更新将【编辑门店】弹窗改为独立页面，并在【新增门店】页面增加了门店ID输入及支持自动递增的客房列表录入表格。
+// 标记：本次更新在【新增门店】页面增加了房型配置功能，允许用户先定义房型，再录入具体客房。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

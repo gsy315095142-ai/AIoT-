@@ -1,17 +1,23 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { ArrowLeft, Store, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Store, Plus, Trash2, GripVertical, Settings2 } from 'lucide-react';
 import { Room } from '../types';
 
 export const AddStore: React.FC = () => {
     const navigate = useNavigate();
     const { addStore, regions } = useApp();
     
+    // Store Basic Info
     const [name, setName] = useState('');
-    const [customId, setCustomId] = useState(''); // New: Store ID Input
+    const [customId, setCustomId] = useState('');
     const [regionId, setRegionId] = useState(regions.length > 0 ? regions[0].id : '');
-    const [rooms, setRooms] = useState<Room[]>([]); // New: Room List
+    
+    // Room Type Configuration
+    const [definedTypes, setDefinedTypes] = useState<string[]>(['普通房', '样板房']);
+
+    // Room List
+    const [rooms, setRooms] = useState<Room[]>([]);
 
     const handleSave = () => {
         if (!name.trim() || !regionId || !customId.trim()) {
@@ -19,28 +25,66 @@ export const AddStore: React.FC = () => {
             return;
         }
 
-        // Clean up empty rows
+        // Ensure configured types are not empty strings
+        const validTypes = definedTypes.filter(t => t.trim() !== '');
+        if (validTypes.length === 0) {
+            alert('请至少配置一种房型');
+            return;
+        }
+
+        // Clean up empty rows in room list
         const validRooms = rooms.filter(r => r.number.trim() !== '');
 
+        // Generate RoomTypeConfig objects based on user configuration
+        const roomTypeConfigs = validTypes.map((typeName, index) => ({
+            id: `rt-${Date.now()}-${index}`,
+            name: typeName,
+            images: [],
+            measurements: []
+        }));
+
         addStore({
-            id: customId.trim(), // Use custom ID
+            id: customId.trim(),
             name: name.trim(),
             regionId: regionId,
             rooms: validRooms,
-            roomTypeConfigs: [],
+            roomTypeConfigs: roomTypeConfigs,
             // ... other props are handled by defaults in context addStore
         } as any);
 
         navigate('/rooms');
     };
 
+    // --- Room Type Handlers ---
+    const addConfigType = () => {
+        setDefinedTypes([...definedTypes, '']);
+    };
+
+    const updateConfigType = (index: number, value: string) => {
+        const newTypes = [...definedTypes];
+        newTypes[index] = value;
+        setDefinedTypes(newTypes);
+    };
+
+    const removeConfigType = (index: number) => {
+        const typeToRemove = definedTypes[index];
+        setDefinedTypes(definedTypes.filter((_, i) => i !== index));
+        
+        // Also verify if any rooms used this type and reset them
+        const remainingTypes = definedTypes.filter((_, i) => i !== index);
+        const fallbackType = remainingTypes.length > 0 ? remainingTypes[0] : '';
+        
+        setRooms(rooms.map(r => r.type === typeToRemove ? { ...r, type: fallbackType } : r));
+    };
+
+    // --- Room List Handlers ---
     const handleAddRow = () => {
         const lastRoom = rooms[rooms.length - 1];
         let nextNum = '';
-        let nextType = '普通房'; // Default type
+        // Default to the type of the last room, or the first available defined type
+        let nextType = lastRoom ? lastRoom.type : (definedTypes.length > 0 ? definedTypes[0] : '');
 
         if (lastRoom) {
-            nextType = lastRoom.type;
             const lastNumStr = lastRoom.number.trim();
             // Check if it's purely numeric
             if (/^\d+$/.test(lastNumStr)) {
@@ -63,6 +107,7 @@ export const AddStore: React.FC = () => {
 
     return (
         <div className="h-full flex flex-col bg-slate-50">
+            {/* Header */}
             <div className="bg-white p-4 border-b border-slate-100 flex items-center justify-between sticky top-0 z-10 shadow-sm">
                 <button 
                     onClick={() => navigate(-1)}
@@ -78,6 +123,7 @@ export const AddStore: React.FC = () => {
             </div>
 
             <div className="p-4 space-y-4 overflow-y-auto flex-1 pb-20">
+                {/* 1. Basic Info */}
                 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
                     <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase mb-2">门店名称 *</label>
@@ -114,7 +160,45 @@ export const AddStore: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Room List Editor */}
+                {/* 2. Room Type Configuration */}
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                    <div className="flex justify-between items-center mb-3">
+                        <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1">
+                            <Settings2 size={12} /> 房型配置
+                        </label>
+                    </div>
+                    <div className="space-y-2">
+                        {definedTypes.map((type, index) => (
+                            <div key={index} className="flex items-center gap-2">
+                                <div className="text-slate-300">
+                                    <GripVertical size={16} />
+                                </div>
+                                <input 
+                                    type="text"
+                                    className="flex-1 border border-slate-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                                    value={type}
+                                    onChange={(e) => updateConfigType(index, e.target.value)}
+                                    placeholder={`房型名称 ${index + 1}`}
+                                />
+                                <button 
+                                    onClick={() => removeConfigType(index)}
+                                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                                    disabled={definedTypes.length <= 1} // Prevent deleting last one essentially
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+                        ))}
+                        <button 
+                            onClick={addConfigType}
+                            className="w-full py-2 bg-slate-50 border border-dashed border-slate-200 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors flex items-center justify-center gap-1 mt-2"
+                        >
+                            <Plus size={14} /> 添加新房型
+                        </button>
+                    </div>
+                </div>
+
+                {/* 3. Room List Editor */}
                 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
                     <div className="flex justify-between items-center mb-3">
                         <label className="text-xs font-bold text-slate-500 uppercase">客房列表 ({rooms.length})</label>
@@ -144,18 +228,15 @@ export const AddStore: React.FC = () => {
                                             />
                                         </td>
                                         <td className="px-3 py-2">
-                                            <input 
-                                                type="text"
-                                                className="w-full border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500"
+                                            <select 
+                                                className="w-full border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500 bg-white"
                                                 value={room.type}
                                                 onChange={(e) => handleRoomChange(index, 'type', e.target.value)}
-                                                placeholder="输入房型"
-                                                list="room-types"
-                                            />
-                                            <datalist id="room-types">
-                                                <option value="普通房" />
-                                                <option value="样板房" />
-                                            </datalist>
+                                            >
+                                                {definedTypes.filter(t => t.trim() !== '').map((t, i) => (
+                                                    <option key={i} value={t}>{t}</option>
+                                                ))}
+                                            </select>
                                         </td>
                                         <td className="px-3 py-2 text-center">
                                             <button 
@@ -178,7 +259,8 @@ export const AddStore: React.FC = () => {
                         </table>
                         <button 
                             onClick={handleAddRow}
-                            className="w-full py-2 bg-slate-50 text-blue-600 text-xs font-bold hover:bg-blue-50 transition-colors border-t border-slate-100 flex items-center justify-center gap-1"
+                            disabled={definedTypes.filter(t => t.trim() !== '').length === 0}
+                            className="w-full py-2 bg-slate-50 text-blue-600 text-xs font-bold hover:bg-blue-50 transition-colors border-t border-slate-100 flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <Plus size={14} /> 添加一行
                         </button>
