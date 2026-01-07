@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent } from 'react';
-import { Store as StoreIcon, ArrowLeft, Settings2, Box, CheckCircle, BedDouble, Ruler, Hammer, RotateCcw, X, Upload, Plus, Edit2, Trash2, ListChecks, Image as ImageIcon } from 'lucide-react';
+import { Store as StoreIcon, ArrowLeft, Settings2, Box, CheckCircle, BedDouble, Ruler, Hammer, RotateCcw, X, Upload, Plus, Edit2, Trash2, ListChecks, Image as ImageIcon, ArrowRight } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Store, Room, ChecklistParam } from '../../types';
 import { useNavigate } from 'react-router-dom';
@@ -375,10 +375,12 @@ const ModuleConfig: React.FC<{ store: Store; onClose: () => void }> = ({ store, 
 
 export const StoreArchive: React.FC<{ store: Store; onClose: () => void }> = ({ store, onClose }) => {
     const navigate = useNavigate();
+    const { updateStore } = useApp();
     const [activeRoomTypeName, setActiveRoomTypeName] = useState<string>(
         store.roomTypeConfigs.length > 0 ? store.roomTypeConfigs[0].name : ''
     );
     const [isConfigOpen, setIsConfigOpen] = useState(false);
+    const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
     const [detailRoom, setDetailRoom] = useState<Room | null>(null);
 
     const roomTypes = store.roomTypeConfigs || [];
@@ -386,11 +388,22 @@ export const StoreArchive: React.FC<{ store: Store; onClose: () => void }> = ({ 
     
     // Filter rooms for the active type
     const typeRooms = store.rooms.filter(r => r.type === activeRoomTypeName);
+    
+    // Filter rooms available for reassignment (i.e. NOT current type)
+    const availableToAssign = store.rooms.filter(r => r.type !== activeRoomTypeName);
 
     // Get modules configured for measurement
     const measurementModules = store.moduleConfig.activeModules.filter(m => 
         (store.moduleConfig.moduleTypes?.[m] || 'measurement') === 'measurement'
     );
+
+    const handleAssignRoom = (room: Room) => {
+        const updatedRooms = store.rooms.map(r => 
+            r.number === room.number ? { ...r, type: activeRoomTypeName } : r
+        );
+        updateStore(store.id, { rooms: updatedRooms });
+        setIsAssignModalOpen(false);
+    };
 
     if (isConfigOpen) return <ModuleConfig store={store} onClose={() => setIsConfigOpen(false)} />;
     if (detailRoom) return <RoomDetail store={store} room={detailRoom} onClose={() => setDetailRoom(null)} />;
@@ -520,15 +533,52 @@ export const StoreArchive: React.FC<{ store: Store; onClose: () => void }> = ({ 
                         </div>
                         
                         <button 
-                            onClick={() => alert('分配功能即将上线')}
-                            disabled={typeRooms.length === 0}
-                            className="w-full py-2.5 bg-blue-50 text-blue-600 border border-blue-100 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            onClick={() => setIsAssignModalOpen(true)}
+                            className="w-full py-2.5 bg-blue-50 text-blue-600 border border-blue-100 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors"
                         >
                             选择客房进行分配
                         </button>
                     </div>
                 </div>
             </div>
+
+            {/* Room Assignment Modal */}
+            {isAssignModalOpen && (
+                <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm" onClick={() => setIsAssignModalOpen(false)}>
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-xs overflow-hidden flex flex-col max-h-[80vh] animate-scaleIn" onClick={(e) => e.stopPropagation()}>
+                        <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
+                            <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                                <BedDouble size={18} className="text-blue-600" />
+                                分配到: {activeRoomTypeName}
+                            </h3>
+                            <button onClick={() => setIsAssignModalOpen(false)}><X size={20} className="text-slate-400" /></button>
+                        </div>
+                        <div className="p-4 overflow-y-auto">
+                            {availableToAssign.length === 0 ? (
+                                <div className="text-center py-8 text-slate-400 text-xs">
+                                    没有其他房型的客房可供分配
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {availableToAssign.map((room, idx) => (
+                                        <div 
+                                            key={idx}
+                                            onClick={() => handleAssignRoom(room)}
+                                            className="p-3 bg-white border border-slate-100 rounded-lg shadow-sm flex items-center justify-between cursor-pointer hover:bg-blue-50 hover:border-blue-100 transition-colors group"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-bold text-slate-700">{room.number}</span>
+                                                <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded group-hover:bg-white">{room.type}</span>
+                                            </div>
+                                            <ArrowRight size={16} className="text-slate-300 group-hover:text-blue-500" />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

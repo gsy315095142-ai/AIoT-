@@ -1,4 +1,4 @@
-// 标记：本次更新优化了【客房建档】功能，支持在编辑门店时修改房型配置，并将门店档案详情页拆分为独立组件以便维护。
+// 标记：本次更新优化了【门店档案管理】功能，支持在客房模块中选择其他房型的客房并将其重新分配至当前房型。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
