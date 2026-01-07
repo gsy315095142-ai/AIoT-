@@ -1,4 +1,4 @@
-// 标记：本次更新在【新增门店】页面增加了房型配置功能，允许用户先定义房型，再录入具体客房。
+// 标记：本次更新增强了【客房建档】功能，新增【客房详情】查看安装归档数据，并上线了完整的【模块配置】页面，支持复尺与安装模块的自定义配置（含图片、备注及参数）。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
