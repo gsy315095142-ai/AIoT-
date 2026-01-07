@@ -54,7 +54,18 @@ export const RoomArchive: React.FC = () => {
     const handleOpenTaskModal = (storeId: string, type: any, currentDeadline?: string) => {
         setActiveTaskStoreId(storeId);
         setActiveTaskType(type);
-        setTaskDeadline(currentDeadline || '');
+        
+        // Use current deadline if available (for republish/edit), otherwise default to today
+        if (currentDeadline) {
+            setTaskDeadline(currentDeadline);
+        } else {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            setTaskDeadline(`${year}-${month}-${day}`);
+        }
+        
         setTaskAssignee('');
         setIsTaskModalOpen(true);
     };

@@ -1,4 +1,4 @@
-// 标记：本次更新优化了【设备反馈】、【添加新设备】、【设备审核】页面的返回逻辑，使其点击返回按钮时能准确跳转至【设备管控】页面。
+// 标记：本次更新将【发布复尺任务】和【发布安装任务】弹窗中的时间默认值修改为当天日期。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
