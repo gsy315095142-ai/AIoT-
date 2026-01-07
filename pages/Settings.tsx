@@ -2,6 +2,7 @@ import React from 'react';
 import { useSettingsLogic } from '../hooks/useSettingsLogic';
 import { UserProfileCard, ManagementSection, ListItem } from '../components/SettingsComponents';
 import { Map, Settings as SettingsIcon, Plus, Truck, UserPlus } from 'lucide-react';
+import { UserRole } from '../types';
 
 export const Settings: React.FC = () => {
   const { 
@@ -15,6 +16,19 @@ export const Settings: React.FC = () => {
       newAssigneeRole, setNewAssigneeRole,
       handleAddAssignee, removeAssignableUser
   } = useSettingsLogic();
+
+  const ROLES: { value: UserRole; label: string }[] = [
+      { value: 'admin', label: '总经理（管理员）' },
+      { value: 'product_director', label: '硬件产品总监' },
+      { value: 'hardware', label: '项目经理' },
+      { value: 'local', label: '安装实施工程师' },
+      { value: 'procurement', label: '采购人员' },
+      { value: 'ops_manager', label: '安装运维经理' },
+      { value: 'business_manager', label: '驻地业务经理' },
+      { value: 'artist', label: '美术人员' },
+      { value: 'area_manager', label: '区大总' },
+      { value: 'area_assistant', label: '区小蜜' },
+  ];
 
   return (
     <div className="p-4 space-y-6 pb-20">
@@ -66,13 +80,16 @@ export const Settings: React.FC = () => {
                     />
                 </div>
                 <div className="flex gap-2">
-                    <input 
-                        type="text" 
-                        placeholder="权限/角色 (如: 实施工程师)" 
-                        className="flex-1 border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    <select 
+                        className="flex-1 border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
                         value={newAssigneeRole}
                         onChange={e => setNewAssigneeRole(e.target.value)}
-                    />
+                    >
+                        <option value="">选择权限/角色</option>
+                        {ROLES.map(r => (
+                            <option key={r.value} value={r.label}>{r.label}</option>
+                        ))}
+                    </select>
                     <button onClick={handleAddAssignee} className="bg-green-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-green-700 shadow-sm whitespace-nowrap">
                         添加人员
                     </button>

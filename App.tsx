@@ -1,4 +1,4 @@
-// 标记：本次更新对设备反馈管理页面的代码结构进行了重构优化，提升了代码的可维护性，同时保持了原有的功能和界面布局不变。
+// 标记：本次更新在配置页面优化了指派人员的添加方式，将权限字段改为下拉选择，且选项与登录界面的角色权限保持一致。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
