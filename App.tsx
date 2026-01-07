@@ -1,4 +1,4 @@
-// 标记：本次更新将【内容管理】页面和【扫一扫】弹窗拆分为独立脚本，并维持原有【添加设备】和【设备审核】的独立结构。
+// 标记：本次更新将【设备管控】页面逻辑拆分为独立脚本，进一步优化代码结构，保持【内容管理】、【添加设备】等模块的独立性。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
