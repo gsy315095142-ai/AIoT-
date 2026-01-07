@@ -1,4 +1,4 @@
-// 标记：本次更新将【设备管控】页面逻辑拆分为独立脚本，进一步优化代码结构，保持【内容管理】、【添加设备】等模块的独立性。
+// 标记：本次更新优化了【设备反馈】、【添加新设备】、【设备审核】页面的返回逻辑，使其点击返回按钮时能准确跳转至【设备管控】页面。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

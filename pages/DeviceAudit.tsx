@@ -44,7 +44,7 @@ export const DeviceAudit: React.FC = () => {
             {/* Header Actions */}
             <div className="p-4 bg-white border-b border-slate-100 flex items-center justify-between shadow-sm sticky top-0 z-10">
                 <button 
-                    onClick={() => navigate('/devices')} 
+                    onClick={() => navigate('/devices', { state: { activeTab: 'devices' } })} 
                     className="flex items-center text-slate-500 hover:text-slate-700 transition-colors bg-slate-100 px-3 py-1.5 rounded-lg text-xs font-bold"
                 >
                     <ArrowLeft size={16} className="mr-1" /> 返回

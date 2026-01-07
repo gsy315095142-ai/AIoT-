@@ -77,14 +77,15 @@ export const AddDevice: React.FC = () => {
         const formattedDate = deviceForm.firstStartTime ? fromInputDate(deviceForm.firstStartTime) : new Date().toLocaleString();
         
         addDevice({ ...deviceForm, firstStartTime: formattedDate, imageUrl });
-        navigate(-1);
+        // Return to Device Control
+        navigate('/devices', { state: { activeTab: 'devices' } });
     };
 
     return (
         <div className="h-full flex flex-col bg-slate-50">
             <div className="bg-white p-4 border-b border-slate-100 flex items-center justify-between sticky top-0 z-10 shadow-sm">
                 <button 
-                    onClick={() => navigate('/devices')}
+                    onClick={() => navigate('/devices', { state: { activeTab: 'devices' } })}
                     className="p-1.5 bg-slate-100 rounded-lg hover:bg-slate-200 text-slate-600 transition-colors flex items-center gap-1 text-xs font-bold px-3"
                 >
                     <ArrowLeft size={14} /> 返回

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { LayoutDashboard, Monitor, BookOpen } from 'lucide-react';
 import { Dashboard } from './Dashboard';
 import { ContentManagement } from './ContentManagement';
@@ -6,8 +7,15 @@ import { DeviceControl } from './DeviceControl';
 
 // Main Export with Tabs
 export const DeviceManagement: React.FC = () => {
+    const location = useLocation();
     // Change default activeTab to 'overview'
     const [activeTab, setActiveTab] = useState<'overview' | 'devices' | 'content'>('overview');
+
+    useEffect(() => {
+        if (location.state && (location.state as any).activeTab) {
+            setActiveTab((location.state as any).activeTab);
+        }
+    }, [location]);
 
     return (
         <div className="flex flex-col h-full">
