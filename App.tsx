@@ -1,4 +1,4 @@
-// 标记：本次更新优化了【门店档案管理】功能，支持在客房模块中选择其他房型的客房并将其重新分配至当前房型。
+// 标记：本次更新将【内容管理】页面和【扫一扫】弹窗拆分为独立脚本，并维持原有【添加设备】和【设备审核】的独立结构。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
