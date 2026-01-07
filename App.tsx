@@ -1,4 +1,4 @@
-// 标记：本次更新在配置页面修改了默认的指派人员列表（林华、志桦、舟舟）。
+// 标记：本次更新将【编辑门店】弹窗改为独立页面，并在【新增门店】页面增加了门店ID输入及支持自动递增的客房列表录入表格。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -11,6 +11,8 @@ import { RoomManagement } from './pages/RoomManagement';
 import { ProcurementManagement } from './pages/ProcurementManagement';
 import { Login } from './pages/Login';
 import { AddDevice } from './pages/AddDevice';
+import { AddStore } from './pages/AddStore';
+import { EditStore } from './pages/EditStore';
 import { DeviceProcessFlow } from './pages/DeviceProcessFlow';
 import { LayoutDashboard, Monitor, Settings as SettingsIcon, LogOut, BedDouble, ShoppingCart } from 'lucide-react';
 import { UserRole } from './types';
@@ -66,6 +68,8 @@ const MobileHeader = () => {
   
   const getTitle = () => {
     if (location.pathname.startsWith('/devices/add')) return '添加设备';
+    if (location.pathname.startsWith('/rooms/add')) return '新增门店';
+    if (location.pathname.startsWith('/rooms/edit')) return '编辑门店';
     if (location.pathname.startsWith('/device-process')) return '处理流程';
     
     switch (location.pathname) {
@@ -151,6 +155,9 @@ const AuthenticatedApp: React.FC = () => {
                 {accessibleRoutes.includes('/device-feedback') && <Route path="/device-process/:id" element={<DeviceProcessFlow />} />}
                 
                 {accessibleRoutes.includes('/rooms') && <Route path="/rooms" element={<RoomManagement />} />}
+                {accessibleRoutes.includes('/rooms') && <Route path="/rooms/add" element={<AddStore />} />}
+                {accessibleRoutes.includes('/rooms') && <Route path="/rooms/edit/:storeId" element={<EditStore />} />}
+                
                 {accessibleRoutes.includes('/procurement') && <Route path="/procurement" element={<ProcurementManagement />} />}
                 {accessibleRoutes.includes('/settings') && <Route path="/settings" element={<Settings />} />}
                 
