@@ -1,4 +1,4 @@
-// 标记：本次更新优化了设备反馈管理页面的工单分类，将反馈分为待分配客诉、待完成工单（含进行中与待审核）和已完成工单三个维度。
+// 标记：本次更新在设备反馈管理页面优化了【已完成工单】的分类，细分为已解决、需二次处理、无法解决三个子页签，并支持查看已完成工单的详情。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

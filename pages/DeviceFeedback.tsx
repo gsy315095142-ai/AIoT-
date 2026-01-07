@@ -11,6 +11,9 @@ export const DeviceFeedback: React.FC = () => {
     // Tab State: 'unassigned' | 'processing' | 'completed'
     const [activeTab, setActiveTab] = useState<'unassigned' | 'processing' | 'completed'>('unassigned');
     
+    // Sub-Tab State for Completed: 'solved' | 'secondary' | 'unsolvable'
+    const [completedSubTab, setCompletedSubTab] = useState<'solved' | 'secondary' | 'unsolvable'>('solved');
+    
     // UI state for expanding a feedback item 
     const [expandedFeedbackId, setExpandedFeedbackId] = useState<string | null>(null);
     const [selectedMethod, setSelectedMethod] = useState<FeedbackMethod>('remote');
@@ -19,7 +22,25 @@ export const DeviceFeedback: React.FC = () => {
     // Filter Logic
     const unassignedFeedbacks = feedbacks.filter(f => f.status === 'pending_receive');
     const processingFeedbacks = feedbacks.filter(f => f.status === 'processing' || f.status === 'pending_audit');
-    const completedFeedbacks = feedbacks.filter(f => f.status === 'resolved' || f.status === 'false_alarm');
+    
+    // Filter Completed Feedbacks based on Sub-Tab
+    const completedFeedbacksRaw = feedbacks.filter(f => f.status === 'resolved' || f.status === 'false_alarm');
+    
+    const completedFeedbacks = completedFeedbacksRaw.filter(f => {
+        // 'solved' includes manually resolved with '已解决' OR false_alarm (which implies resolved)
+        if (completedSubTab === 'solved') {
+            return (f.processData?.resolutionStatus === '已解决' || f.status === 'false_alarm');
+        }
+        // 'secondary' strictly matches '需二次处理'
+        if (completedSubTab === 'secondary') {
+            return f.processData?.resolutionStatus === '需二次处理';
+        }
+        // 'unsolvable' strictly matches '无法解决'
+        if (completedSubTab === 'unsolvable') {
+            return f.processData?.resolutionStatus === '无法解决';
+        }
+        return false;
+    });
 
     const handleFalseAlarm = (feedback: DeviceFeedbackModel) => {
         resolveFeedback(feedback.id, 'false_alarm', 'System');
@@ -66,13 +87,15 @@ export const DeviceFeedback: React.FC = () => {
         const isPendingReceive = feedback.status === 'pending_receive';
         const isProcessing = feedback.status === 'processing';
         const isPendingAudit = feedback.status === 'pending_audit';
+        const isCompleted = feedback.status === 'resolved' || feedback.status === 'false_alarm';
 
         return (
             <div className={`bg-white p-4 rounded-xl shadow-sm border relative overflow-hidden transition-all ${isPendingAudit ? 'border-orange-200' : 'border-slate-100'}`}>
                 <div 
                     className="flex justify-between items-start cursor-pointer"
                     onClick={() => {
-                        if (isProcessing || isPendingAudit) {
+                        // Allow clicking on completed items to view details as well
+                        if (isProcessing || isPendingAudit || isCompleted) {
                             handleOpenProcess(feedback.id);
                         } else if (isPendingReceive) {
                             setExpandedFeedbackId(isExpanded ? null : feedback.id);
@@ -129,7 +152,8 @@ export const DeviceFeedback: React.FC = () => {
                         <span className={`px-2 py-1 rounded text-[10px] font-bold whitespace-nowrap ${statusConfig.color} animate-pulse`}>
                             {statusConfig.text}
                         </span>
-                        {(isProcessing || isPendingAudit) && (
+                        {/* Show arrow for items that can be opened */}
+                        {(isProcessing || isPendingAudit || isCompleted) && (
                             <ChevronRight size={16} className="text-slate-300 mt-2" />
                         )}
                     </div>
@@ -242,6 +266,30 @@ export const DeviceFeedback: React.FC = () => {
                         </span>
                     </button>
                 </div>
+
+                {/* Sub-Tabs for Completed */}
+                {activeTab === 'completed' && (
+                    <div className="flex mb-4 bg-slate-100 p-1 rounded-lg">
+                        <button 
+                            onClick={() => setCompletedSubTab('solved')}
+                            className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${completedSubTab === 'solved' ? 'bg-white text-green-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            已解决
+                        </button>
+                        <button 
+                            onClick={() => setCompletedSubTab('secondary')}
+                            className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${completedSubTab === 'secondary' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            需二次处理
+                        </button>
+                        <button 
+                            onClick={() => setCompletedSubTab('unsolvable')}
+                            className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${completedSubTab === 'unsolvable' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            无法解决
+                        </button>
+                    </div>
+                )}
             </div>
 
             <div className="flex-1 overflow-y-auto px-4 pb-20 space-y-3">
@@ -273,7 +321,7 @@ export const DeviceFeedback: React.FC = () => {
                     ) : (
                         <div className="flex flex-col items-center justify-center py-20 text-slate-400">
                             <History size={48} className="mb-2 opacity-20" />
-                            <p className="text-xs">暂无历史记录</p>
+                            <p className="text-xs">暂无{completedSubTab === 'solved' ? '已解决' : completedSubTab === 'secondary' ? '需二次处理' : '无法解决'}的工单记录</p>
                         </div>
                     )
                 )}
