@@ -10,11 +10,9 @@ const MOCK_REGIONS: Region[] = [
 
 // Mock Users for Assignment (Updated to Object Array)
 const MOCK_ASSIGNABLE_USERS: AssignableUser[] = [
-    { id: 'u1', name: '张大伟', account: 'zhangdw', role: '实施工程师' },
-    { id: 'u2', name: '李小龙', account: 'lixl', role: '实施工程师' },
-    { id: 'u3', name: '王建国', account: 'wangjg', role: '项目经理' },
-    { id: 'u4', name: '赵丽', account: 'zhaoli', role: '业务经理' },
-    { id: 'u5', name: '孙悟空', account: 'sunwk', role: '外包人员' }
+    { id: 'u1', name: '林华', account: 'linhua', role: '美术人员' },
+    { id: 'u2', name: '志桦', account: 'zhihua', role: '硬件产品总监' },
+    { id: 'u3', name: '舟舟', account: 'zhouzhou', role: '区大总' }
 ];
 
 const DEFAULT_NODES: InstallNode[] = [

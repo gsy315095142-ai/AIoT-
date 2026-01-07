@@ -1,4 +1,4 @@
-// 标记：本次更新在配置页面优化了指派人员的添加方式，将权限字段改为下拉选择，且选项与登录界面的角色权限保持一致。
+// 标记：本次更新在配置页面修改了默认的指派人员列表（林华、志桦、舟舟）。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
