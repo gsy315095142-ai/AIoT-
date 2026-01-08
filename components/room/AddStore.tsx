@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../../context/AppContext';
 import { ArrowLeft, Store, Plus, Trash2, GripVertical, Settings2 } from 'lucide-react';
-import { Room } from '../types';
+import { Room } from '../../types';
 
 export const AddStore: React.FC = () => {
     const navigate = useNavigate();

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Ruler, Hammer } from 'lucide-react';
-import { RoomArchive } from '../components/room/RoomArchive';
-import { RoomMeasure } from '../components/room/RoomMeasure';
-import { RoomInstall } from '../components/room/RoomInstall';
-import { useApp } from '../context/AppContext';
+import { RoomArchive } from './RoomArchive';
+import { RoomMeasure } from './RoomMeasure';
+import { RoomInstall } from './RoomInstall';
+import { useApp } from '../../context/AppContext';
 
 export const RoomManagement: React.FC = () => {
   const { userRole } = useApp();
