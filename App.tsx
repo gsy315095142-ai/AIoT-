@@ -1,4 +1,4 @@
-// 标记：本次更新调整脚本目录结构：文件夹procurement改名为CustomerOrder，【货物建档】页面的脚本名称改名为CustomerOrder_GoodsFiling。
+// 标记：本次更新调整脚本目录结构：脚本CustomerOrder_GoodsFiling.tsx 和 脚本CustomerOrder_GoodsList.tsx的功能重复了，请只保留脚本CustomerOrder_GoodsFiling.tsx
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
