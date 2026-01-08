@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Package, ShoppingBag, TrendingUp, Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { ProcurementProduct } from '../components/procurement/ProcurementProduct';
-import { ProcurementOrder } from '../components/procurement/ProcurementOrder';
-import { ProcurementProgress } from '../components/procurement/ProcurementProgress';
+import { CustomerOrder_GoodsFiling } from '../components/CustomerOrder/CustomerOrder_GoodsFiling';
+import { ProcurementOrder } from '../components/CustomerOrder/ProcurementOrder';
+import { ProcurementProgress } from '../components/CustomerOrder/ProcurementProgress';
 import { useApp } from '../context/AppContext';
 
 export const ProcurementManagement: React.FC = () => {
@@ -99,7 +99,7 @@ export const ProcurementManagement: React.FC = () => {
 
       {/* Content */}
       <div className="flex-1 bg-slate-50 overflow-hidden flex flex-col">
-         {activeTab === 'product' && <div className="p-4 h-full overflow-hidden flex flex-col"><ProcurementProduct /></div>}
+         {activeTab === 'product' && <div className="p-4 h-full overflow-hidden flex flex-col"><CustomerOrder_GoodsFiling /></div>}
          {activeTab === 'order' && <div className="h-full overflow-hidden flex flex-col"><ProcurementOrder /></div>}
          {activeTab === 'progress' && <div className="p-4 h-full overflow-hidden flex flex-col"><ProcurementProgress /></div>}
       </div>

@@ -1,4 +1,4 @@
-// 标记：本次更新货物建档功能，优化删除交互，使用自定义确认弹窗。
+// 标记：本次更新调整脚本目录结构：文件夹procurement改名为CustomerOrder，【货物建档】页面的脚本名称改名为CustomerOrder_GoodsFiling。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -76,10 +76,10 @@ const MobileHeader = () => {
     
     switch (location.pathname) {
       case '/dashboard': return '数据总览'; // Fallback if reached via url
-      case '/devices': return '设备管理';
+      case '/devices': return '资产管理';
       case '/audit': return '设备审核';
       case '/device-feedback': return '设备反馈';
-      case '/rooms': return '客房管理';
+      case '/rooms': return '安装复尺';
       case '/procurement': return '订单管理';
       case '/settings': return '后台配置';
       default: return 'DeviceMaster';
@@ -171,9 +171,9 @@ const AuthenticatedApp: React.FC = () => {
 
         <nav className="bg-white border-t border-slate-200 h-16 absolute bottom-0 left-0 right-0 flex justify-around items-center z-20 pb-safe md:pb-2">
             {/* New Order: Order -> Rooms -> Devices -> Settings */}
-            {accessibleRoutes.includes('/procurement') && <BottomNavLink to="/procurement" icon={ShoppingCart} label="订单" />}
-            {accessibleRoutes.includes('/rooms') && <BottomNavLink to="/rooms" icon={BedDouble} label="客房" />}
-            {accessibleRoutes.includes('/devices') && <BottomNavLink to="/devices" icon={Monitor} label="设备" />}
+            {accessibleRoutes.includes('/procurement') && <BottomNavLink to="/procurement" icon={ShoppingCart} label="客户订单" />}
+            {accessibleRoutes.includes('/rooms') && <BottomNavLink to="/rooms" icon={BedDouble} label="安装复尺" />}
+            {accessibleRoutes.includes('/devices') && <BottomNavLink to="/devices" icon={Monitor} label="客房资产" />}
             {accessibleRoutes.includes('/settings') && <BottomNavLink to="/settings" icon={SettingsIcon} label="配置" />}
         </nav>
         
