@@ -579,7 +579,14 @@ export const ProcurementProgress: React.FC = () => {
                                      >
                                          <Download size={16} />
                                      </button>
-                                     <div className="font-bold text-orange-600 text-sm">¥ {order.totalPrice.toLocaleString()}</div>
+                                     {order.orderType === 'rent' ? (
+                                         <div className="text-right">
+                                             <div className="font-bold text-orange-600 text-sm">租金: ¥ {order.totalPrice.toLocaleString()}</div>
+                                             <div className="text-[10px] text-slate-400">({order.rentDuration}个月)</div>
+                                         </div>
+                                     ) : (
+                                         <div className="font-bold text-orange-600 text-sm">¥ {order.totalPrice.toLocaleString()}</div>
+                                     )}
                                  </div>
                                  <div className="mt-1 text-right">
                                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
@@ -752,6 +759,14 @@ export const ProcurementProgress: React.FC = () => {
                                             <span className="font-bold text-blue-600 flex items-center gap-1">
                                                 <Calendar size={12} />
                                                 {selectedOrder.expectDeliveryDate}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {selectedOrder.orderType === 'rent' && (
+                                        <div className="flex justify-between text-xs">
+                                            <span className="text-slate-500">租借时长</span>
+                                            <span className="font-bold text-purple-600">
+                                                {selectedOrder.rentDuration} 个月
                                             </span>
                                         </div>
                                     )}

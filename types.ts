@@ -375,6 +375,7 @@ export type ProcurementOrder = {
   items: ProcurementOrderItem[];
   totalPrice: number;
   orderType?: 'purchase' | 'rent'; // New field for Purchase or Rent
+  rentDuration?: number; // New field for Rent Duration (Months)
   remark: string;
   expectDeliveryDate?: string; // New field
   status: 'pending_receive' | 'purchasing' | 'completed';

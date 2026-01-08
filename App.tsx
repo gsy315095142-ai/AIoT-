@@ -1,4 +1,4 @@
-// 标记：本次更新在【货物建档】新增租金字段，在【客户下单】将按钮改为“下订单”并增加租借/购买选项。
+// 标记：本次更新将【确认订单信息】弹窗独立为组件，新增租借时长选择及租金总额计算，并在【订单进度】中区分显示租金总额。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

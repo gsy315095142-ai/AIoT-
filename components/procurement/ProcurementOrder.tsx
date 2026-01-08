@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { ShoppingBag, ChevronDown, Package, Plus, Minus, Search, Check, X, ListFilter, CheckCircle, Store, ArrowLeft, TrendingUp, Box, Calendar, Wallet } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { ShoppingBag, ChevronDown, Package, Plus, Minus, Search, CheckCircle, Store, ArrowLeft, TrendingUp, Box } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { ProductType, ProductSubType, Product, ProcurementOrder as OrderType, Region } from '../../types';
+import { ProductType, ProductSubType, Product, Region } from '../../types';
+import { CheckoutModal } from './CheckoutModal';
 
 export const ProcurementOrder: React.FC = () => {
   const { procurementProducts, stores, regions, procurementOrders, addProcurementOrder } = useApp();
@@ -20,21 +21,8 @@ export const ProcurementOrder: React.FC = () => {
   // Cart State: { productId: quantity }
   const [cart, setCart] = useState<Record<string, number>>({});
   
-  // Checkout Modal
+  // Checkout Modal State
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [remark, setRemark] = useState('');
-  const [orderType, setOrderType] = useState<'purchase' | 'rent'>('purchase'); // New State for Order Type
-  
-  // Default date to today's local date YYYY-MM-DD
-  const [deliveryDate, setDeliveryDate] = useState(() => {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-  });
-  
-  const deliveryInputRef = useRef<HTMLInputElement>(null);
 
   // Toast State
   const [showSuccess, setShowSuccess] = useState(false);
@@ -121,15 +109,15 @@ export const ProcurementOrder: React.FC = () => {
       }).filter((item): item is (Product & { qty: number }) => item !== null && item.qty > 0);
   }, [cart, procurementProducts]);
 
-  // Totals
-  const { totalCount, totalPrice } = useMemo(() => {
+  // Totals (Display purposes only for the bar, actual calc in modal)
+  const { totalCount, totalPriceDisplay } = useMemo(() => {
       let count = 0;
       let price = 0;
       selectedItems.forEach(item => {
           count += item.qty;
           price += item.price * item.qty;
       });
-      return { totalCount: count, totalPrice: price };
+      return { totalCount: count, totalPriceDisplay: price };
   }, [selectedItems]);
 
   // Filter Logic
@@ -142,7 +130,13 @@ export const ProcurementOrder: React.FC = () => {
   }, [procurementProducts, filterType, filterSubType]);
 
   // Submit Handler
-  const handleSubmitOrder = () => {
+  const handleConfirmOrder = (data: { 
+      orderType: 'purchase' | 'rent';
+      rentDuration?: number;
+      remark: string;
+      deliveryDate: string;
+      totalPrice: number;
+  }) => {
       const store = stores.find(s => s.id === selectedStoreId);
       if (!store) return;
 
@@ -158,24 +152,16 @@ export const ProcurementOrder: React.FC = () => {
           storeId: store.id,
           storeName: store.name,
           items: orderItems,
-          totalPrice,
-          orderType, // Pass Order Type
-          remark,
-          expectDeliveryDate: deliveryDate
+          totalPrice: data.totalPrice, // Use calculated total from modal
+          orderType: data.orderType,
+          rentDuration: data.rentDuration,
+          remark: data.remark,
+          expectDeliveryDate: data.deliveryDate
       });
 
       // Reset & Return to List
       setCart({});
       setSelectedStoreId('');
-      setRemark('');
-      setOrderType('purchase'); // Reset default
-      // Reset Date to Today
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      setDeliveryDate(`${year}-${month}-${day}`);
-      
       setIsCheckoutOpen(false);
       setViewMode('storeList');
       
@@ -430,7 +416,6 @@ export const ProcurementOrder: React.FC = () => {
         </div>
 
         {/* Footer Cart / Checkout Bar (Fixed at Bottom) */}
-        {/* Changed to fixed bottom-0 to overlay app navigation and ensure it's at the very bottom of the viewport */}
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] p-4 z-50">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -445,8 +430,8 @@ export const ProcurementOrder: React.FC = () => {
                         )}
                     </div>
                     <div>
-                        <p className="text-xs text-slate-500">合计金额</p>
-                        <p className="text-lg font-bold text-slate-800">¥ {totalPrice.toLocaleString()}</p>
+                        <p className="text-xs text-slate-500">合计金额(购买参考)</p>
+                        <p className="text-lg font-bold text-slate-800">¥ {totalPriceDisplay.toLocaleString()}</p>
                     </div>
                 </div>
                 <button 
@@ -462,124 +447,13 @@ export const ProcurementOrder: React.FC = () => {
         </div>
 
         {/* Checkout Modal */}
-        {isCheckoutOpen && (
-            <div className="fixed inset-0 z-[60] bg-black/50 flex items-end justify-center sm:items-center animate-fadeIn backdrop-blur-sm p-0 sm:p-4">
-                <div className="bg-white w-full sm:w-[400px] sm:rounded-2xl rounded-t-2xl overflow-hidden flex flex-col max-h-[85vh] animate-slideInUp shadow-2xl">
-                    <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
-                        <h3 className="font-bold text-slate-800 text-lg">确认订单信息</h3>
-                        <button onClick={() => setIsCheckoutOpen(false)}><X size={24} className="text-slate-400 hover:text-slate-600" /></button>
-                    </div>
-                    
-                    <div className="p-5 flex-1 overflow-y-auto space-y-4">
-                        {/* Store Info */}
-                        <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
-                            <p className="text-xs text-blue-500 mb-1 font-bold uppercase">下单门店</p>
-                            <p className="font-bold text-slate-800 text-sm">{currentStoreName}</p>
-                        </div>
-
-                        {/* Order Type Selection */}
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">订单类型</label>
-                            <div className="flex gap-2">
-                                <button 
-                                    onClick={() => setOrderType('purchase')}
-                                    className={`flex-1 py-3 rounded-xl border-2 flex items-center justify-center gap-2 transition-all ${
-                                        orderType === 'purchase' 
-                                            ? 'border-blue-500 bg-blue-50 text-blue-700 font-bold' 
-                                            : 'border-slate-100 bg-white text-slate-500 hover:border-slate-200'
-                                    }`}
-                                >
-                                    <ShoppingBag size={16} /> 购买
-                                </button>
-                                <button 
-                                    onClick={() => setOrderType('rent')}
-                                    className={`flex-1 py-3 rounded-xl border-2 flex items-center justify-center gap-2 transition-all ${
-                                        orderType === 'rent' 
-                                            ? 'border-purple-500 bg-purple-50 text-purple-700 font-bold' 
-                                            : 'border-slate-100 bg-white text-slate-500 hover:border-slate-200'
-                                    }`}
-                                >
-                                    <Wallet size={16} /> 租借
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Items Preview */}
-                        <div>
-                            <p className="text-xs font-bold text-slate-500 mb-2 uppercase">商品清单 ({totalCount})</p>
-                            <div className="bg-slate-50 rounded-xl border border-slate-100 divide-y divide-slate-100 max-h-40 overflow-y-auto">
-                                {selectedItems.map(item => (
-                                    <div key={item.id} className="p-2 flex justify-between items-center text-xs">
-                                        <div className="flex-1 truncate pr-2">
-                                            <span className="font-bold text-slate-700">{item.name}</span>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-slate-500">x{item.qty}</span>
-                                            <span className="font-bold text-slate-800 w-12 text-right">¥{(item.price * item.qty).toLocaleString()}</span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Date Picker - Using Native Picker for Mobile Friendliness */}
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">期望交货日期</label>
-                            <div 
-                                className="relative w-full"
-                                onClick={() => {
-                                    // Trigger picker programmatically if possible/needed or rely on input click
-                                    try {
-                                        if (deliveryInputRef.current && 'showPicker' in HTMLInputElement.prototype) {
-                                            (deliveryInputRef.current as any).showPicker();
-                                        } else {
-                                            deliveryInputRef.current?.focus();
-                                        }
-                                    } catch (e) {
-                                        deliveryInputRef.current?.focus();
-                                    }
-                                }}
-                            >
-                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-                                    <Calendar size={16} />
-                                </div>
-                                <input 
-                                    ref={deliveryInputRef}
-                                    type="date" 
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-10 pr-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                                    value={deliveryDate}
-                                    onChange={(e) => setDeliveryDate(e.target.value)}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Remark */}
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">订单备注</label>
-                            <textarea 
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none h-20"
-                                placeholder="如有特殊要求请在此说明..."
-                                value={remark}
-                                onChange={(e) => setRemark(e.target.value)}
-                            />
-                        </div>
-                    </div>
-
-                    <div className="p-4 border-t border-slate-100 bg-white">
-                        <div className="flex justify-between items-end mb-3">
-                            <span className="text-sm text-slate-500">总计金额</span>
-                            <span className="text-2xl font-bold text-orange-600">¥ {totalPrice.toLocaleString()}</span>
-                        </div>
-                        <button 
-                            onClick={handleSubmitOrder}
-                            className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 active:scale-95 transition-all"
-                        >
-                            确认提交订单
-                        </button>
-                    </div>
-                </div>
-            </div>
-        )}
+        <CheckoutModal 
+            isOpen={isCheckoutOpen}
+            onClose={() => setIsCheckoutOpen(false)}
+            storeName={currentStoreName || ''}
+            items={selectedItems}
+            onConfirm={handleConfirmOrder}
+        />
     </div>
   );
 };
