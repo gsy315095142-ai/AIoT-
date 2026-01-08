@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Package, ShoppingBag, TrendingUp } from 'lucide-react';
+import { Package, ShoppingBag, TrendingUp, Info } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { ProcurementProduct } from '../components/procurement/ProcurementProduct';
 import { ProcurementOrder } from '../components/procurement/ProcurementOrder';
 import { ProcurementProgress } from '../components/procurement/ProcurementProgress';
 import { useApp } from '../context/AppContext';
 
 export const ProcurementManagement: React.FC = () => {
-  const { userRole } = useApp();
+  const navigate = useNavigate();
+  const { userRole, setHeaderRightAction } = useApp();
   const [activeTab, setActiveTab] = useState<'product' | 'order' | 'progress'>('product');
 
   // Define available tabs based on role
@@ -44,8 +46,23 @@ export const ProcurementManagement: React.FC = () => {
       }
   }, [userRole, availableTabs, activeTab]);
 
+  // Set Header Right Action (Info Icon)
+  useEffect(() => {
+      setHeaderRightAction(
+          <button 
+            onClick={() => navigate('/order-guide')}
+            className="p-2 text-slate-400 hover:text-blue-600 transition-colors rounded-full hover:bg-slate-100"
+            title="查看订单流程说明"
+          >
+              <Info size={20} />
+          </button>
+      );
+      // Cleanup on unmount
+      return () => setHeaderRightAction(null);
+  }, [setHeaderRightAction, navigate]);
+
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
       {/* Tab Navigation */}
       <div className="flex bg-white border-b border-slate-200 sticky top-0 z-10">
         {availableTabs.includes('product') && (

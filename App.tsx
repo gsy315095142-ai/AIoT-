@@ -1,4 +1,4 @@
-// 标记：本次更新调整底部导航栏顺序为：订单、客房、设备、配置，并确认桌显默认价格。
+// 标记：本次更新将订单流程说明改为独立页面，并修正角色权限显示与登录页一致。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -14,6 +14,7 @@ import { AddDevice } from './pages/AddDevice';
 import { AddStore } from './pages/AddStore';
 import { EditStore } from './pages/EditStore';
 import { DeviceProcessFlow } from './pages/DeviceProcessFlow';
+import { OrderProcessGuidePage } from './pages/OrderProcessGuidePage';
 import { LayoutDashboard, Monitor, Settings as SettingsIcon, LogOut, BedDouble, ShoppingCart } from 'lucide-react';
 import { UserRole } from './types';
 
@@ -23,24 +24,24 @@ const getAccessibleRoutes = (role: UserRole | null): string[] => {
         case 'admin':
         case 'product_director':
             // Removed /dashboard, merged into /devices
-            return ['/devices', '/audit', '/device-feedback', '/rooms', '/procurement', '/settings'];
+            return ['/devices', '/audit', '/device-feedback', '/rooms', '/procurement', '/order-guide', '/settings'];
         case 'hardware': // Project Manager
-            return ['/devices', '/rooms', '/procurement'];
+            return ['/devices', '/rooms', '/procurement', '/order-guide'];
         case 'procurement':
-            return ['/procurement'];
+            return ['/procurement', '/order-guide'];
         case 'local': // Install Engineer
-            return ['/rooms', '/procurement'];
+            return ['/rooms', '/procurement', '/order-guide'];
         case 'ops_manager':
             // Ops Manager needs access to audit and feedback
-            return ['/devices', '/audit', '/device-feedback', '/rooms', '/procurement'];
+            return ['/devices', '/audit', '/device-feedback', '/rooms', '/procurement', '/order-guide'];
         case 'business_manager':
-            return ['/devices', '/device-feedback', '/rooms', '/procurement'];
+            return ['/devices', '/device-feedback', '/rooms', '/procurement', '/order-guide'];
         case 'artist':
-            return ['/rooms', '/procurement'];
+            return ['/rooms', '/procurement', '/order-guide'];
         case 'area_manager':
         case 'area_assistant':
             // Was ['/dashboard', '/rooms', '/procurement'], now giving access to /devices container
-            return ['/devices', '/device-feedback', '/rooms', '/procurement'];
+            return ['/devices', '/device-feedback', '/rooms', '/procurement', '/order-guide'];
         default:
             return [];
     }
@@ -71,6 +72,7 @@ const MobileHeader = () => {
     if (location.pathname.startsWith('/rooms/add')) return '新增门店';
     if (location.pathname.startsWith('/rooms/edit')) return '编辑门店';
     if (location.pathname.startsWith('/device-process')) return '处理流程';
+    if (location.pathname === '/order-guide') return '流程说明';
     
     switch (location.pathname) {
       case '/dashboard': return '数据总览'; // Fallback if reached via url
@@ -159,6 +161,8 @@ const AuthenticatedApp: React.FC = () => {
                 {accessibleRoutes.includes('/rooms') && <Route path="/rooms/edit/:storeId" element={<EditStore />} />}
                 
                 {accessibleRoutes.includes('/procurement') && <Route path="/procurement" element={<ProcurementManagement />} />}
+                {accessibleRoutes.includes('/order-guide') && <Route path="/order-guide" element={<OrderProcessGuidePage />} />}
+                
                 {accessibleRoutes.includes('/settings') && <Route path="/settings" element={<Settings />} />}
                 
                 <Route path="*" element={<Navigate to={accessibleRoutes[0] || '/'} replace />} />
