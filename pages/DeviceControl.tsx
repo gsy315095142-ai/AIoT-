@@ -73,7 +73,10 @@ export const DeviceControl: React.FC = () => {
       
       const baseName = region ? region.name : '全部大区';
       
-      let label = `${baseName} (总:${total} 正常:${normal} 维修:${repairing} 客诉:${complaint}`;
+      let label = `${baseName} (总:${total}`;
+      if (normal > 0) label += ` 正常:${normal}`;
+      if (repairing > 0) label += ` 维修:${repairing}`;
+      if (complaint > 0) label += ` 客诉:${complaint}`;
       if (returned > 0) label += ` 返厂:${returned}`;
       if (scrapped > 0) label += ` 报废:${scrapped}`;
       label += `)`;
