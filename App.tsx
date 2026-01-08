@@ -1,4 +1,4 @@
-// 标记：本次更新将【确认订单信息】弹窗独立为组件，新增租借时长选择及租金总额计算，并在【订单进度】中区分显示租金总额。
+// 标记：本次更新将【采购管理】标题改为【订单管理】，并设定【桌显】默认单价及租金。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -78,7 +78,7 @@ const MobileHeader = () => {
       case '/audit': return '设备审核';
       case '/device-feedback': return '设备反馈';
       case '/rooms': return '客房管理';
-      case '/procurement': return '采购管理';
+      case '/procurement': return '订单管理';
       case '/settings': return '后台配置';
       default: return 'DeviceMaster';
     }

@@ -40,8 +40,9 @@ export const ProcurementProduct: React.FC = () => {
       setFormName('');
       setFormType('硬件');
       setFormSubType('桌显');
-      setFormPrice('');
-      setFormMonthlyRent('');
+      // Set defaults for Desk Display (桌显)
+      setFormPrice('2000');
+      setFormMonthlyRent('150');
       setFormImage('');
       setIsModalOpen(true);
   };
