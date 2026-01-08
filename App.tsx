@@ -1,4 +1,4 @@
-// 标记：本次更新将【采购管理】标题改为【订单管理】，并设定【桌显】默认单价及租金。
+// 标记：本次更新调整底部导航栏顺序为：订单、客房、设备、配置，并确认桌显默认价格。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -166,10 +166,10 @@ const AuthenticatedApp: React.FC = () => {
         </main>
 
         <nav className="bg-white border-t border-slate-200 h-16 absolute bottom-0 left-0 right-0 flex justify-around items-center z-20 pb-safe md:pb-2">
-            {/* Dashboard Link Removed */}
-            {accessibleRoutes.includes('/devices') && <BottomNavLink to="/devices" icon={Monitor} label="设备" />}
-            {accessibleRoutes.includes('/rooms') && <BottomNavLink to="/rooms" icon={BedDouble} label="客房" />}
+            {/* New Order: Order -> Rooms -> Devices -> Settings */}
             {accessibleRoutes.includes('/procurement') && <BottomNavLink to="/procurement" icon={ShoppingCart} label="订单" />}
+            {accessibleRoutes.includes('/rooms') && <BottomNavLink to="/rooms" icon={BedDouble} label="客房" />}
+            {accessibleRoutes.includes('/devices') && <BottomNavLink to="/devices" icon={Monitor} label="设备" />}
             {accessibleRoutes.includes('/settings') && <BottomNavLink to="/settings" icon={SettingsIcon} label="配置" />}
         </nav>
         
