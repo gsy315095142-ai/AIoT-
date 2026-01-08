@@ -57,7 +57,9 @@ export const DeviceRoomGrid: React.FC<DeviceRoomGridProps> = ({ roomsData, onRoo
                                                 <span key={st} className={
                                                     st === '正常' ? 'text-green-600' : 
                                                     st === '客诉' ? 'text-pink-600' : 
-                                                    st === '维修' ? 'text-purple-600' : 'text-slate-500'
+                                                    st === '维修' ? 'text-purple-600' : 
+                                                    st === '返厂' ? 'text-indigo-600' :
+                                                    st === '报废' ? 'text-gray-500' : 'text-slate-500'
                                                 }>
                                                     {st}{c}
                                                 </span>

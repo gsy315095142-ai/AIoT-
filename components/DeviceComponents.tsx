@@ -454,7 +454,7 @@ export const DeviceDetailCard: React.FC<DeviceDetailCardProps> = ({ device, onEd
 
     const getFilteredEvents = () => {
         const keywords: Record<string, string[]> = {
-            'status': ['添加', '名称', 'SN', 'MAC', '图片', '类型', '运维', '维修', '客诉', '审核', '申请', '通过', '拒绝', '运行', '待机', '未联网', '设备详情已修改', '供应商', '订单号'],
+            'status': ['添加', '名称', 'SN', 'MAC', '图片', '类型', '运维', '维修', '客诉', '审核', '申请', '通过', '拒绝', '运行', '待机', '未联网', '设备详情已修改', '供应商', '订单号', '返厂', '报废'],
             'inspection': ['门店', '房间', '软件', '启动', '测试', 'CPU', '内存', '网络', '状态', '合格', '不合格', '巡检']
         };
         const targetKeywords = keywords[activeModule] || [];
@@ -569,6 +569,8 @@ export const DeviceDetailCard: React.FC<DeviceDetailCardProps> = ({ device, onEd
                                 <div className={`p-2 rounded-lg border flex flex-col items-center justify-center gap-1 ${
                                     device.opsStatus === OpsStatus.HOTEL_COMPLAINT ? 'bg-pink-50 border-pink-200 text-pink-700' :
                                     device.opsStatus === OpsStatus.REPAIRING ? 'bg-purple-50 border-purple-200 text-purple-700' :
+                                    device.opsStatus === OpsStatus.RETURN_FACTORY ? 'bg-indigo-50 border-indigo-200 text-indigo-700' :
+                                    device.opsStatus === OpsStatus.SCRAPPED ? 'bg-gray-100 border-gray-200 text-gray-700' :
                                     'bg-green-50 border-green-200 text-green-700'
                                 }`}>
                                     <span className="text-[10px] font-bold opacity-70 uppercase flex items-center gap-1">

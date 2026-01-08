@@ -161,6 +161,8 @@ export enum OpsStatus {
   // Abnormal status removed as per requirement
   PENDING = '待审核', // Pending Audit - Kept for legacy/fallback, but logic moves to AuditRecord
   HOTEL_COMPLAINT = '客诉', // Changed from '酒店客诉' to '客诉'
+  RETURN_FACTORY = '返厂', // New: Returned to Factory
+  SCRAPPED = '报废', // New: Scrapped
 }
 
 export type DeviceEvent = {

@@ -33,7 +33,10 @@ export const DeviceList: React.FC<DeviceListProps> = ({
     const getRowStyle = (d: Device) => {
         if (d.opsStatus === OpsStatus.HOTEL_COMPLAINT) return 'bg-pink-100 border-pink-300 text-pink-900';
         if (d.opsStatus === OpsStatus.REPAIRING) return 'bg-purple-200 border-purple-300 text-purple-900';
+        if (d.opsStatus === OpsStatus.RETURN_FACTORY) return 'bg-indigo-100 border-indigo-200 text-indigo-900';
+        if (d.opsStatus === OpsStatus.SCRAPPED) return 'bg-gray-200 border-gray-300 text-gray-700';
         if (d.opsStatus === OpsStatus.PENDING) return 'bg-orange-200 border-orange-300 text-orange-900';
+        
         if (d.status === DeviceStatus.OFFLINE) return 'bg-slate-200 border-slate-300 text-slate-700';
         if (d.status === DeviceStatus.ONLINE || d.status === DeviceStatus.IN_USE) return 'bg-green-200 border-green-300 text-green-900';
         return 'bg-yellow-100 border-yellow-200 text-yellow-900'; 

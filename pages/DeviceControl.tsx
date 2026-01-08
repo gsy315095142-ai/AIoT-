@@ -68,9 +68,17 @@ export const DeviceControl: React.FC = () => {
       const normal = regionDevices.filter(d => d.opsStatus === OpsStatus.INSPECTED).length;
       const repairing = regionDevices.filter(d => d.opsStatus === OpsStatus.REPAIRING).length;
       const complaint = regionDevices.filter(d => d.opsStatus === OpsStatus.HOTEL_COMPLAINT).length;
+      const returned = regionDevices.filter(d => d.opsStatus === OpsStatus.RETURN_FACTORY).length;
+      const scrapped = regionDevices.filter(d => d.opsStatus === OpsStatus.SCRAPPED).length;
       
       const baseName = region ? region.name : '全部大区';
-      return `${baseName} (总:${total} 正常:${normal} 维修:${repairing} 客诉:${complaint})`;
+      
+      let label = `${baseName} (总:${total} 正常:${normal} 维修:${repairing} 客诉:${complaint}`;
+      if (returned > 0) label += ` 返厂:${returned}`;
+      if (scrapped > 0) label += ` 报废:${scrapped}`;
+      label += `)`;
+      
+      return label;
   };
 
   // --- Derived Data for Hierarchy ---
@@ -82,6 +90,8 @@ export const DeviceControl: React.FC = () => {
           const repairCount = devicesInStore.filter(d => d.opsStatus === OpsStatus.REPAIRING).length;
           const complaintCount = devicesInStore.filter(d => d.opsStatus === OpsStatus.HOTEL_COMPLAINT).length;
           const pendingCount = devicesInStore.filter(d => d.opsStatus === OpsStatus.PENDING).length;
+          const returnFactoryCount = devicesInStore.filter(d => d.opsStatus === OpsStatus.RETURN_FACTORY).length;
+          const scrappedCount = devicesInStore.filter(d => d.opsStatus === OpsStatus.SCRAPPED).length;
           
           const breakdown: Record<string, BreakdownStats> = {};
           devicesInStore.forEach(d => {
@@ -101,6 +111,8 @@ export const DeviceControl: React.FC = () => {
               repairCount,
               complaintCount,
               pendingCount,
+              returnFactoryCount,
+              scrappedCount,
               breakdown
           };
       });
@@ -361,6 +373,8 @@ export const DeviceControl: React.FC = () => {
                                             {store.normalCount > 0 && <span className="text-green-600 font-bold bg-green-50 px-1.5 rounded border border-green-100">正常 {store.normalCount}</span>}
                                             {store.repairCount > 0 && <span className="text-purple-600 font-bold bg-purple-50 px-1.5 rounded border border-purple-100">维修 {store.repairCount}</span>}
                                             {store.complaintCount > 0 && <span className="text-pink-600 font-bold bg-pink-50 px-1.5 rounded border border-pink-100">客诉 {store.complaintCount}</span>}
+                                            {store.returnFactoryCount > 0 && <span className="text-indigo-600 font-bold bg-indigo-50 px-1.5 rounded border border-indigo-100">返厂 {store.returnFactoryCount}</span>}
+                                            {store.scrappedCount > 0 && <span className="text-slate-600 font-bold bg-slate-100 px-1.5 rounded border border-slate-200">报废 {store.scrappedCount}</span>}
                                             {store.pendingCount > 0 && <span className="text-orange-600 font-bold bg-orange-50 px-1.5 rounded border border-orange-100">待审 {store.pendingCount}</span>}
                                         </div>
                                     </div>
@@ -382,6 +396,8 @@ export const DeviceControl: React.FC = () => {
                                                     if (status === '正常') colorClass = 'text-green-600';
                                                     else if (status === '维修') colorClass = 'text-purple-600';
                                                     else if (status === '客诉') colorClass = 'text-pink-600';
+                                                    else if (status === '返厂') colorClass = 'text-indigo-600';
+                                                    else if (status === '报废') colorClass = 'text-gray-500';
                                                     
                                                     return (
                                                         <span key={status} className={`${colorClass} font-medium flex items-center gap-0.5`}>
@@ -439,7 +455,9 @@ export const DeviceControl: React.FC = () => {
                                             <span key={st} className={`font-medium flex items-center gap-0.5 ${
                                                 st === '正常' ? 'text-green-600' : 
                                                 st === '客诉' ? 'text-pink-600' : 
-                                                st === '维修' ? 'text-purple-600' : 'text-slate-500'
+                                                st === '维修' ? 'text-purple-600' : 
+                                                st === '返厂' ? 'text-indigo-600' :
+                                                st === '报废' ? 'text-gray-500' : 'text-slate-500'
                                             }`}>
                                                 {st} {c}
                                             </span>
@@ -596,6 +614,8 @@ export const DeviceControl: React.FC = () => {
                                 <option value={OpsStatus.INSPECTED}>正常</option>
                                 <option value={OpsStatus.HOTEL_COMPLAINT}>客诉</option>
                                 <option value={OpsStatus.REPAIRING}>维修</option>
+                                <option value={OpsStatus.RETURN_FACTORY}>返厂</option>
+                                <option value={OpsStatus.SCRAPPED}>报废</option>
                             </select>
                         </div>
 

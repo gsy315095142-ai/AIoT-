@@ -1,4 +1,4 @@
-// 标记：本次更新将【客房建档】页面的客房详情弹窗拆分为独立组件。
+// 标记：本次更新在【设备管控】页面的门店列表和筛选栏中增加了【返厂】和【报废】状态的数量统计显示。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
