@@ -1,4 +1,4 @@
-// 标记：本次更新修复货物删除问题，并移除初始默认货物数据。
+// 标记：本次更新货物建档功能，新增供应商字段录入与编辑，优化删除确认提示。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

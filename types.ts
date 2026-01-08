@@ -341,6 +341,7 @@ export type Product = {
   price: number;
   monthlyRent?: number; // New field for Monthly Rent
   imageUrl?: string;
+  supplierId?: string; // New field for Supplier
 };
 
 export type ProcurementOrderItem = {

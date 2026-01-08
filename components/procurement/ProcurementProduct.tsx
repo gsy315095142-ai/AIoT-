@@ -4,7 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { Product, ProductType, ProductSubType } from '../../types';
 
 export const ProcurementProduct: React.FC = () => {
-  const { procurementProducts, addProcurementProduct, updateProcurementProduct, removeProcurementProduct } = useApp();
+  const { procurementProducts, addProcurementProduct, updateProcurementProduct, removeProcurementProduct, suppliers } = useApp();
 
   // Filters
   const [filterType, setFilterType] = useState<string>('');
@@ -22,6 +22,7 @@ export const ProcurementProduct: React.FC = () => {
   const [formPrice, setFormPrice] = useState<string>('');
   const [formMonthlyRent, setFormMonthlyRent] = useState<string>(''); // New State for Monthly Rent
   const [formImage, setFormImage] = useState<string>('');
+  const [formSupplierId, setFormSupplierId] = useState<string>('');
 
   // Constants
   const PRODUCT_TYPES: ProductType[] = ['硬件', '物料'];
@@ -61,6 +62,7 @@ export const ProcurementProduct: React.FC = () => {
       setFormPrice('2000');
       setFormMonthlyRent('150');
       setFormImage('');
+      setFormSupplierId('');
       setIsModalOpen(true);
   };
 
@@ -72,12 +74,13 @@ export const ProcurementProduct: React.FC = () => {
       setFormPrice(product.price.toString());
       setFormMonthlyRent(product.monthlyRent ? product.monthlyRent.toString() : '');
       setFormImage(product.imageUrl || '');
+      setFormSupplierId(product.supplierId || '');
       setIsModalOpen(true);
   };
 
   const handleDelete = (e: React.MouseEvent, id: string, name: string) => {
       e.stopPropagation();
-      if (window.confirm(`确定要删除货物 "${name}" 吗？`)) {
+      if (window.confirm(`是否确认删除该货物？`)) {
           removeProcurementProduct(id);
       }
   };
@@ -103,7 +106,8 @@ export const ProcurementProduct: React.FC = () => {
           subType: formSubType,
           price: parseFloat(formPrice),
           monthlyRent: formMonthlyRent ? parseFloat(formMonthlyRent) : undefined,
-          imageUrl: formImage
+          imageUrl: formImage,
+          supplierId: formSupplierId
       };
 
       if (editingProduct) {
@@ -301,6 +305,18 @@ export const ProcurementProduct: React.FC = () => {
                                 onChange={e => setFormName(e.target.value)}
                                 placeholder="输入货物名称"
                             />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">供应商</label>
+                            <select 
+                                className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
+                                value={formSupplierId}
+                                onChange={(e) => setFormSupplierId(e.target.value)}
+                            >
+                                <option value="">请选择供应商...</option>
+                                {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            </select>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
