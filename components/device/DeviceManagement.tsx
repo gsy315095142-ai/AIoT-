@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
-import { LayoutDashboard, Monitor, BookOpen } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, Monitor, BookOpen, Info } from 'lucide-react';
 import { Dashboard } from './Dashboard';
 import { ContentManagement } from './ContentManagement';
 import { DeviceControl } from './DeviceControl';
+import { useApp } from '../../context/AppContext';
 
 // Main Export with Tabs
 export const DeviceManagement: React.FC = () => {
     const location = useLocation();
+    const navigate = useNavigate();
+    const { setHeaderRightAction } = useApp();
     // Change default activeTab to 'overview'
     const [activeTab, setActiveTab] = useState<'overview' | 'devices' | 'content'>('overview');
 
@@ -16,6 +19,21 @@ export const DeviceManagement: React.FC = () => {
             setActiveTab((location.state as any).activeTab);
         }
     }, [location]);
+
+    // Set Header Right Action (Info Icon)
+    useEffect(() => {
+        setHeaderRightAction(
+            <button 
+              onClick={() => navigate('/device-guide')}
+              className="p-2 text-slate-400 hover:text-blue-600 transition-colors rounded-full hover:bg-slate-100"
+              title="查看资产管理流程说明"
+            >
+                <Info size={20} />
+            </button>
+        );
+        // Cleanup on unmount
+        return () => setHeaderRightAction(null);
+    }, [setHeaderRightAction, navigate]);
 
     return (
         <div className="flex flex-col h-full">

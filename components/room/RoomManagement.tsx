@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Ruler, Hammer } from 'lucide-react';
+import { FileText, Ruler, Hammer, Info } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { RoomArchive } from './RoomArchive';
 import { RoomMeasure } from './RoomMeasure';
 import { RoomInstall } from './RoomInstall';
 import { useApp } from '../../context/AppContext';
 
 export const RoomManagement: React.FC = () => {
-  const { userRole } = useApp();
+  const { userRole, setHeaderRightAction } = useApp();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'archive' | 'measure' | 'install'>('archive');
 
   // Define available tabs based on role
@@ -43,6 +45,21 @@ export const RoomManagement: React.FC = () => {
           setActiveTab(availableTabs[0] as any);
       }
   }, [userRole, availableTabs, activeTab]);
+
+  // Set Header Right Action (Info Icon)
+  useEffect(() => {
+      setHeaderRightAction(
+          <button 
+            onClick={() => navigate('/room-guide')}
+            className="p-2 text-slate-400 hover:text-blue-600 transition-colors rounded-full hover:bg-slate-100"
+            title="查看安装复尺流程说明"
+          >
+              <Info size={20} />
+          </button>
+      );
+      // Cleanup on unmount
+      return () => setHeaderRightAction(null);
+  }, [setHeaderRightAction, navigate]);
 
   return (
     <div className="flex flex-col h-full overflow-hidden">

@@ -1,4 +1,4 @@
-// 标记：本次更新调整脚本目录结构：把【客房资产】相关的脚本，都归到device文件夹下（包括pages文件夹下的脚本）
+// 标记：本次更新新增【安装复尺流程说明】与【资产管理流程说明】页面及入口图标
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -9,11 +9,13 @@ import { DeviceAudit } from './components/device/DeviceAudit';
 import { DeviceFeedback } from './components/device/DeviceFeedback';
 import { AddDevice } from './components/device/AddDevice';
 import { DeviceProcessFlow } from './components/device/DeviceProcessFlow';
+import { DeviceProcessGuidePage } from './components/device/DeviceProcessGuidePage'; // New
 
 import { Settings } from './pages/Settings';
 import { RoomManagement } from './components/room/RoomManagement';
 import { AddStore } from './components/room/AddStore';
 import { EditStore } from './components/room/EditStore';
+import { RoomProcessGuidePage } from './components/room/RoomProcessGuidePage'; // New
 import { ProcurementManagement } from './components/CustomerOrder/ProcurementManagement';
 import { OrderProcessGuidePage } from './components/CustomerOrder/OrderProcessGuidePage';
 import { Login } from './pages/Login';
@@ -26,24 +28,24 @@ const getAccessibleRoutes = (role: UserRole | null): string[] => {
         case 'admin':
         case 'product_director':
             // Removed /dashboard, merged into /devices
-            return ['/devices', '/audit', '/device-feedback', '/rooms', '/procurement', '/order-guide', '/settings'];
+            return ['/devices', '/device-guide', '/audit', '/device-feedback', '/rooms', '/room-guide', '/procurement', '/order-guide', '/settings'];
         case 'hardware': // Project Manager
-            return ['/devices', '/rooms', '/procurement', '/order-guide'];
+            return ['/devices', '/device-guide', '/rooms', '/room-guide', '/procurement', '/order-guide'];
         case 'procurement':
             return ['/procurement', '/order-guide'];
         case 'local': // Install Engineer
-            return ['/rooms', '/procurement', '/order-guide'];
+            return ['/rooms', '/room-guide', '/procurement', '/order-guide'];
         case 'ops_manager':
             // Ops Manager needs access to audit and feedback
-            return ['/devices', '/audit', '/device-feedback', '/rooms', '/procurement', '/order-guide'];
+            return ['/devices', '/device-guide', '/audit', '/device-feedback', '/rooms', '/room-guide', '/procurement', '/order-guide'];
         case 'business_manager':
-            return ['/devices', '/device-feedback', '/rooms', '/procurement', '/order-guide'];
+            return ['/devices', '/device-guide', '/device-feedback', '/rooms', '/room-guide', '/procurement', '/order-guide'];
         case 'artist':
-            return ['/rooms', '/procurement', '/order-guide'];
+            return ['/rooms', '/room-guide', '/procurement', '/order-guide'];
         case 'area_manager':
         case 'area_assistant':
             // Was ['/dashboard', '/rooms', '/procurement'], now giving access to /devices container
-            return ['/devices', '/device-feedback', '/rooms', '/procurement', '/order-guide'];
+            return ['/devices', '/device-guide', '/device-feedback', '/rooms', '/room-guide', '/procurement', '/order-guide'];
         default:
             return [];
     }
@@ -75,6 +77,8 @@ const MobileHeader = () => {
     if (location.pathname.startsWith('/rooms/edit')) return '编辑门店';
     if (location.pathname.startsWith('/device-process')) return '处理流程';
     if (location.pathname === '/order-guide') return '流程说明';
+    if (location.pathname === '/room-guide') return '流程说明';
+    if (location.pathname === '/device-guide') return '流程说明';
     
     switch (location.pathname) {
       case '/dashboard': return '数据总览'; // Fallback if reached via url
@@ -152,6 +156,7 @@ const AuthenticatedApp: React.FC = () => {
                 {/* Dashboard route removed, now part of Devices */}
                 {accessibleRoutes.includes('/devices') && <Route path="/devices" element={<DeviceManagement />} />}
                 {accessibleRoutes.includes('/devices') && <Route path="/devices/add" element={<AddDevice />} />}
+                {accessibleRoutes.includes('/device-guide') && <Route path="/device-guide" element={<DeviceProcessGuidePage />} />}
                 
                 {accessibleRoutes.includes('/audit') && <Route path="/audit" element={<DeviceAudit />} />}
                 
@@ -161,6 +166,7 @@ const AuthenticatedApp: React.FC = () => {
                 {accessibleRoutes.includes('/rooms') && <Route path="/rooms" element={<RoomManagement />} />}
                 {accessibleRoutes.includes('/rooms') && <Route path="/rooms/add" element={<AddStore />} />}
                 {accessibleRoutes.includes('/rooms') && <Route path="/rooms/edit/:storeId" element={<EditStore />} />}
+                {accessibleRoutes.includes('/room-guide') && <Route path="/room-guide" element={<RoomProcessGuidePage />} />}
                 
                 {accessibleRoutes.includes('/procurement') && <Route path="/procurement" element={<ProcurementManagement />} />}
                 {accessibleRoutes.includes('/order-guide') && <Route path="/order-guide" element={<OrderProcessGuidePage />} />}
