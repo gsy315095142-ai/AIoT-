@@ -1,5 +1,5 @@
 import React, { useState, useMemo, ChangeEvent } from 'react';
-import { Package, Search, Plus, Edit2, Trash2, X, ChevronDown, Image as ImageIcon, Box } from 'lucide-react';
+import { Package, Search, Plus, Edit2, Trash2, X, ChevronDown, Image as ImageIcon, Box, AlertTriangle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Product, ProductType, ProductSubType } from '../../types';
 
@@ -15,6 +15,9 @@ export const ProcurementProduct: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   
+  // Delete Confirmation State
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; id: string; name: string } | null>(null);
+
   // Form State
   const [formName, setFormName] = useState('');
   const [formType, setFormType] = useState<ProductType>('硬件');
@@ -78,10 +81,15 @@ export const ProcurementProduct: React.FC = () => {
       setIsModalOpen(true);
   };
 
-  const handleDelete = (e: React.MouseEvent, id: string, name: string) => {
+  const handleDeleteClick = (e: React.MouseEvent, id: string, name: string) => {
       e.stopPropagation();
-      if (window.confirm(`是否确认删除该货物？`)) {
-          removeProcurementProduct(id);
+      setDeleteConfirm({ isOpen: true, id, name });
+  };
+
+  const handleConfirmDelete = () => {
+      if (deleteConfirm) {
+          removeProcurementProduct(deleteConfirm.id);
+          setDeleteConfirm(null);
       }
   };
 
@@ -252,7 +260,7 @@ export const ProcurementProduct: React.FC = () => {
                             <Edit2 size={16} />
                         </button>
                         <button 
-                            onClick={(e) => handleDelete(e, product.id, product.name)}
+                            onClick={(e) => handleDeleteClick(e, product.id, product.name)}
                             className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
                         >
                             <Trash2 size={16} />
@@ -261,6 +269,38 @@ export const ProcurementProduct: React.FC = () => {
                 </div>
             ))}
         </div>
+
+        {/* Delete Confirmation Modal */}
+        {deleteConfirm && (
+            <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm" onClick={() => setDeleteConfirm(null)}>
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-xs overflow-hidden animate-scaleIn p-5" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex flex-col items-center text-center">
+                        <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4 text-red-600">
+                            <AlertTriangle size={24} />
+                        </div>
+                        <h3 className="font-bold text-slate-800 text-lg mb-2">删除确认</h3>
+                        <p className="text-sm text-slate-500 mb-6">
+                            是否确认删除该货物？<br/>
+                            <span className="font-bold text-slate-700">"{deleteConfirm.name}"</span>
+                        </p>
+                        <div className="flex gap-3 w-full">
+                            <button 
+                                onClick={() => setDeleteConfirm(null)}
+                                className="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-lg text-sm font-bold hover:bg-slate-50 transition-colors"
+                            >
+                                取消
+                            </button>
+                            <button 
+                                onClick={handleConfirmDelete}
+                                className="flex-1 py-2.5 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700 shadow-md transition-colors"
+                            >
+                                确定删除
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
 
         {/* Add/Edit Modal */}
         {isModalOpen && (
