@@ -74,7 +74,7 @@ export const ProcurementManagement: React.FC = () => {
             className={`flex-1 py-3 text-xs font-bold flex flex-col items-center gap-1 transition-colors relative ${activeTab === 'progress' ? 'text-blue-600' : 'text-slate-500'}`}
             >
                 <TrendingUp size={16} />
-                采购进度
+                订单进度
                 {activeTab === 'progress' && <div className="absolute bottom-0 w-full h-0.5 bg-blue-600"></div>}
             </button>
         )}

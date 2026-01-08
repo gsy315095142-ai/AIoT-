@@ -1,4 +1,4 @@
-// 标记：本次更新优化了【设备管控】页面的门店筛选栏显示逻辑，仅显示数量不为0的运维状态统计。
+// 标记：本次更新在【货物建档】新增租金字段，在【客户下单】将按钮改为“下订单”并增加租借/购买选项。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -169,7 +169,7 @@ const AuthenticatedApp: React.FC = () => {
             {/* Dashboard Link Removed */}
             {accessibleRoutes.includes('/devices') && <BottomNavLink to="/devices" icon={Monitor} label="设备" />}
             {accessibleRoutes.includes('/rooms') && <BottomNavLink to="/rooms" icon={BedDouble} label="客房" />}
-            {accessibleRoutes.includes('/procurement') && <BottomNavLink to="/procurement" icon={ShoppingCart} label="采购" />}
+            {accessibleRoutes.includes('/procurement') && <BottomNavLink to="/procurement" icon={ShoppingCart} label="订单" />}
             {accessibleRoutes.includes('/settings') && <BottomNavLink to="/settings" icon={SettingsIcon} label="配置" />}
         </nav>
         

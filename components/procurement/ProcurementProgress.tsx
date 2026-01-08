@@ -635,7 +635,7 @@ export const ProcurementProgress: React.FC = () => {
                     <div>
                         <h3 className="font-bold text-slate-800 flex items-center gap-2">
                             <TrendingUp size={20} className="text-blue-600" />
-                            采购进度详情
+                            订单进度详情
                         </h3>
                         <p className="text-[10px] text-slate-500 mt-0.5">订单号: {selectedOrder.id}</p>
                     </div>

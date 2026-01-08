@@ -339,6 +339,7 @@ export type Product = {
   type: ProductType;
   subType: ProductSubType;
   price: number;
+  monthlyRent?: number; // New field for Monthly Rent
   imageUrl?: string;
 };
 
@@ -373,6 +374,7 @@ export type ProcurementOrder = {
   storeName: string;
   items: ProcurementOrderItem[];
   totalPrice: number;
+  orderType?: 'purchase' | 'rent'; // New field for Purchase or Rent
   remark: string;
   expectDeliveryDate?: string; // New field
   status: 'pending_receive' | 'purchasing' | 'completed';

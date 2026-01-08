@@ -20,6 +20,7 @@ export const ProcurementProduct: React.FC = () => {
   const [formType, setFormType] = useState<ProductType>('硬件');
   const [formSubType, setFormSubType] = useState<ProductSubType>('桌显');
   const [formPrice, setFormPrice] = useState<string>('');
+  const [formMonthlyRent, setFormMonthlyRent] = useState<string>(''); // New State for Monthly Rent
   const [formImage, setFormImage] = useState<string>('');
 
   // Constants
@@ -40,6 +41,7 @@ export const ProcurementProduct: React.FC = () => {
       setFormType('硬件');
       setFormSubType('桌显');
       setFormPrice('');
+      setFormMonthlyRent('');
       setFormImage('');
       setIsModalOpen(true);
   };
@@ -50,6 +52,7 @@ export const ProcurementProduct: React.FC = () => {
       setFormType(product.type);
       setFormSubType(product.subType);
       setFormPrice(product.price.toString());
+      setFormMonthlyRent(product.monthlyRent ? product.monthlyRent.toString() : '');
       setFormImage(product.imageUrl || '');
       setIsModalOpen(true);
   };
@@ -80,6 +83,7 @@ export const ProcurementProduct: React.FC = () => {
           type: formType,
           subType: formSubType,
           price: parseFloat(formPrice),
+          monthlyRent: formMonthlyRent ? parseFloat(formMonthlyRent) : undefined,
           imageUrl: formImage
       };
 
@@ -196,8 +200,15 @@ export const ProcurementProduct: React.FC = () => {
                         <div className="flex items-center gap-2 text-[10px] text-slate-500 mb-1">
                             <span className="bg-slate-100 px-1.5 rounded text-slate-600">{product.subType}</span>
                         </div>
-                        <div className="text-sm font-bold text-orange-600">
-                            ¥ {product.price.toLocaleString()}
+                        <div className="flex items-baseline gap-2">
+                            <div className="text-sm font-bold text-orange-600">
+                                ¥ {product.price.toLocaleString()}
+                            </div>
+                            {product.monthlyRent && (
+                                <div className="text-[10px] text-slate-400">
+                                    租金: ¥ {product.monthlyRent.toLocaleString()}/月
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -287,17 +298,30 @@ export const ProcurementProduct: React.FC = () => {
                             </div>
                         </div>
 
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">单价 (¥) *</label>
-                            <input 
-                                required
-                                type="number" 
-                                step="0.01"
-                                className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                value={formPrice}
-                                onChange={e => setFormPrice(e.target.value)}
-                                placeholder="0.00"
-                            />
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">单价 (¥) *</label>
+                                <input 
+                                    required
+                                    type="number" 
+                                    step="0.01"
+                                    className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                    value={formPrice}
+                                    onChange={e => setFormPrice(e.target.value)}
+                                    placeholder="0.00"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">每月租金 (¥)</label>
+                                <input 
+                                    type="number" 
+                                    step="0.01"
+                                    className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                    value={formMonthlyRent}
+                                    onChange={e => setFormMonthlyRent(e.target.value)}
+                                    placeholder="0.00"
+                                />
+                            </div>
                         </div>
 
                         <div className="pt-2">

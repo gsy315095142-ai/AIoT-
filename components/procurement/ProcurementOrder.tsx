@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { ShoppingBag, ChevronDown, Package, Plus, Minus, Search, Check, X, ListFilter, CheckCircle, Store, ArrowLeft, TrendingUp, Box, Calendar } from 'lucide-react';
+import { ShoppingBag, ChevronDown, Package, Plus, Minus, Search, Check, X, ListFilter, CheckCircle, Store, ArrowLeft, TrendingUp, Box, Calendar, Wallet } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ProductType, ProductSubType, Product, ProcurementOrder as OrderType, Region } from '../../types';
 
@@ -23,6 +23,7 @@ export const ProcurementOrder: React.FC = () => {
   // Checkout Modal
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [remark, setRemark] = useState('');
+  const [orderType, setOrderType] = useState<'purchase' | 'rent'>('purchase'); // New State for Order Type
   
   // Default date to today's local date YYYY-MM-DD
   const [deliveryDate, setDeliveryDate] = useState(() => {
@@ -158,6 +159,7 @@ export const ProcurementOrder: React.FC = () => {
           storeName: store.name,
           items: orderItems,
           totalPrice,
+          orderType, // Pass Order Type
           remark,
           expectDeliveryDate: deliveryDate
       });
@@ -166,6 +168,7 @@ export const ProcurementOrder: React.FC = () => {
       setCart({});
       setSelectedStoreId('');
       setRemark('');
+      setOrderType('purchase'); // Reset default
       // Reset Date to Today
       const now = new Date();
       const year = now.getFullYear();
@@ -396,7 +399,12 @@ export const ProcurementOrder: React.FC = () => {
                                 <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">{product.type}</span>
                                 <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">{product.subType}</span>
                             </div>
-                            <div className="text-sm font-bold text-orange-600">¥ {product.price.toLocaleString()}</div>
+                            <div className="flex items-baseline gap-2">
+                                <div className="text-sm font-bold text-orange-600">¥ {product.price.toLocaleString()}</div>
+                                {product.monthlyRent && (
+                                    <div className="text-[10px] text-slate-400">租金: ¥ {product.monthlyRent}/月</div>
+                                )}
+                            </div>
                         </div>
 
                         {/* Qty Controls */}
@@ -448,7 +456,7 @@ export const ProcurementOrder: React.FC = () => {
                         totalCount > 0 ? 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95' : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                     }`}
                 >
-                    去结算
+                    下订单
                 </button>
             </div>
         </div>
@@ -467,6 +475,33 @@ export const ProcurementOrder: React.FC = () => {
                         <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
                             <p className="text-xs text-blue-500 mb-1 font-bold uppercase">下单门店</p>
                             <p className="font-bold text-slate-800 text-sm">{currentStoreName}</p>
+                        </div>
+
+                        {/* Order Type Selection */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">订单类型</label>
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => setOrderType('purchase')}
+                                    className={`flex-1 py-3 rounded-xl border-2 flex items-center justify-center gap-2 transition-all ${
+                                        orderType === 'purchase' 
+                                            ? 'border-blue-500 bg-blue-50 text-blue-700 font-bold' 
+                                            : 'border-slate-100 bg-white text-slate-500 hover:border-slate-200'
+                                    }`}
+                                >
+                                    <ShoppingBag size={16} /> 购买
+                                </button>
+                                <button 
+                                    onClick={() => setOrderType('rent')}
+                                    className={`flex-1 py-3 rounded-xl border-2 flex items-center justify-center gap-2 transition-all ${
+                                        orderType === 'rent' 
+                                            ? 'border-purple-500 bg-purple-50 text-purple-700 font-bold' 
+                                            : 'border-slate-100 bg-white text-slate-500 hover:border-slate-200'
+                                    }`}
+                                >
+                                    <Wallet size={16} /> 租借
+                                </button>
+                            </div>
                         </div>
 
                         {/* Items Preview */}
