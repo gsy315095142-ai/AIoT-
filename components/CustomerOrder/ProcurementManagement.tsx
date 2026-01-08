@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Package, ShoppingBag, TrendingUp, Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { CustomerOrder_GoodsFiling } from '../components/CustomerOrder/CustomerOrder_GoodsFiling';
-import { ProcurementOrder } from '../components/CustomerOrder/ProcurementOrder';
-import { ProcurementProgress } from '../components/CustomerOrder/ProcurementProgress';
-import { useApp } from '../context/AppContext';
+import { CustomerOrder_GoodsFiling } from './CustomerOrder_GoodsFiling';
+import { ProcurementOrder } from './ProcurementOrder';
+import { ProcurementProgress } from './ProcurementProgress';
+import { useApp } from '../../context/AppContext';
 
 export const ProcurementManagement: React.FC = () => {
   const navigate = useNavigate();

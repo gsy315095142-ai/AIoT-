@@ -1,4 +1,4 @@
-// 标记：本次更新调整脚本目录结构：脚本CustomerOrder_GoodsFiling.tsx 和 脚本CustomerOrder_GoodsList.tsx的功能重复了，请只保留脚本CustomerOrder_GoodsFiling.tsx
+// 标记：本次更新调整脚本目录结构：把【客户订单】相关的脚本，都归到CustomerOrder文件夹下（包括pages文件夹下的脚本）
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -8,13 +8,14 @@ import { DeviceAudit } from './pages/DeviceAudit';
 import { DeviceFeedback } from './pages/DeviceFeedback';
 import { Settings } from './pages/Settings';
 import { RoomManagement } from './pages/RoomManagement';
-import { ProcurementManagement } from './pages/ProcurementManagement';
+// Moved from pages/ to components/CustomerOrder/
+import { ProcurementManagement } from './components/CustomerOrder/ProcurementManagement';
+import { OrderProcessGuidePage } from './components/CustomerOrder/OrderProcessGuidePage';
 import { Login } from './pages/Login';
 import { AddDevice } from './pages/AddDevice';
 import { AddStore } from './pages/AddStore';
 import { EditStore } from './pages/EditStore';
 import { DeviceProcessFlow } from './pages/DeviceProcessFlow';
-import { OrderProcessGuidePage } from './pages/OrderProcessGuidePage';
 import { LayoutDashboard, Monitor, Settings as SettingsIcon, LogOut, BedDouble, ShoppingCart } from 'lucide-react';
 import { UserRole } from './types';
 
