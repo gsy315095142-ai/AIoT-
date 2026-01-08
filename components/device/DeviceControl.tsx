@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useDeviceLogic } from '../hooks/useDeviceLogic';
-import { DeviceStatus, OpsStatus, Device, Store as StoreModel, Region } from '../types';
-import { ImageManagerModal, ReportDetailModal, EventDetailModal, AuditGate } from '../components/DeviceComponents';
+import { useDeviceLogic } from '../../hooks/useDeviceLogic';
+import { DeviceStatus, OpsStatus, Device, Store as StoreModel, Region } from '../../types';
+import { ImageManagerModal, ReportDetailModal, EventDetailModal, AuditGate } from '../DeviceComponents';
 import { ChevronDown, Plus, Search, Settings2, Play, Moon, RotateCcw, Wrench, ClipboardCheck, X as XIcon, ImageIcon, ClipboardList, Monitor, Store, ArrowLeft, ArrowRight, MessageSquareWarning, ScanLine, Check, X } from 'lucide-react';
-import { ScanModal } from '../components/ScanModal';
-import { DeviceRoomGrid, RoomData, BreakdownStats } from '../components/device/DeviceRoomGrid';
-import { DeviceList } from '../components/device/DeviceList';
+import { ScanModal } from '../ScanModal';
+import { DeviceRoomGrid, RoomData, BreakdownStats } from './DeviceRoomGrid';
+import { DeviceList } from './DeviceList';
 
 // --- Types ---
 type ViewLevel = 'stores' | 'rooms' | 'deviceTypes' | 'devices';

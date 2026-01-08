@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../../context/AppContext';
 import { MessageSquareWarning, ArrowLeft, CheckCircle, XCircle, History, ChevronRight, Send, User, ChevronDown } from 'lucide-react';
-import { DeviceFeedback as DeviceFeedbackModel, FeedbackMethod, AssignableUser } from '../types';
+import { DeviceFeedback as DeviceFeedbackModel, FeedbackMethod, AssignableUser } from '../../types';
 
 // --- Helpers ---
 const getStatusConfig = (status: string) => {

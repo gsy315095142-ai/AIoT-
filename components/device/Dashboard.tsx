@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useApp } from '../context/AppContext';
-import { FilterBar } from '../components/FilterBar';
-import { StatCard, CustomXAxisTick } from '../components/DashboardWidgets';
-import { useDashboardData } from '../hooks/useDashboardData';
-import { DeviceStatus } from '../types';
+import { useApp } from '../../context/AppContext';
+import { FilterBar } from '../FilterBar';
+import { StatCard, CustomXAxisTick } from '../DashboardWidgets';
+import { useDashboardData } from '../../hooks/useDashboardData';
+import { DeviceStatus } from '../../types';
 import { Calendar, Play, Download, Settings2, Zap, Clock, AlertTriangle, Activity, AlertOctagon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 

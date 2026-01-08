@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useApp } from '../context/AppContext';
-import { FeedbackMethod, FeedbackProcessData, FeedbackDiagnosisCategory, FeedbackResolutionStatus } from '../types';
+import { useApp } from '../../context/AppContext';
+import { FeedbackMethod, FeedbackProcessData, FeedbackDiagnosisCategory, FeedbackResolutionStatus } from '../../types';
 import { Wrench, ArrowLeft, Check, CheckCircle, Headphones, Calendar, MapPin, Camera, Plus, X, FileText, ChevronLeft, ChevronRight, Play, User, Monitor, Activity, ClipboardList } from 'lucide-react';
-import { AuditGate } from '../components/DeviceComponents';
+import { AuditGate } from '../DeviceComponents';
 
 // Horizontal Stepper Component
 const Stepper = ({ steps, currentStep, onStepClick, stepStatus }: { 

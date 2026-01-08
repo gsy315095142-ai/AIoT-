@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useApp } from '../context/AppContext';
-import { AuditStatus, AuditType } from '../types';
-import { AuditGate } from '../components/DeviceComponents';
+import { useApp } from '../../context/AppContext';
+import { AuditStatus, AuditType } from '../../types';
+import { AuditGate } from '../DeviceComponents';
 import { ClipboardCheck, History, ArrowLeft, ChevronRight } from 'lucide-react';
 
 export const DeviceAudit: React.FC = () => {

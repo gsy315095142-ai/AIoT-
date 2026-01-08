@@ -1,21 +1,22 @@
-// 标记：本次更新调整脚本目录结构：把【安装复尺】相关的脚本，都归到room文件夹下（包括pages文件夹下的脚本）
+// 标记：本次更新调整脚本目录结构：把【客房资产】相关的脚本，都归到device文件夹下（包括pages文件夹下的脚本）
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
-import { Dashboard } from './pages/Dashboard';
-import { DeviceManagement } from './pages/DeviceManagement';
-import { DeviceAudit } from './pages/DeviceAudit';
-import { DeviceFeedback } from './pages/DeviceFeedback';
+// Moved from pages/ to components/device/
+import { Dashboard } from './components/device/Dashboard';
+import { DeviceManagement } from './components/device/DeviceManagement';
+import { DeviceAudit } from './components/device/DeviceAudit';
+import { DeviceFeedback } from './components/device/DeviceFeedback';
+import { AddDevice } from './components/device/AddDevice';
+import { DeviceProcessFlow } from './components/device/DeviceProcessFlow';
+
 import { Settings } from './pages/Settings';
-// Moved from pages/ to components/room/
 import { RoomManagement } from './components/room/RoomManagement';
 import { AddStore } from './components/room/AddStore';
 import { EditStore } from './components/room/EditStore';
 import { ProcurementManagement } from './components/CustomerOrder/ProcurementManagement';
 import { OrderProcessGuidePage } from './components/CustomerOrder/OrderProcessGuidePage';
 import { Login } from './pages/Login';
-import { AddDevice } from './pages/AddDevice';
-import { DeviceProcessFlow } from './pages/DeviceProcessFlow';
 import { LayoutDashboard, Monitor, Settings as SettingsIcon, LogOut, BedDouble, ShoppingCart } from 'lucide-react';
 import { UserRole } from './types';
 

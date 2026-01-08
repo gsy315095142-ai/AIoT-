@@ -1,8 +1,8 @@
 import React, { useState, useMemo, ChangeEvent, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useApp } from '../context/AppContext';
-import { DeviceImage } from '../types';
-import { CATEGORY_LIMITS, SUB_TYPE_MAPPING } from '../components/DeviceComponents';
+import { useApp } from '../../context/AppContext';
+import { DeviceImage } from '../../types';
+import { CATEGORY_LIMITS, SUB_TYPE_MAPPING } from '../DeviceComponents';
 import { Plus, X, ArrowLeft, Monitor } from 'lucide-react';
 
 interface DeviceFormState {
