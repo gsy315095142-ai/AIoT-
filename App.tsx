@@ -1,4 +1,4 @@
-// 标记：本次更新调整货物（桌显、地投、头显）的默认价格与租金配置。
+// 标记：本次更新修复货物删除问题，并移除初始默认货物数据。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';

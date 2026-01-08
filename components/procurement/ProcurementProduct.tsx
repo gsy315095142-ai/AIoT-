@@ -75,7 +75,8 @@ export const ProcurementProduct: React.FC = () => {
       setIsModalOpen(true);
   };
 
-  const handleDelete = (id: string, name: string) => {
+  const handleDelete = (e: React.MouseEvent, id: string, name: string) => {
+      e.stopPropagation();
       if (window.confirm(`确定要删除货物 "${name}" 吗？`)) {
           removeProcurementProduct(id);
       }
@@ -247,7 +248,7 @@ export const ProcurementProduct: React.FC = () => {
                             <Edit2 size={16} />
                         </button>
                         <button 
-                            onClick={() => handleDelete(product.id, product.name)}
+                            onClick={(e) => handleDelete(e, product.id, product.name)}
                             className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
                         >
                             <Trash2 size={16} />

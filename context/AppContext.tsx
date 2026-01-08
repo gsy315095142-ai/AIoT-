@@ -266,17 +266,8 @@ const MOCK_DEVICES: Device[] = [
   }
 ];
 
-// Initialize default products from device types
-const INITIAL_PRODUCTS: Product[] = MOCK_DEVICE_TYPES.map(dt => ({
-    id: `prod-auto-${dt.id}`,
-    name: `${dt.name}`, // Standardized name
-    type: '硬件',
-    subType: dt.name as ProductSubType, // Assuming device type names align with product sub types
-    price: 0,
-    imageUrl: ''
-}));
-
-const MOCK_PRODUCTS: Product[] = [...INITIAL_PRODUCTS];
+// Initialize default products (Empty as per new requirement)
+const MOCK_PRODUCTS: Product[] = [];
 
 // Mock Feedbacks - Cleared initial data
 const MOCK_FEEDBACKS: DeviceFeedback[] = [];
