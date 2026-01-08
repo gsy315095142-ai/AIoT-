@@ -34,13 +34,30 @@ export const ProcurementProduct: React.FC = () => {
       return [...SUB_TYPES_HARDWARE, ...SUB_TYPES_MATERIAL];
   };
 
+  // Logic to set default pricing based on subtype
+  const applyDefaultPricing = (subType: string) => {
+      if (subType === '桌显') {
+          setFormPrice('2000');
+          setFormMonthlyRent('150');
+      } else if (subType === '地投') {
+          setFormPrice('1888');
+          setFormMonthlyRent('120');
+      } else if (subType === '头显') {
+          setFormPrice('2500');
+          setFormMonthlyRent('200');
+      } else {
+          setFormPrice('');
+          setFormMonthlyRent('');
+      }
+  };
+
   // Handlers
   const handleOpenAdd = () => {
       setEditingProduct(null);
       setFormName('');
       setFormType('硬件');
       setFormSubType('桌显');
-      // Set defaults for Desk Display (桌显)
+      // Apply defaults for the initial sub type '桌显'
       setFormPrice('2000');
       setFormMonthlyRent('150');
       setFormImage('');
@@ -99,8 +116,17 @@ export const ProcurementProduct: React.FC = () => {
   const handleTypeChange = (newType: ProductType) => {
       setFormType(newType);
       // Reset subtype to first valid option for new type
-      if (newType === '硬件') setFormSubType(SUB_TYPES_HARDWARE[0]);
-      else setFormSubType(SUB_TYPES_MATERIAL[0]);
+      let newSubType: ProductSubType;
+      if (newType === '硬件') newSubType = SUB_TYPES_HARDWARE[0];
+      else newSubType = SUB_TYPES_MATERIAL[0];
+      
+      setFormSubType(newSubType);
+      applyDefaultPricing(newSubType);
+  };
+
+  const handleSubTypeChange = (newSubType: ProductSubType) => {
+      setFormSubType(newSubType);
+      applyDefaultPricing(newSubType);
   };
 
   // Filter Logic
@@ -292,7 +318,7 @@ export const ProcurementProduct: React.FC = () => {
                                 <select 
                                     className="w-full border border-slate-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
                                     value={formSubType}
-                                    onChange={(e) => setFormSubType(e.target.value as ProductSubType)}
+                                    onChange={(e) => handleSubTypeChange(e.target.value as ProductSubType)}
                                 >
                                     {getSubTypes(formType).map(t => <option key={t} value={t}>{t}</option>)}
                                 </select>

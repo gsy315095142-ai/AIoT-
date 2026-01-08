@@ -1,4 +1,4 @@
-// 标记：本次更新将订单流程说明改为独立页面，并修正角色权限显示与登录页一致。
+// 标记：本次更新调整货物（桌显、地投、头显）的默认价格与租金配置。
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
