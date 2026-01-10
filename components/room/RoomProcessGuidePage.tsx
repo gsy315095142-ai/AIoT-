@@ -89,7 +89,7 @@ export const RoomProcessGuidePage: React.FC = () => {
         <div className="h-full flex flex-col bg-slate-50">
             <div className="bg-white p-4 border-b border-slate-100 flex items-center gap-3 sticky top-0 z-10 shadow-sm">
                 <button 
-                    onClick={() => navigate(-1)}
+                    onClick={() => navigate('/rooms')}
                     className="p-1.5 bg-slate-100 rounded-lg hover:bg-slate-200 text-slate-600 transition-colors"
                 >
                     <ArrowLeft size={20} />
