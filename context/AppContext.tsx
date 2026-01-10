@@ -307,7 +307,7 @@ interface AppContextType {
   procurementOrders: ProcurementOrder[];
   addProcurementOrder: (order: Omit<ProcurementOrder, 'id' | 'status' | 'currentStep' | 'createTime'>) => void;
   updateProcurementOrder: (id: string, data: Partial<ProcurementOrder>) => void;
-  approveProcurementOrder: (id: string) => void; // New function
+  approveProcurementOrder: (id: string) => void; // Updated function logic
 
   // Header Action
   headerRightAction: ReactNode;
@@ -958,7 +958,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           ...orderData,
           id: `PO-${Math.floor(100000 + Math.random() * 900000)}`, // Generate Readable ID like PO-123456
           status: 'pending_receive',
-          currentStep: 0,
+          currentStep: 1, // Start at step 1 now
           createTime: new Date().toLocaleString(),
           stepData: {} // Initialize empty step data
       };
@@ -973,47 +973,58 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const order = procurementOrders.find(o => o.id === orderId);
       if (!order) return;
 
-      // 1. Mark Order as Completed
-      updateProcurementOrder(orderId, { auditStatus: 'approved', status: 'completed' });
+      // Two-stage Approval Logic
+      if (order.status === 'pending_inbound_audit') {
+          // Stage 1: Inbound Audit Approved -> Move to Outbound
+          updateProcurementOrder(orderId, { 
+              auditStatus: 'approved', 
+              status: 'outbound_processing',
+              currentStep: 4 // Move to Step 4 (Logistics)
+          });
+          // Reset audit status after state change so it's clean for next phase?
+          // Actually 'approved' is fine until we need to audit again. 
+          // But visually we might want to clear it. For simplicity we keep 'approved' as last audit result.
+      } else if (order.status === 'pending_outbound_audit') {
+          // Stage 2: Outbound Audit Approved -> Complete & Create Devices
+          updateProcurementOrder(orderId, { auditStatus: 'approved', status: 'completed' });
 
-      // 2. Auto-create devices
-      const store = stores.find(s => s.id === order.storeId);
-      const regionId = store?.regionId || 'unknown';
+          // Auto-create devices
+          const store = stores.find(s => s.id === order.storeId);
+          const regionId = store?.regionId || 'unknown';
 
-      // Iterate items and create devices for hardware
-      order.items.forEach(item => {
-          // Find original product to check type
-          const product = procurementProducts.find(p => p.id === item.productId);
-          
-          if (product && product.type === '硬件') {
-              // Try to map Product SubType to Device Type ID
-              // MOCK_DEVICE_TYPES: [{id: 't1', name: '桌显'}, {id: 't2', name: '地投'}, {id: 't3', name: '头显'}]
-              const matchedType = deviceTypes.find(t => product.subType.includes(t.name) || t.name.includes(product.subType));
-              const typeId = matchedType ? matchedType.id : '';
+          // Iterate items and create devices for hardware
+          order.items.forEach(item => {
+              // Find original product to check type
+              const product = procurementProducts.find(p => p.id === item.productId);
+              
+              if (product && product.type === '硬件') {
+                  const matchedType = deviceTypes.find(t => product.subType.includes(t.name) || t.name.includes(product.subType));
+                  const typeId = matchedType ? matchedType.id : '';
 
-              if (typeId) {
-                  // Create 'quantity' number of devices
-                  for (let i = 0; i < item.quantity; i++) {
-                      addDevice({
-                          name: `新设备-${item.productName}-${i + 1}`,
-                          sn: '待录入', // Placeholder
-                          mac: '',
-                          regionId: regionId,
-                          storeId: order.storeId,
-                          typeId: typeId,
-                          subType: product.subType, // Keep subType from product
-                          supplierId: '', // To be filled
-                          orderId: order.id, // Link to Order
-                          roomNumber: '待分配',
-                          softwareName: '',
-                          firstStartTime: new Date().toLocaleString().replace(/\//g, '-'), // Placeholder date
-                          imageUrl: item.imageUrl,
-                          images: item.imageUrl ? [{ url: item.imageUrl, category: '设备外观' }] : []
-                      });
+                  if (typeId) {
+                      // Create 'quantity' number of devices
+                      for (let i = 0; i < item.quantity; i++) {
+                          addDevice({
+                              name: `新设备-${item.productName}-${i + 1}`,
+                              sn: '待录入', // Placeholder
+                              mac: '',
+                              regionId: regionId,
+                              storeId: order.storeId,
+                              typeId: typeId,
+                              subType: product.subType, // Keep subType from product
+                              supplierId: '', // To be filled
+                              orderId: order.id, // Link to Order
+                              roomNumber: '待分配',
+                              softwareName: '',
+                              firstStartTime: new Date().toLocaleString().replace(/\//g, '-'), // Placeholder date
+                              imageUrl: item.imageUrl,
+                              images: item.imageUrl ? [{ url: item.imageUrl, category: '设备外观' }] : []
+                          });
+                      }
                   }
               }
-          }
-      });
+          });
+      }
   };
 
   return (

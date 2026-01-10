@@ -357,18 +357,25 @@ export type ProcurementStepData = {
     logisticsLink?: string; // Legacy: Single string support
     logisticsItems?: { id: string; name: string; url: string; images?: string[] }[]; // New: Multiple links with images
     completionTime?: string; // New field for step completion timestamp
-    artAuditEntered?: boolean; // New: For Step 4 Audit
-    artAuditCompleted?: boolean; // New: For Step 4 Audit
+    artAuditEntered?: boolean; // Legacy field (can be kept or removed)
+    artAuditCompleted?: boolean; // Legacy field (can be kept or removed)
 };
 
-// Procurement Process Steps: 
-// 0: Pending Receive (Not started in progress flow yet)
-// 1: Confirmed (确认订单)
+// Updated Statuses for Inbound/Outbound Split
+export type ProcurementOrderStatus = 
+  | 'pending_receive'        // 待接收 (Step 1 Pending)
+  | 'inbound_processing'     // 入库进行中 (Steps 1-3)
+  | 'pending_inbound_audit'  // 入库待审核 (Wait for Inbound Audit)
+  | 'outbound_processing'    // 出库进行中 (Steps 4-5)
+  | 'pending_outbound_audit' // 出库待审核 (收货审核 - Wait for Receipt Audit)
+  | 'completed';             // 完成 (Archived)
+
+// Procurement Process Steps (Redefined): 
+// 1: Confirm Order (确认订单)
 // 2: Stocking (备货)
-// 3: Packing (出库打包)
-// 4: Outbound Audit (出库审核) - NEW
-// 5: Logistics (物流)
-// 6: Signed (签收)
+// 3: Outbound (出库) -> Followed by Inbound Audit
+// 4: Logistics (物流)
+// 5: Confirm Receipt (确认收货) -> Followed by Outbound Audit
 export type ProcurementOrder = {
   id: string;
   storeId: string;
@@ -379,10 +386,10 @@ export type ProcurementOrder = {
   rentDuration?: number; // New field for Rent Duration (Months)
   remark: string;
   expectDeliveryDate?: string; // New field
-  status: 'pending_receive' | 'purchasing' | 'completed';
-  currentStep: number; // 0 to 6
+  status: ProcurementOrderStatus; // Updated Type
+  currentStep: number; // 1 to 5
   createTime: string;
   stepData?: Record<number, ProcurementStepData>; // Stores images/links for each step
-  auditStatus?: 'pending' | 'approved' | 'rejected'; // New: Audit after signing
+  auditStatus?: 'pending' | 'approved' | 'rejected'; // Tracks current pending audit result
   rejectReason?: string; // New: Reason for rejection
 };

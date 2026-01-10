@@ -1,4 +1,4 @@
-// 标记：本次更新新增【安装复尺流程说明】与【资产管理流程说明】页面及入口图标
+// 标记：本次更新【订单进度】页面重构：将入库订单与出库订单的流程逻辑拆分为独立的脚本组件
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
