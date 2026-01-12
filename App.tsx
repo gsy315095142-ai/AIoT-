@@ -1,4 +1,4 @@
-// 标记：本次更新：微调代码适配网页显示，去除模拟手机外框，优化全屏体验，确保项目在网页端正常呈现
+// 标记：本次更新：优化布局容器，修复网页端显示问题，确保各页面内部滚动正常
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -96,7 +96,7 @@ const MobileHeader = () => {
   const isHomePage = location.pathname === accessibleRoutes[0];
 
   return (
-    <div className="bg-white border-b border-slate-100 p-4 sticky top-0 z-20 flex items-center justify-center shadow-sm h-14 relative">
+    <div className="bg-white border-b border-slate-100 p-4 sticky top-0 z-20 flex items-center justify-center shadow-sm h-14 relative shrink-0">
       {isHomePage && (
           <button 
             onClick={logout}
@@ -147,11 +147,17 @@ const AuthenticatedApp: React.FC = () => {
 
   return (
     <>
-        <div className="mt-0">
+        <div className="mt-0 shrink-0">
             <MobileHeader />
         </div>
 
-        <main className="flex-1 overflow-y-auto no-scrollbar bg-slate-50 relative pb-20">
+        {/* 
+           Changed from overflow-y-auto to overflow-hidden.
+           The child components (DeviceManagement, RoomManagement, etc.) handle their own scrolling
+           via flex-1 and overflow-y-auto internal containers.
+           This prevents double scrollbars and ensures sticky headers inside pages work correctly.
+        */}
+        <main className="flex-1 overflow-hidden bg-slate-50 relative pb-20">
             <Routes>
                 {/* Dashboard route removed, now part of Devices */}
                 {accessibleRoutes.includes('/devices') && <Route path="/devices" element={<DeviceManagement />} />}
@@ -194,7 +200,7 @@ const AppContent: React.FC = () => {
     const { currentUser } = useApp();
 
     return (
-        <div className="h-[100dvh] w-full flex justify-center bg-slate-100 font-sans">
+        <div className="h-screen w-full flex justify-center bg-slate-100 font-sans">
             <div className="w-full max-w-md h-full bg-slate-50 flex flex-col relative shadow-xl overflow-hidden">
                 {currentUser ? <AuthenticatedApp /> : <Login />}
             </div>
