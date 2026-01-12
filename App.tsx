@@ -1,4 +1,4 @@
-// 标记：本次更新：优化布局容器，修复网页端显示问题，确保各页面内部滚动正常
+// 标记：本次更新：优化代码适配网页端显示，使用fixed布局提升兼容性，同时保持移动端模拟界面风格不变
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -200,8 +200,9 @@ const AppContent: React.FC = () => {
     const { currentUser } = useApp();
 
     return (
-        <div className="h-screen w-full flex justify-center bg-slate-100 font-sans">
-            <div className="w-full max-w-md h-full bg-slate-50 flex flex-col relative shadow-xl overflow-hidden">
+        <div className="fixed inset-0 w-full h-[100dvh] flex justify-center bg-slate-100 font-sans overflow-hidden">
+            {/* Keep max-w-md to simulate mobile interface on desktop, but allow full width on mobile devices */}
+            <div className="w-full max-w-md h-full bg-slate-50 flex flex-col relative shadow-2xl overflow-hidden">
                 {currentUser ? <AuthenticatedApp /> : <Login />}
             </div>
         </div>
