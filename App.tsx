@@ -1,4 +1,4 @@
-// 标记：本次更新：修改各流程说明页面的返回按钮跳转逻辑，分别返回至对应的货物建档、客房建档及数据总览页面
+// 标记：本次更新：微调代码适配网页显示，去除模拟手机外框，优化全屏体验，确保项目在网页端正常呈现
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -194,9 +194,8 @@ const AppContent: React.FC = () => {
     const { currentUser } = useApp();
 
     return (
-        <div className="min-h-screen bg-slate-900 flex justify-center items-center md:py-8 font-sans">
-            {/* Phone Frame - Added transform scale-100 to create a new stacking context for fixed children */}
-            <div className="bg-slate-50 w-full h-[100vh] md:h-[700px] md:max-w-[400px] md:rounded-[40px] md:border-[10px] md:border-slate-800 shadow-2xl overflow-hidden flex flex-col relative transition-all duration-500 transform scale-100">
+        <div className="h-[100dvh] w-full flex justify-center bg-slate-100 font-sans">
+            <div className="w-full max-w-md h-full bg-slate-50 flex flex-col relative shadow-xl overflow-hidden">
                 {currentUser ? <AuthenticatedApp /> : <Login />}
             </div>
         </div>
