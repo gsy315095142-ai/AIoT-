@@ -1,4 +1,4 @@
-// 标记：本次更新：优化代码适配网页端显示，使用fixed布局提升兼容性，同时保持移动端模拟界面风格不变
+// 标记：本次更新：修复网页端显示问题，确保应用可见，保持模拟手机界面布局
 import React from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -200,9 +200,12 @@ const AppContent: React.FC = () => {
     const { currentUser } = useApp();
 
     return (
-        <div className="fixed inset-0 w-full h-[100dvh] flex justify-center bg-slate-100 font-sans overflow-hidden">
-            {/* Keep max-w-md to simulate mobile interface on desktop, but allow full width on mobile devices */}
-            <div className="w-full max-w-md h-full bg-slate-50 flex flex-col relative shadow-2xl overflow-hidden">
+        // Using fixed positioning and high z-index to ensure it covers the body background
+        // bg-gray-100 provides contrast against the mobile app container (which is white/slate-50)
+        // h-screen ensures height is consistent across browsers
+        <div className="fixed inset-0 w-full h-screen flex justify-center bg-gray-100 font-sans overflow-hidden z-[9999]">
+            {/* Mobile Simulation Container with shadow and max-width */}
+            <div className="w-full max-w-md h-full bg-slate-50 flex flex-col relative shadow-2xl overflow-hidden border-x border-slate-200">
                 {currentUser ? <AuthenticatedApp /> : <Login />}
             </div>
         </div>
